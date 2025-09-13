@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/username/gh-star-search/internal/query"
+	"github.com/kyleking/gh-star-search/internal/query"
 )
 
 func TestClient_Configure(t *testing.T) {

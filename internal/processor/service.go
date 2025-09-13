@@ -12,7 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/username/gh-star-search/internal/github"
+	"github.com/kyleking/gh-star-search/internal/github"
 )
 
 // Service defines the interface for content processing operations

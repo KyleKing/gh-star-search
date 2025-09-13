@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/username/gh-star-search/cmd"
+	"github.com/kyleking/gh-star-search/cmd"
 )
 
 func main() {

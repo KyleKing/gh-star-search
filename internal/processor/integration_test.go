@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/username/gh-star-search/internal/github"
+	"github.com/kyleking/gh-star-search/internal/github"
 )
 
 

@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/username/gh-star-search/internal/types"
+	"github.com/kyleking/gh-star-search/internal/types"
 )
 
 // Manager handles multiple LLM providers with fallback strategies

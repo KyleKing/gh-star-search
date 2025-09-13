@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/username/gh-star-search/internal/github"
+	"github.com/kyleking/gh-star-search/internal/github"
 )
 
 func ExampleClient_GetStarredRepos() {

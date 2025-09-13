@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/username/gh-star-search/internal/llm"
+	"github.com/kyleking/gh-star-search/internal/llm"
 )
 
 // TestNaturalLanguageQueryExamples demonstrates various natural language queries

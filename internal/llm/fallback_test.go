@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/username/gh-star-search/internal/query"
+	"github.com/kyleking/gh-star-search/internal/query"
 )
 
 func TestFallbackService_Summarize(t *testing.T) {

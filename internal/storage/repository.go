@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/username/gh-star-search/internal/processor"
+	"github.com/kyleking/gh-star-search/internal/processor"
 )
 
 // Repository defines the interface for database operations

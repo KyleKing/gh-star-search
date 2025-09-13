@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/username/gh-star-search/internal/github"
-	"github.com/username/gh-star-search/internal/processor"
+	"github.com/kyleking/gh-star-search/internal/github"
+	"github.com/kyleking/gh-star-search/internal/processor"
 )
 
 // ExampleDuckDBRepository demonstrates basic usage of the DuckDB storage layer

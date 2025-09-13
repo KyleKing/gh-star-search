@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/username/gh-star-search/internal/llm"
+	"github.com/kyleking/gh-star-search/internal/llm"
 )
 
 // Config represents the application configuration

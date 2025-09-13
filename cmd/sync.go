@@ -11,11 +11,11 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
-	"github.com/username/gh-star-search/internal/config"
-	"github.com/username/gh-star-search/internal/github"
-	"github.com/username/gh-star-search/internal/llm"
-	"github.com/username/gh-star-search/internal/processor"
-	"github.com/username/gh-star-search/internal/storage"
+	"github.com/kyleking/gh-star-search/internal/config"
+	"github.com/kyleking/gh-star-search/internal/github"
+	"github.com/kyleking/gh-star-search/internal/llm"
+	"github.com/kyleking/gh-star-search/internal/processor"
+	"github.com/kyleking/gh-star-search/internal/storage"
 )
 
 var syncCmd = &cobra.Command{

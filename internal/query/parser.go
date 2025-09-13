@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/username/gh-star-search/internal/llm"
+	"github.com/kyleking/gh-star-search/internal/llm"
 )
 
 // Parser defines the interface for natural language query parsing

@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	_ "github.com/marcboeker/go-duckdb"
-	"github.com/username/gh-star-search/internal/processor"
+	"github.com/kyleking/gh-star-search/internal/processor"
 )
 
 // DuckDBRepository implements the Repository interface using DuckDB

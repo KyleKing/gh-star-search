@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/username/gh-star-search/internal/config"
-	"github.com/username/gh-star-search/internal/github"
-	"github.com/username/gh-star-search/internal/processor"
-	"github.com/username/gh-star-search/internal/storage"
+	"github.com/kyleking/gh-star-search/internal/config"
+	"github.com/kyleking/gh-star-search/internal/github"
+	"github.com/kyleking/gh-star-search/internal/processor"
+	"github.com/kyleking/gh-star-search/internal/storage"
 )
 
 // TestSyncIntegration tests the complete sync workflow end-to-end with enhanced change detection

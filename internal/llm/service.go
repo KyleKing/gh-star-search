@@ -3,7 +3,7 @@ package llm
 import (
 	"context"
 
-	"github.com/username/gh-star-search/internal/types"
+	"github.com/kyleking/gh-star-search/internal/types"
 )
 
 // Service defines the interface for LLM operations

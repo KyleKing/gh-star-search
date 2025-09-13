@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/username/gh-star-search/internal/types"
+	"github.com/kyleking/gh-star-search/internal/types"
 )
 
 // Client implements the Service interface with multiple provider support

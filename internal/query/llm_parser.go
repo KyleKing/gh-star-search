@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/username/gh-star-search/internal/llm"
-	"github.com/username/gh-star-search/internal/types"
+	"github.com/kyleking/gh-star-search/internal/llm"
+	"github.com/kyleking/gh-star-search/internal/types"
 )
 
 // LLMParser implements the Parser interface using LLM services

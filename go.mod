@@ -1,4 +1,4 @@
-module github.com/username/gh-star-search
+module github.com/kyleking/gh-star-search
 
 go 1.24
 

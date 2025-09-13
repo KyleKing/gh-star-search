@@ -9,37 +9,43 @@ A GitHub CLI extension that enables intelligent search over your starred reposit
 ## Installation
 
 ```bash
-gh extension install username/gh-star-search
+gh extension install kyleking/gh-star-search
 ```
 
 ## Usage
 
 ### Sync your starred repositories
+
 ```bash
 gh star-search sync
 ```
 
 ### Search using natural language
+
 ```bash
 gh star-search query "javascript formatter updated in last month"
 ```
 
 ### List all repositories
+
 ```bash
 gh star-search list
 ```
 
 ### Get repository information
+
 ```bash
 gh star-search info owner/repo-name
 ```
 
 ### View database statistics
+
 ```bash
 gh star-search stats
 ```
 
 ### Clear the database
+
 ```bash
 gh star-search clear
 ```
@@ -79,11 +85,13 @@ gh-star-search/
 ## Development
 
 ### Building
+
 ```bash
 go build -o gh-star-search
 ```
 
 ### Testing
+
 ```bash
 go test ./...
 ```
@@ -91,3 +99,4 @@ go test ./...
 ## License
 
 MIT License
+

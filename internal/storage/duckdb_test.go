@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/username/gh-star-search/internal/github"
-	"github.com/username/gh-star-search/internal/processor"
+	"github.com/kyleking/gh-star-search/internal/github"
+	"github.com/kyleking/gh-star-search/internal/processor"
 )
 
 func TestDuckDBRepository(t *testing.T) {

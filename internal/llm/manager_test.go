@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/username/gh-star-search/internal/query"
+	"github.com/kyleking/gh-star-search/internal/query"
 )
 
 // MockService implements the Service interface for testing

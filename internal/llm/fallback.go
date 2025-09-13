@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/username/gh-star-search/internal/types"
+	"github.com/kyleking/gh-star-search/internal/types"
 )
 
 // FallbackService provides basic functionality when LLM services are unavailable
