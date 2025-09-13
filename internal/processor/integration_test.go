@@ -10,6 +10,8 @@ import (
 	"github.com/username/gh-star-search/internal/github"
 )
 
+
+
 func TestIntegrationContentExtraction(t *testing.T) {
 	// Read test fixtures
 	readmeContent, err := os.ReadFile(filepath.Join("testdata", "sample_readme.md"))
@@ -84,7 +86,8 @@ func TestIntegrationContentExtraction(t *testing.T) {
 
 	// Create service
 	client := &mockGitHubClient{content: content}
-	service := NewService(client)
+	llmService := &mockLLMService{}
+	service := NewService(client, llmService)
 
 	// Test full processing pipeline
 	ctx := context.Background()
@@ -189,7 +192,8 @@ func TestIntegrationContentExtractionWithLargeContent(t *testing.T) {
 	}
 
 	client := &mockGitHubClient{content: content}
-	service := NewService(client)
+	llmService := &mockLLMService{}
+	service := NewService(client, llmService)
 
 	ctx := context.Background()
 	processed, err := service.ProcessRepository(ctx, repo, content)
@@ -240,7 +244,8 @@ func TestIntegrationContentExtractionErrorHandling(t *testing.T) {
 	}
 
 	client := &mockGitHubClient{content: invalidContent}
-	service := NewService(client)
+	llmService := &mockLLMService{}
+	service := NewService(client, llmService)
 
 	ctx := context.Background()
 	processed, err := service.ProcessRepository(ctx, repo, invalidContent)

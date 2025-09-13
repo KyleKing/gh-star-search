@@ -9,6 +9,8 @@ import (
 	"github.com/username/gh-star-search/internal/github"
 )
 
+
+
 func BenchmarkProcessRepository(b *testing.B) {
 	// Create a realistic repository with multiple files
 	repo := github.Repository{
@@ -47,7 +49,8 @@ func BenchmarkProcessRepository(b *testing.B) {
 	}
 
 	client := &mockGitHubClient{content: content}
-	service := NewService(client)
+	llmService := &mockLLMService{}
+	service := NewService(client, llmService)
 	ctx := context.Background()
 
 	b.ResetTimer()

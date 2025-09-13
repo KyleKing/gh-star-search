@@ -50,7 +50,7 @@ type QueryOperation struct {
 
 // Schema represents the database schema for query generation
 type Schema struct {
-	Tables []Table `json:"tables"`
+	Tables map[string]Table `json:"tables"`
 }
 
 // Table represents a database table schema
