@@ -23,7 +23,7 @@ type Repository interface {
 
 // StoredRepo represents a repository as stored in the database
 type StoredRepo struct {
-	ID                     int                   `json:"id"`
+	ID                     string                `json:"id"`
 	FullName               string                `json:"full_name"`
 	Description            string                `json:"description"`
 	Language               string                `json:"language"`

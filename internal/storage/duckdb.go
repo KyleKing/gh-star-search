@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/google/uuid"
 	_ "github.com/marcboeker/go-duckdb"
 	"github.com/username/gh-star-search/internal/processor"
 )
@@ -60,13 +61,8 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 	useCasesJSON, _ := json.Marshal(repo.Summary.UseCases)
 	featuresJSON, _ := json.Marshal(repo.Summary.Features)
 
-	// Get the next available repository ID
-	var maxRepoID int64
-	err = tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(id), 0) FROM repositories").Scan(&maxRepoID)
-	if err != nil {
-		return fmt.Errorf("failed to get max repository ID: %w", err)
-	}
-	repoID := maxRepoID + 1
+	// Generate a new UUID for the repository
+	repoID := uuid.New().String()
 
 	// Insert repository
 	insertRepoSQL := `
@@ -111,19 +107,12 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 
 	// Insert content chunks
 	if len(repo.Chunks) > 0 {
-		// Get the next available chunk ID
-		var maxChunkID int64
-		err = tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(id), 0) FROM content_chunks").Scan(&maxChunkID)
-		if err != nil {
-			return fmt.Errorf("failed to get max chunk ID: %w", err)
-		}
-
 		insertChunkSQL := `
 		INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`
 
-		for i, chunk := range repo.Chunks {
-			chunkID := maxChunkID + int64(i) + 1
+		for _, chunk := range repo.Chunks {
+			chunkID := uuid.New().String()
 			_, err := tx.ExecContext(ctx, insertChunkSQL,
 				chunkID,
 				repoID,
@@ -147,27 +136,21 @@ func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.
 	// For now, let's use a simple approach: delete the old repository and insert the new one
 	// This avoids the complex update logic that's causing issues
 	
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
 	// Get the repository ID first
-	var repoID int64
-	err = tx.QueryRowContext(ctx, "SELECT id FROM repositories WHERE full_name = ?", repo.Repository.FullName).Scan(&repoID)
+	var repoID string
+	err := r.db.QueryRowContext(ctx, "SELECT id FROM repositories WHERE full_name = ?", repo.Repository.FullName).Scan(&repoID)
 	if err != nil {
 		return fmt.Errorf("failed to get repository ID: %w", err)
 	}
 
 	// Delete existing chunks
-	_, err = tx.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", repoID)
+	_, err = r.db.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", repoID)
 	if err != nil {
 		return fmt.Errorf("failed to delete existing chunks: %w", err)
 	}
 
 	// Delete the repository
-	_, err = tx.ExecContext(ctx, "DELETE FROM repositories WHERE id = ?", repoID)
+	_, err = r.db.ExecContext(ctx, "DELETE FROM repositories WHERE id = ?", repoID)
 	if err != nil {
 		return fmt.Errorf("failed to delete repository: %w", err)
 	}
@@ -193,7 +176,7 @@ func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.
 		licenseSPDXID = repo.Repository.License.SPDXID
 	}
 
-	_, err = tx.ExecContext(ctx, insertRepoSQL,
+	_, err = r.db.ExecContext(ctx, insertRepoSQL,
 		repoID, // Use the same ID
 		repo.Repository.FullName,
 		repo.Repository.Description,
@@ -221,20 +204,13 @@ func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.
 
 	// Insert content chunks if any
 	if len(repo.Chunks) > 0 {
-		// Get the next available chunk ID
-		var maxChunkID int64
-		err = tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(id), 0) FROM content_chunks").Scan(&maxChunkID)
-		if err != nil {
-			return fmt.Errorf("failed to get max chunk ID: %w", err)
-		}
-
 		insertChunkSQL := `
 		INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`
 
-		for i, chunk := range repo.Chunks {
-			chunkID := maxChunkID + int64(i) + 1
-			_, err := tx.ExecContext(ctx, insertChunkSQL,
+		for _, chunk := range repo.Chunks {
+			chunkID := uuid.New().String()
+			_, err := r.db.ExecContext(ctx, insertChunkSQL,
 				chunkID,
 				repoID,
 				chunk.Source,
@@ -249,20 +225,14 @@ func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.
 		}
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 // DeleteRepository removes a repository and its chunks from the database
 func (r *DuckDBRepository) DeleteRepository(ctx context.Context, fullName string) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
 	// Get repository ID first
-	var repoID int64
-	err = tx.QueryRowContext(ctx, "SELECT id FROM repositories WHERE full_name = ?", fullName).Scan(&repoID)
+	var repoID string
+	err := r.db.QueryRowContext(ctx, "SELECT id FROM repositories WHERE full_name = ?", fullName).Scan(&repoID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil // Repository doesn't exist, nothing to delete
@@ -271,18 +241,18 @@ func (r *DuckDBRepository) DeleteRepository(ctx context.Context, fullName string
 	}
 
 	// Delete chunks first
-	_, err = tx.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", repoID)
+	_, err = r.db.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", repoID)
 	if err != nil {
 		return fmt.Errorf("failed to delete content chunks: %w", err)
 	}
 
 	// Delete repository
-	_, err = tx.ExecContext(ctx, "DELETE FROM repositories WHERE id = ?", repoID)
+	_, err = r.db.ExecContext(ctx, "DELETE FROM repositories WHERE id = ?", repoID)
 	if err != nil {
 		return fmt.Errorf("failed to delete repository: %w", err)
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 // GetRepository retrieves a specific repository by full name
@@ -339,7 +309,7 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 }
 
 // getRepositoryChunks retrieves all chunks for a repository
-func (r *DuckDBRepository) getRepositoryChunks(ctx context.Context, repoID int) ([]processor.ContentChunk, error) {
+func (r *DuckDBRepository) getRepositoryChunks(ctx context.Context, repoID string) ([]processor.ContentChunk, error) {
 	query := `
 	SELECT source_path, chunk_type, content, tokens, priority
 	FROM content_chunks WHERE repository_id = ?
@@ -554,25 +524,19 @@ func (r *DuckDBRepository) GetStats(ctx context.Context) (*Stats, error) {
 
 // Clear removes all data from the database
 func (r *DuckDBRepository) Clear(ctx context.Context) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
 	// Delete all content chunks first (due to foreign key constraint)
-	_, err = tx.ExecContext(ctx, "DELETE FROM content_chunks")
+	_, err := r.db.ExecContext(ctx, "DELETE FROM content_chunks")
 	if err != nil {
 		return fmt.Errorf("failed to clear content chunks: %w", err)
 	}
 
 	// Delete all repositories
-	_, err = tx.ExecContext(ctx, "DELETE FROM repositories")
+	_, err = r.db.ExecContext(ctx, "DELETE FROM repositories")
 	if err != nil {
 		return fmt.Errorf("failed to clear repositories: %w", err)
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 // Close closes the database connection

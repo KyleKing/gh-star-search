@@ -34,7 +34,7 @@ func (m *MigrationManager) GetMigrations() []Migration {
 			Description: "Initial schema creation",
 			Up: `
 				CREATE TABLE IF NOT EXISTS repositories (
-					id INTEGER PRIMARY KEY,
+					id VARCHAR PRIMARY KEY,
 					full_name VARCHAR UNIQUE NOT NULL,
 					description TEXT,
 					language VARCHAR,
@@ -57,15 +57,15 @@ func (m *MigrationManager) GetMigrations() []Migration {
 				);
 
 				CREATE TABLE IF NOT EXISTS content_chunks (
-					id INTEGER PRIMARY KEY,
-					repository_id BIGINT,
+					id VARCHAR PRIMARY KEY,
+					repository_id VARCHAR,
 					source_path VARCHAR NOT NULL,
 					chunk_type VARCHAR NOT NULL,
 					content TEXT NOT NULL,
 					tokens INTEGER,
 					priority INTEGER,
 					created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-					-- FOREIGN KEY (repository_id) REFERENCES repositories(id)
+					FOREIGN KEY (repository_id) REFERENCES repositories(id)
 				);
 
 				CREATE INDEX IF NOT EXISTS idx_repositories_language ON repositories(language);
@@ -86,6 +86,7 @@ func (m *MigrationManager) GetMigrations() []Migration {
 				DROP TABLE IF EXISTS repositories;
 			`,
 		},
+
 		// Future migrations can be added here
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -14,7 +15,9 @@ import (
 // ExampleDuckDBRepository demonstrates basic usage of the DuckDB storage layer
 func ExampleDuckDBRepository() {
 	// Create a temporary database
-	dbPath := filepath.Join("/tmp", "example.db")
+	tempDir, _ := os.MkdirTemp("", "example_test")
+	defer os.RemoveAll(tempDir)
+	dbPath := filepath.Join(tempDir, "example.db")
 	
 	// Create repository instance
 	repo, err := NewDuckDBRepository(dbPath)
@@ -103,6 +106,7 @@ func ExampleDuckDBRepository() {
 		stats.TotalRepositories, stats.TotalContentChunks)
 
 	// Output:
+	// Applying migration 1: Initial schema creation
 	// Found 1 repositories matching 'awesome'
 	// - example/awesome-project: An awesome example project
 	// Database contains 1 repositories and 2 content chunks
