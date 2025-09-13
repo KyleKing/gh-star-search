@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/username/gh-star-search/internal/query"
+	"github.com/username/gh-star-search/internal/types"
 )
 
 // FallbackService provides basic functionality when LLM services are unavailable
@@ -37,7 +37,7 @@ func (f *FallbackService) Summarize(ctx context.Context, prompt string, content 
 }
 
 // ParseQuery provides basic query parsing without LLM
-func (f *FallbackService) ParseQuery(ctx context.Context, query string, schema query.Schema) (*QueryResponse, error) {
+func (f *FallbackService) ParseQuery(ctx context.Context, query string, schema types.Schema) (*QueryResponse, error) {
 	sql, explanation := f.parseBasicQuery(query, schema)
 	
 	response := &QueryResponse{
@@ -300,7 +300,7 @@ func (f *FallbackService) extractUsage(content string) string {
 }
 
 // parseBasicQuery provides simple query parsing without LLM
-func (f *FallbackService) parseBasicQuery(query string, schema query.Schema) (string, string) {
+func (f *FallbackService) parseBasicQuery(query string, schema types.Schema) (string, string) {
 	queryLower := strings.ToLower(query)
 	
 	// Check for specific technologies first (more specific than generic list/show)

@@ -2,6 +2,9 @@ package query
 
 import (
 	"context"
+	"database/sql"
+
+	"github.com/username/gh-star-search/internal/llm"
 )
 
 // Parser defines the interface for natural language query parsing
@@ -48,29 +51,10 @@ type QueryOperation struct {
 	Cost        float64 `json:"cost"`
 }
 
-// Schema represents the database schema for query generation
-type Schema struct {
-	Tables map[string]Table `json:"tables"`
-}
+// Schema, Table, Column, and Index types are now in the types package
+// to avoid import cycles
 
-// Table represents a database table schema
-type Table struct {
-	Name    string   `json:"name"`
-	Columns []Column `json:"columns"`
-	Indexes []Index  `json:"indexes"`
-}
-
-// Column represents a database column
-type Column struct {
-	Name        string `json:"name"`
-	Type        string `json:"type"`
-	Description string `json:"description"`
-	Searchable  bool   `json:"searchable"`
-}
-
-// Index represents a database index
-type Index struct {
-	Name    string   `json:"name"`
-	Columns []string `json:"columns"`
-	Type    string   `json:"type"` // btree, fts, etc.
+// NewParser creates a new query parser with the specified LLM service and database
+func NewParser(llmService llm.Service, db *sql.DB) Parser {
+	return NewLLMParser(llmService, db)
 }

@@ -3,13 +3,13 @@ package llm
 import (
 	"context"
 
-	"github.com/username/gh-star-search/internal/query"
+	"github.com/username/gh-star-search/internal/types"
 )
 
 // Service defines the interface for LLM operations
 type Service interface {
 	Summarize(ctx context.Context, prompt string, content string) (*SummaryResponse, error)
-	ParseQuery(ctx context.Context, query string, schema query.Schema) (*QueryResponse, error)
+	ParseQuery(ctx context.Context, query string, schema types.Schema) (*QueryResponse, error)
 	Configure(config Config) error
 }
 

@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/username/gh-star-search/internal/query"
+	"github.com/username/gh-star-search/internal/types"
 )
 
 // Manager handles multiple LLM providers with fallback strategies
@@ -100,7 +100,7 @@ func (m *Manager) Summarize(ctx context.Context, prompt string, content string) 
 }
 
 // ParseQuery converts natural language to SQL using the configured providers with fallback
-func (m *Manager) ParseQuery(ctx context.Context, query string, schema query.Schema) (*QueryResponse, error) {
+func (m *Manager) ParseQuery(ctx context.Context, query string, schema types.Schema) (*QueryResponse, error) {
 	// Create context with timeout
 	if m.config.Timeout > 0 {
 		var cancel context.CancelFunc
@@ -170,7 +170,7 @@ func (m *Manager) tryProviderSummarize(ctx context.Context, provider Service, pr
 }
 
 // tryProviderParseQuery attempts to use a provider for query parsing with retries
-func (m *Manager) tryProviderParseQuery(ctx context.Context, provider Service, query string, schema query.Schema) (*QueryResponse, error) {
+func (m *Manager) tryProviderParseQuery(ctx context.Context, provider Service, query string, schema types.Schema) (*QueryResponse, error) {
 	var lastErr error
 	
 	for attempt := 0; attempt <= m.config.RetryAttempts; attempt++ {

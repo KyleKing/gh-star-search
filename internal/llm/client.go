@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/username/gh-star-search/internal/query"
+	"github.com/username/gh-star-search/internal/types"
 )
 
 // Client implements the Service interface with multiple provider support
@@ -90,7 +90,7 @@ func (c *Client) Summarize(ctx context.Context, prompt string, content string) (
 }
 
 // ParseQuery converts natural language to SQL using the configured LLM
-func (c *Client) ParseQuery(ctx context.Context, query string, schema query.Schema) (*QueryResponse, error) {
+func (c *Client) ParseQuery(ctx context.Context, query string, schema types.Schema) (*QueryResponse, error) {
 	if c.config.Provider == "" {
 		return nil, fmt.Errorf("LLM client not configured")
 	}
@@ -135,7 +135,7 @@ Focus on extracting factual information from the content. If information is not 
 }
 
 // buildQueryParsingPrompt creates a structured prompt for natural language query parsing
-func (c *Client) buildQueryParsingPrompt(query string, schema query.Schema) string {
+func (c *Client) buildQueryParsingPrompt(query string, schema types.Schema) string {
 	systemPrompt := `You are an expert at converting natural language queries into DuckDB SQL queries.
 Your task is to convert the user's natural language query into a valid DuckDB SQL query based on the provided database schema.
 
@@ -164,7 +164,7 @@ User Query: %s`
 }
 
 // formatSchema converts the schema to a readable string format
-func (c *Client) formatSchema(schema query.Schema) string {
+func (c *Client) formatSchema(schema types.Schema) string {
 	var sb strings.Builder
 	
 	for tableName, table := range schema.Tables {
