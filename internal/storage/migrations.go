@@ -33,11 +33,8 @@ func (m *MigrationManager) GetMigrations() []Migration {
 			Version:     1,
 			Description: "Initial schema creation",
 			Up: `
-				CREATE SEQUENCE repositories_seq;
-				CREATE SEQUENCE content_chunks_seq;
-				
 				CREATE TABLE IF NOT EXISTS repositories (
-					id INTEGER PRIMARY KEY DEFAULT (nextval('repositories_seq')),
+					id INTEGER PRIMARY KEY,
 					full_name VARCHAR UNIQUE NOT NULL,
 					description TEXT,
 					language VARCHAR,
@@ -60,7 +57,7 @@ func (m *MigrationManager) GetMigrations() []Migration {
 				);
 
 				CREATE TABLE IF NOT EXISTS content_chunks (
-					id INTEGER PRIMARY KEY DEFAULT (nextval('content_chunks_seq')),
+					id INTEGER PRIMARY KEY,
 					repository_id BIGINT,
 					source_path VARCHAR NOT NULL,
 					chunk_type VARCHAR NOT NULL,
@@ -87,8 +84,6 @@ func (m *MigrationManager) GetMigrations() []Migration {
 				DROP INDEX IF EXISTS idx_repositories_language;
 				DROP TABLE IF EXISTS content_chunks;
 				DROP TABLE IF EXISTS repositories;
-				DROP SEQUENCE IF EXISTS content_chunks_seq;
-				DROP SEQUENCE IF EXISTS repositories_seq;
 			`,
 		},
 		// Future migrations can be added here

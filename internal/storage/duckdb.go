@@ -60,14 +60,22 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 	useCasesJSON, _ := json.Marshal(repo.Summary.UseCases)
 	featuresJSON, _ := json.Marshal(repo.Summary.Features)
 
+	// Get the next available repository ID
+	var maxRepoID int64
+	err = tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(id), 0) FROM repositories").Scan(&maxRepoID)
+	if err != nil {
+		return fmt.Errorf("failed to get max repository ID: %w", err)
+	}
+	repoID := maxRepoID + 1
+
 	// Insert repository
 	insertRepoSQL := `
 	INSERT INTO repositories (
-		full_name, description, language, stargazers_count, forks_count, size_kb,
+		id, full_name, description, language, stargazers_count, forks_count, size_kb,
 		created_at, updated_at, last_synced, topics, license_name, license_spdx_id,
 		purpose, technologies, use_cases, features, installation_instructions,
 		usage_instructions, content_hash
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	var licenseName, licenseSPDXID string
 	if repo.Repository.License != nil {
@@ -76,6 +84,7 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 	}
 
 	_, err = tx.ExecContext(ctx, insertRepoSQL,
+		repoID,
 		repo.Repository.FullName,
 		repo.Repository.Description,
 		repo.Repository.Language,
@@ -100,21 +109,23 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 		return fmt.Errorf("failed to insert repository: %w", err)
 	}
 
-	// Get the repository ID
-	var repoID int64
-	err = tx.QueryRowContext(ctx, "SELECT id FROM repositories WHERE full_name = ?", repo.Repository.FullName).Scan(&repoID)
-	if err != nil {
-		return fmt.Errorf("failed to get repository ID: %w", err)
-	}
-
 	// Insert content chunks
 	if len(repo.Chunks) > 0 {
-		insertChunkSQL := `
-		INSERT INTO content_chunks (repository_id, source_path, chunk_type, content, tokens, priority)
-		VALUES (?, ?, ?, ?, ?, ?)`
+		// Get the next available chunk ID
+		var maxChunkID int64
+		err = tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(id), 0) FROM content_chunks").Scan(&maxChunkID)
+		if err != nil {
+			return fmt.Errorf("failed to get max chunk ID: %w", err)
+		}
 
-		for _, chunk := range repo.Chunks {
+		insertChunkSQL := `
+		INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`
+
+		for i, chunk := range repo.Chunks {
+			chunkID := maxChunkID + int64(i) + 1
 			_, err := tx.ExecContext(ctx, insertChunkSQL,
+				chunkID,
 				repoID,
 				chunk.Source,
 				chunk.Type,
@@ -133,58 +144,16 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 
 // UpdateRepository updates an existing repository in the database
 func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.ProcessedRepo) error {
+	// For now, let's use a simple approach: delete the old repository and insert the new one
+	// This avoids the complex update logic that's causing issues
+	
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	// Convert arrays to JSON
-	topicsJSON, _ := json.Marshal(repo.Repository.Topics)
-	technologiesJSON, _ := json.Marshal(repo.Summary.Technologies)
-	useCasesJSON, _ := json.Marshal(repo.Summary.UseCases)
-	featuresJSON, _ := json.Marshal(repo.Summary.Features)
-
-	// Update repository
-	updateRepoSQL := `
-	UPDATE repositories SET
-		description = ?, language = ?, stargazers_count = ?, forks_count = ?, size_kb = ?,
-		updated_at = ?, last_synced = ?, topics = ?, license_name = ?, license_spdx_id = ?,
-		purpose = ?, technologies = ?, use_cases = ?, features = ?, installation_instructions = ?,
-		usage_instructions = ?, content_hash = ?
-	WHERE full_name = ?`
-
-	var licenseName, licenseSPDXID string
-	if repo.Repository.License != nil {
-		licenseName = repo.Repository.License.Name
-		licenseSPDXID = repo.Repository.License.SPDXID
-	}
-
-	_, err = tx.ExecContext(ctx, updateRepoSQL,
-		repo.Repository.Description,
-		repo.Repository.Language,
-		repo.Repository.StargazersCount,
-		repo.Repository.ForksCount,
-		repo.Repository.Size,
-		repo.Repository.UpdatedAt,
-		repo.ProcessedAt,
-		string(topicsJSON),
-		licenseName,
-		licenseSPDXID,
-		repo.Summary.Purpose,
-		string(technologiesJSON),
-		string(useCasesJSON),
-		string(featuresJSON),
-		repo.Summary.Installation,
-		repo.Summary.Usage,
-		repo.ContentHash,
-		repo.Repository.FullName,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to update repository: %w", err)
-	}
-
-	// Get repository ID for chunk updates
+	// Get the repository ID first
 	var repoID int64
 	err = tx.QueryRowContext(ctx, "SELECT id FROM repositories WHERE full_name = ?", repo.Repository.FullName).Scan(&repoID)
 	if err != nil {
@@ -197,14 +166,76 @@ func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.
 		return fmt.Errorf("failed to delete existing chunks: %w", err)
 	}
 
-	// Insert new chunks
-	if len(repo.Chunks) > 0 {
-		insertChunkSQL := `
-		INSERT INTO content_chunks (repository_id, source_path, chunk_type, content, tokens, priority)
-		VALUES (?, ?, ?, ?, ?, ?)`
+	// Delete the repository
+	_, err = tx.ExecContext(ctx, "DELETE FROM repositories WHERE id = ?", repoID)
+	if err != nil {
+		return fmt.Errorf("failed to delete repository: %w", err)
+	}
 
-		for _, chunk := range repo.Chunks {
+	// Convert arrays to JSON
+	topicsJSON, _ := json.Marshal(repo.Repository.Topics)
+	technologiesJSON, _ := json.Marshal(repo.Summary.Technologies)
+	useCasesJSON, _ := json.Marshal(repo.Summary.UseCases)
+	featuresJSON, _ := json.Marshal(repo.Summary.Features)
+
+	// Insert the repository with the same ID
+	insertRepoSQL := `
+	INSERT INTO repositories (
+		id, full_name, description, language, stargazers_count, forks_count, size_kb,
+		created_at, updated_at, last_synced, topics, license_name, license_spdx_id,
+		purpose, technologies, use_cases, features, installation_instructions,
+		usage_instructions, content_hash
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+	var licenseName, licenseSPDXID string
+	if repo.Repository.License != nil {
+		licenseName = repo.Repository.License.Name
+		licenseSPDXID = repo.Repository.License.SPDXID
+	}
+
+	_, err = tx.ExecContext(ctx, insertRepoSQL,
+		repoID, // Use the same ID
+		repo.Repository.FullName,
+		repo.Repository.Description,
+		repo.Repository.Language,
+		repo.Repository.StargazersCount,
+		repo.Repository.ForksCount,
+		repo.Repository.Size,
+		repo.Repository.CreatedAt,
+		repo.Repository.UpdatedAt,
+		repo.ProcessedAt,
+		string(topicsJSON),
+		licenseName,
+		licenseSPDXID,
+		repo.Summary.Purpose,
+		string(technologiesJSON),
+		string(useCasesJSON),
+		string(featuresJSON),
+		repo.Summary.Installation,
+		repo.Summary.Usage,
+		repo.ContentHash,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert updated repository: %w", err)
+	}
+
+	// Insert content chunks if any
+	if len(repo.Chunks) > 0 {
+		// Get the next available chunk ID
+		var maxChunkID int64
+		err = tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(id), 0) FROM content_chunks").Scan(&maxChunkID)
+		if err != nil {
+			return fmt.Errorf("failed to get max chunk ID: %w", err)
+		}
+
+		insertChunkSQL := `
+		INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`
+
+		for i, chunk := range repo.Chunks {
+			chunkID := maxChunkID + int64(i) + 1
 			_, err := tx.ExecContext(ctx, insertChunkSQL,
+				chunkID,
 				repoID,
 				chunk.Source,
 				chunk.Type,
