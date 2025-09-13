@@ -21,7 +21,7 @@ type DuckDBRepository struct {
 	path string
 }
 
-// NewDuckDBRepository creates a new DuckDB repository instance
+// NewDuckDBRepository creates a new DuckDB repository instance with connection pooling
 func NewDuckDBRepository(dbPath string) (*DuckDBRepository, error) {
 	// Ensure the directory exists
 	dir := filepath.Dir(dbPath)
@@ -32,6 +32,17 @@ func NewDuckDBRepository(dbPath string) (*DuckDBRepository, error) {
 	db, err := sql.Open("duckdb", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	// Configure connection pool for optimal performance
+	db.SetMaxOpenConns(10)                 // Maximum number of open connections
+	db.SetMaxIdleConns(5)                  // Maximum number of idle connections
+	db.SetConnMaxLifetime(30 * time.Minute) // Maximum lifetime of a connection
+	db.SetConnMaxIdleTime(5 * time.Minute)  // Maximum idle time for a connection
+
+	// Test the connection
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	repo := &DuckDBRepository{

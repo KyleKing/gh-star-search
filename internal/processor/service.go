@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -101,6 +102,13 @@ type SummaryResponse struct {
 type serviceImpl struct {
 	githubClient GitHubClient
 	llmService   LLMService
+	cache        ContentCache
+}
+
+// ContentCache interface for caching repository content
+type ContentCache interface {
+	Get(ctx context.Context, key string) ([]byte, error)
+	Set(ctx context.Context, key string, data []byte, ttl time.Duration) error
 }
 
 // NewService creates a new processor service
@@ -108,6 +116,15 @@ func NewService(githubClient GitHubClient, llmService LLMService) Service {
 	return &serviceImpl{
 		githubClient: githubClient,
 		llmService:   llmService,
+	}
+}
+
+// NewServiceWithCache creates a new processor service with caching
+func NewServiceWithCache(githubClient GitHubClient, llmService LLMService, cache ContentCache) Service {
+	return &serviceImpl{
+		githubClient: githubClient,
+		llmService:   llmService,
+		cache:        cache,
 	}
 }
 
@@ -140,8 +157,20 @@ func (s *serviceImpl) ProcessRepository(ctx context.Context, repo github.Reposit
 	return processed, nil
 }
 
-// ExtractContent extracts relevant content from a repository
+// ExtractContent extracts relevant content from a repository with caching
 func (s *serviceImpl) ExtractContent(ctx context.Context, repo github.Repository) ([]github.Content, error) {
+	// Try to get content from cache first
+	if s.cache != nil {
+		cacheKey := fmt.Sprintf("content:%s:%s", repo.FullName, repo.UpdatedAt.Format(time.RFC3339))
+		
+		if cachedData, err := s.cache.Get(ctx, cacheKey); err == nil {
+			var content []github.Content
+			if err := json.Unmarshal(cachedData, &content); err == nil {
+				return content, nil
+			}
+		}
+	}
+
 	// Define priority paths to extract
 	priorityPaths := s.getPriorityPaths()
 
@@ -153,6 +182,15 @@ func (s *serviceImpl) ExtractContent(ctx context.Context, repo github.Repository
 
 	// Filter and validate content
 	filteredContent := s.filterContent(content)
+
+	// Cache the result if cache is available
+	if s.cache != nil {
+		cacheKey := fmt.Sprintf("content:%s:%s", repo.FullName, repo.UpdatedAt.Format(time.RFC3339))
+		if cachedData, err := json.Marshal(filteredContent); err == nil {
+			// Cache for 24 hours
+			s.cache.Set(ctx, cacheKey, cachedData, 24*time.Hour)
+		}
+	}
 
 	return filteredContent, nil
 }

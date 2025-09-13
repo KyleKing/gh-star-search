@@ -12,9 +12,26 @@ import (
 
 	"github.com/kyleking/gh-star-search/internal/config"
 	"github.com/kyleking/gh-star-search/internal/github"
+	"github.com/kyleking/gh-star-search/internal/monitor"
 	"github.com/kyleking/gh-star-search/internal/processor"
 	"github.com/kyleking/gh-star-search/internal/storage"
 )
+
+// createTestSyncService creates a sync service with memory monitoring for testing
+func createTestSyncService(githubClient github.Client, processor processor.Service, storage storage.Repository) *SyncService {
+	memoryMonitor := monitor.NewMemoryMonitor(500, 5*time.Minute)
+	memoryOptimizer := monitor.NewMemoryOptimizer(memoryMonitor)
+
+	return &SyncService{
+		githubClient:    githubClient,
+		processor:       processor,
+		storage:         storage,
+		config:          config.DefaultConfig(),
+		verbose:         true,
+		memoryMonitor:   memoryMonitor,
+		memoryOptimizer: memoryOptimizer,
+	}
+}
 
 // TestSyncIntegration tests the complete sync workflow end-to-end with enhanced change detection
 func TestSyncIntegration(t *testing.T) {
@@ -150,14 +167,7 @@ func TestSyncIntegration(t *testing.T) {
 	}
 
 	processorService := processor.NewService(mockGitHub, mockLLM)
-
-	syncService := &SyncService{
-		githubClient: mockGitHub,
-		processor:    processorService,
-		storage:      repo,
-		config:       config.DefaultConfig(),
-		verbose:      true,
-	}
+	syncService := createTestSyncService(mockGitHub, processorService, repo)
 
 	// Step 1: Perform initial sync (all repositories should be new)
 	t.Log("Step 1: Initial sync")
@@ -437,14 +447,7 @@ func TestSyncSpecificRepository(t *testing.T) {
 	}
 
 	processorService := processor.NewService(mockGitHub, mockLLM)
-
-	syncService := &SyncService{
-		githubClient: mockGitHub,
-		processor:    processorService,
-		storage:      repo,
-		config:       config.DefaultConfig(),
-		verbose:      true,
-	}
+	syncService := createTestSyncService(mockGitHub, processorService, repo)
 
 	// Test syncing specific repository
 	err = syncService.syncSpecificRepository(ctx, "user/specific-repo", false)
@@ -540,14 +543,7 @@ func TestSyncErrorHandling(t *testing.T) {
 
 	mockLLM := &MockLLMService{}
 	processorService := processor.NewService(mockGitHub, mockLLM)
-
-	syncService := &SyncService{
-		githubClient: mockGitHub,
-		processor:    processorService,
-		storage:      repo,
-		config:       config.DefaultConfig(),
-		verbose:      true,
-	}
+	syncService := createTestSyncService(mockGitHub, processorService, repo)
 
 	// Perform sync with errors
 	err = syncService.performFullSync(ctx, 2, false)
@@ -648,14 +644,7 @@ func TestSyncIncrementalUpdates(t *testing.T) {
 	}
 
 	processorService := processor.NewService(mockGitHub, mockLLM)
-
-	syncService := &SyncService{
-		githubClient: mockGitHub,
-		processor:    processorService,
-		storage:      repo,
-		config:       config.DefaultConfig(),
-		verbose:      true,
-	}
+	syncService := createTestSyncService(mockGitHub, processorService, repo)
 
 	// Step 1: Initial sync
 	t.Log("Step 1: Initial sync")
@@ -849,14 +838,8 @@ func TestSyncProgressTracking(t *testing.T) {
 
 	mockLLM := &MockLLMService{}
 	processorService := processor.NewService(mockGitHub, mockLLM)
-
-	syncService := &SyncService{
-		githubClient: mockGitHub,
-		processor:    processorService,
-		storage:      repo,
-		config:       config.DefaultConfig(),
-		verbose:      false, // Disable verbose to test progress indicators
-	}
+	syncService := createTestSyncService(mockGitHub, processorService, repo)
+	syncService.verbose = false // Disable verbose to test progress indicators
 
 	// Test batch processing with batch size of 3
 	t.Log("Testing batch processing with 7 repositories (batch size: 3)")

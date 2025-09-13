@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/briandowns/spinner"
+	"github.com/kyleking/gh-star-search/internal/cache"
 	"github.com/kyleking/gh-star-search/internal/config"
 	"github.com/kyleking/gh-star-search/internal/github"
 	"github.com/kyleking/gh-star-search/internal/llm"
+	"github.com/kyleking/gh-star-search/internal/monitor"
 	"github.com/kyleking/gh-star-search/internal/processor"
 	"github.com/kyleking/gh-star-search/internal/storage"
 	"github.com/spf13/cobra"
@@ -40,11 +43,13 @@ func init() {
 
 // SyncService handles the synchronization of starred repositories
 type SyncService struct {
-	githubClient github.Client
-	processor    processor.Service
-	storage      storage.Repository
-	config       *config.Config
-	verbose      bool
+	githubClient    github.Client
+	processor       processor.Service
+	storage         storage.Repository
+	config          *config.Config
+	verbose         bool
+	memoryMonitor   *monitor.MemoryMonitor
+	memoryOptimizer *monitor.MemoryOptimizer
 }
 
 // SyncStats tracks synchronization statistics
@@ -217,15 +222,41 @@ func initializeSyncService(cfg *config.Config, verbose bool) (*SyncService, erro
 		}
 	}
 
-	// Initialize processor
-	processorService := processor.NewService(githubClient, llmService)
+	// Initialize cache
+	var fileCache *cache.FileCache
+	if cfg.Cache.Directory != "" {
+		var err error
+		fileCache, err = cache.NewFileCache(
+			cfg.Cache.Directory,
+			cfg.Cache.MaxSizeMB,
+			time.Duration(cfg.Cache.TTLHours)*time.Hour,
+			1*time.Hour, // Cleanup frequency
+		)
+		if err != nil {
+			fmt.Printf("Warning: Failed to initialize cache: %v\n", err)
+		}
+	}
+
+	// Initialize processor with cache
+	var processorService processor.Service
+	if fileCache != nil {
+		processorService = processor.NewServiceWithCache(githubClient, llmService, fileCache)
+	} else {
+		processorService = processor.NewService(githubClient, llmService)
+	}
+
+	// Initialize memory monitoring
+	memoryMonitor := monitor.NewMemoryMonitor(500, 5*time.Minute) // 500MB threshold, 5min force interval
+	memoryOptimizer := monitor.NewMemoryOptimizer(memoryMonitor)
 
 	return &SyncService{
-		githubClient: githubClient,
-		processor:    processorService,
-		storage:      repo,
-		config:       cfg,
-		verbose:      verbose,
+		githubClient:    githubClient,
+		processor:       processorService,
+		storage:         repo,
+		config:          cfg,
+		verbose:         verbose,
+		memoryMonitor:   memoryMonitor,
+		memoryOptimizer: memoryOptimizer,
 	}, nil
 }
 
@@ -234,7 +265,20 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 		StartTime: time.Now(),
 	}
 
+	// Create a new memory monitor for this sync operation to avoid channel reuse issues
+	memMonitor := monitor.NewMemoryMonitor(500, 5*time.Minute)
+	memOptimizer := monitor.NewMemoryOptimizer(memMonitor)
+	
+	// Start memory monitoring
+	memMonitor.Start(ctx, 30*time.Second)
+	defer memMonitor.Stop()
+
+	// Optimize memory for batch processing
+	memOptimizer.OptimizeForBatch(batchSize)
+	defer memOptimizer.RestoreDefaults()
+
 	s.logVerbose("Starting full sync of starred repositories...")
+	s.logVerbose(fmt.Sprintf("Initial memory stats:\n%s", memMonitor.GetFormattedStats()))
 
 	// Create progress tracker for fetching repositories
 	fetchProgress := NewProgressTracker(1, "Fetching starred repositories")
@@ -279,7 +323,7 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 	// Process repositories in batches with enhanced progress tracking
 	allToProcess := append(operations.toAdd, operations.toUpdate...)
 	if len(allToProcess) > 0 {
-		if err := s.processRepositoriesInBatchesWithForce(ctx, allToProcess, batchSize, stats, operations, force); err != nil {
+		if err := s.processRepositoriesInBatchesWithForceAndMonitor(ctx, allToProcess, batchSize, stats, operations, force, memMonitor); err != nil {
 			return fmt.Errorf("failed to process repositories: %w", err)
 		}
 	} else {
@@ -289,7 +333,11 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 	stats.EndTime = time.Now()
 	stats.ProcessingTime = stats.EndTime.Sub(stats.StartTime)
 
+	// Final memory optimization
+	memMonitor.OptimizeMemory()
+	
 	s.printSyncSummary(stats)
+	s.logVerbose(fmt.Sprintf("Final memory stats:\n%s", memMonitor.GetFormattedStats()))
 
 	return nil
 }
@@ -589,7 +637,7 @@ func (s *SyncService) processRepositoriesInBatches(ctx context.Context, repos []
 	return s.processRepositoriesInBatchesWithForce(ctx, repos, batchSize, stats, operations, false)
 }
 
-func (s *SyncService) processRepositoriesInBatchesWithForce(ctx context.Context, repos []github.Repository, batchSize int, stats *SyncStats, operations *syncOperations, forceUpdate bool) error {
+func (s *SyncService) processRepositoriesInBatchesWithForceAndMonitor(ctx context.Context, repos []github.Repository, batchSize int, stats *SyncStats, operations *syncOperations, forceUpdate bool, memMonitor *monitor.MemoryMonitor) error {
 	if len(repos) == 0 {
 		return nil
 	}
@@ -631,9 +679,16 @@ func (s *SyncService) processRepositoriesInBatchesWithForce(ctx context.Context,
 
 		progress.Finish(fmt.Sprintf("Completed batch %d/%d", batchNum, totalBatches))
 
+		// Memory optimization between batches
+		if memMonitor.ShouldOptimize() {
+			s.logVerbose("Optimizing memory between batches...")
+			memMonitor.OptimizeMemory()
+		}
+
 		// Small delay between batches to be respectful to APIs
 		if batchNum < totalBatches {
 			s.logVerbose("Waiting between batches...")
+			s.logVerbose(fmt.Sprintf("Memory stats after batch %d:\n%s", batchNum, memMonitor.GetFormattedStats()))
 			time.Sleep(2 * time.Second)
 		}
 	}
@@ -642,47 +697,149 @@ func (s *SyncService) processRepositoriesInBatchesWithForce(ctx context.Context,
 }
 
 func (s *SyncService) processBatch(ctx context.Context, batch []github.Repository, stats *SyncStats, progress *ProgressTracker, isNewRepo map[string]bool, forceUpdate bool) error {
-	for _, repo := range batch {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		progress.Update(repo.FullName)
-
-		// Get existing repository to track changes
-		existing, _ := s.storage.GetRepository(ctx, repo.FullName)
-
-		result, err := s.processRepositoryWithChangeTrackingAndForce(ctx, repo, existing, false, forceUpdate)
-		if err != nil {
-			s.logVerbose(fmt.Sprintf("Failed to process %s: %v", repo.FullName, err))
-			stats.SafeIncrement("error")
-		} else {
-			stats.SafeIncrement("processed")
-
-			// Track the type of operation
-			if isNewRepo[repo.FullName] {
-				stats.SafeIncrement("new")
-			} else {
-				stats.SafeIncrement("updated")
-
-				// Track what type of changes occurred
-				if result.ContentChanged {
-					stats.SafeIncrement("content_changes")
-				}
-
-				if result.MetadataChanged {
-					stats.SafeIncrement("metadata_changes")
-				}
+	// Determine optimal concurrency based on batch size and system resources
+	maxWorkers := s.calculateOptimalWorkers(len(batch))
+	
+	// Create worker pool for parallel processing
+	jobs := make(chan github.Repository, len(batch))
+	results := make(chan *ProcessResult, len(batch))
+	errors := make(chan error, len(batch))
+	
+	// Start workers
+	var wg sync.WaitGroup
+	for i := 0; i < maxWorkers; i++ {
+		wg.Add(1)
+		go s.processWorker(ctx, jobs, results, errors, &wg, progress, isNewRepo, forceUpdate)
+	}
+	
+	// Send jobs to workers
+	go func() {
+		defer close(jobs)
+		for _, repo := range batch {
+			select {
+			case jobs <- repo:
+			case <-ctx.Done():
+				return
 			}
 		}
-
-		// Small delay between repositories to be respectful to APIs
-		time.Sleep(200 * time.Millisecond)
+	}()
+	
+	// Wait for all workers to complete
+	go func() {
+		wg.Wait()
+		close(results)
+		close(errors)
+	}()
+	
+	// Collect results
+	processedCount := 0
+	errorCount := 0
+	
+	for processedCount + errorCount < len(batch) {
+		select {
+		case result := <-results:
+			if result != nil {
+				stats.SafeIncrement("processed")
+				
+				// Track the type of operation based on result
+				if result.IsNew {
+					stats.SafeIncrement("new")
+				} else {
+					stats.SafeIncrement("updated")
+					
+					if result.ContentChanged {
+						stats.SafeIncrement("content_changes")
+					}
+					
+					if result.MetadataChanged {
+						stats.SafeIncrement("metadata_changes")
+					}
+				}
+			}
+			processedCount++
+			
+		case err := <-errors:
+			if err != nil {
+				s.logVerbose(fmt.Sprintf("Worker error: %v", err))
+				stats.SafeIncrement("error")
+			}
+			errorCount++
+			
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
-
+	
 	return nil
+}
+
+func (s *SyncService) processRepositoriesInBatchesWithForce(ctx context.Context, repos []github.Repository, batchSize int, stats *SyncStats, operations *syncOperations, forceUpdate bool) error {
+	// Use the service's memory monitor for backward compatibility
+	return s.processRepositoriesInBatchesWithForceAndMonitor(ctx, repos, batchSize, stats, operations, forceUpdate, s.memoryMonitor)
+}
+
+// processWorker processes repositories in parallel
+func (s *SyncService) processWorker(ctx context.Context, jobs <-chan github.Repository, results chan<- *ProcessResult, errors chan<- error, wg *sync.WaitGroup, progress *ProgressTracker, isNewRepo map[string]bool, forceUpdate bool) {
+	defer wg.Done()
+	
+	for {
+		select {
+		case repo, ok := <-jobs:
+			if !ok {
+				return // No more jobs
+			}
+			
+			progress.Update(repo.FullName)
+			
+			// Get existing repository to track changes
+			existing, _ := s.storage.GetRepository(ctx, repo.FullName)
+			
+			result, err := s.processRepositoryWithChangeTrackingAndForce(ctx, repo, existing, false, forceUpdate)
+			if err != nil {
+				s.logVerbose(fmt.Sprintf("Failed to process %s: %v", repo.FullName, err))
+				errors <- err
+			} else {
+				// Enhance result with additional metadata
+				if result != nil {
+					result.IsNew = isNewRepo[repo.FullName]
+				}
+				results <- result
+			}
+			
+			// Rate limiting - small delay between repositories
+			time.Sleep(100 * time.Millisecond)
+			
+		case <-ctx.Done():
+			errors <- ctx.Err()
+			return
+		}
+	}
+}
+
+// calculateOptimalWorkers determines the optimal number of worker goroutines
+func (s *SyncService) calculateOptimalWorkers(batchSize int) int {
+	// Base the number of workers on CPU count and batch size
+	cpuCount := runtime.NumCPU()
+	
+	// For small batches, use fewer workers to avoid overhead
+	if batchSize <= 5 {
+		return 1
+	} else if batchSize <= 10 {
+		return min(2, cpuCount)
+	} else if batchSize <= 20 {
+		return min(3, cpuCount)
+	} else {
+		// For larger batches, use more workers but cap at CPU count
+		return min(cpuCount, 8) // Cap at 8 to avoid too many concurrent API calls
+	}
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // ProcessResult tracks what changes were made during processing
@@ -690,6 +847,7 @@ type ProcessResult struct {
 	ContentChanged  bool
 	MetadataChanged bool
 	Skipped         bool
+	IsNew           bool // Added for parallel processing tracking
 }
 
 func (s *SyncService) processRepository(ctx context.Context, repo github.Repository, showDetails bool) error {
