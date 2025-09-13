@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -427,9 +428,63 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 	return repos, rows.Err()
 }
 
-// SearchRepositories performs a full-text search across repositories
+// SearchRepositories executes a SQL query or performs text search across repositories
 func (r *DuckDBRepository) SearchRepositories(ctx context.Context, query string) ([]SearchResult, error) {
-	// Simple text search implementation - can be enhanced with more sophisticated search
+	// Check if the query looks like SQL (starts with SELECT)
+	trimmedQuery := strings.TrimSpace(strings.ToUpper(query))
+
+	if strings.HasPrefix(trimmedQuery, "SELECT") {
+		return r.executeCustomSQL(ctx, query)
+	}
+
+	// Fall back to simple text search
+	return r.executeTextSearch(ctx, query)
+}
+
+// executeCustomSQL executes a custom SQL query
+func (r *DuckDBRepository) executeCustomSQL(ctx context.Context, sqlQuery string) ([]SearchResult, error) {
+	rows, err := r.db.QueryContext(ctx, sqlQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute SQL query: %w", err)
+	}
+	defer rows.Close()
+
+	// Get column information
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get columns: %w", err)
+	}
+
+	var results []SearchResult
+
+	for rows.Next() {
+		// Create a slice to hold the values
+		values := make([]interface{}, len(columns))
+		valuePtrs := make([]interface{}, len(columns))
+		for i := range values {
+			valuePtrs[i] = &values[i]
+		}
+
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+
+		// Try to map the results to a repository structure
+		repo, score, matches := r.mapRowToRepository(columns, values)
+		if repo != nil {
+			results = append(results, SearchResult{
+				Repository: *repo,
+				Score:      score,
+				Matches:    matches,
+			})
+		}
+	}
+
+	return results, rows.Err()
+}
+
+// executeTextSearch performs simple text search
+func (r *DuckDBRepository) executeTextSearch(ctx context.Context, query string) ([]SearchResult, error) {
 	searchQuery := `
 	SELECT r.id, r.full_name, r.description, r.language, r.stargazers_count, r.forks_count, r.size_kb,
 		   r.created_at, r.updated_at, r.last_synced, r.topics, r.license_name, r.license_spdx_id,
@@ -462,9 +517,7 @@ func (r *DuckDBRepository) SearchRepositories(ctx context.Context, query string)
 
 	for rows.Next() {
 		var repo StoredRepo
-
 		var score float64
-
 		var topicsJSON, technologiesJSON, useCasesJSON, featuresJSON string
 
 		err := rows.Scan(
@@ -499,14 +552,8 @@ func (r *DuckDBRepository) SearchRepositories(ctx context.Context, query string)
 			json.Unmarshal([]byte(featuresJSON), &repo.Features)
 		}
 
-		// Create matches (simplified - could be enhanced to show actual matching text)
-		matches := []Match{
-			{
-				Field:   "repository",
-				Content: repo.FullName,
-				Score:   score,
-			},
-		}
+		// Create matches based on which fields matched
+		matches := r.findMatches(repo, query)
 
 		results = append(results, SearchResult{
 			Repository: repo,
@@ -516,6 +563,179 @@ func (r *DuckDBRepository) SearchRepositories(ctx context.Context, query string)
 	}
 
 	return results, rows.Err()
+}
+
+// mapRowToRepository attempts to map query results to a repository structure
+func (r *DuckDBRepository) mapRowToRepository(columns []string, values []interface{}) (*StoredRepo, float64, []Match) {
+	repo := &StoredRepo{}
+	var score float64 = 1.0
+	var matches []Match
+
+	// Create a map for easier lookup
+	columnMap := make(map[string]interface{})
+	for i, col := range columns {
+		columnMap[strings.ToLower(col)] = values[i]
+	}
+
+	// Map common fields
+	if val, ok := columnMap["id"]; ok && val != nil {
+		if s, ok := val.(string); ok {
+			repo.ID = s
+		}
+	}
+
+	if val, ok := columnMap["full_name"]; ok && val != nil {
+		if s, ok := val.(string); ok {
+			repo.FullName = s
+		}
+	}
+
+	if val, ok := columnMap["description"]; ok && val != nil {
+		if s, ok := val.(string); ok {
+			repo.Description = s
+		}
+	}
+
+	if val, ok := columnMap["language"]; ok && val != nil {
+		if s, ok := val.(string); ok {
+			repo.Language = s
+		}
+	}
+
+	if val, ok := columnMap["stargazers_count"]; ok && val != nil {
+		if i, ok := val.(int64); ok {
+			repo.StargazersCount = int(i)
+		}
+	}
+
+	if val, ok := columnMap["forks_count"]; ok && val != nil {
+		if i, ok := val.(int64); ok {
+			repo.ForksCount = int(i)
+		}
+	}
+
+	if val, ok := columnMap["purpose"]; ok && val != nil {
+		if s, ok := val.(string); ok {
+			repo.Purpose = s
+		}
+	}
+
+	// Handle score if present
+	if val, ok := columnMap["score"]; ok && val != nil {
+		if f, ok := val.(float64); ok {
+			score = f
+		}
+	}
+
+	// Create basic matches
+	if repo.FullName != "" {
+		matches = append(matches, Match{
+			Field:   "full_name",
+			Content: repo.FullName,
+			Score:   score,
+		})
+	}
+
+	return repo, score, matches
+}
+
+// findMatches identifies which fields matched the search query
+func (r *DuckDBRepository) findMatches(repo StoredRepo, query string) []Match {
+	var matches []Match
+	queryLower := strings.ToLower(query)
+
+	// Check various fields for matches
+	if strings.Contains(strings.ToLower(repo.FullName), queryLower) {
+		matches = append(matches, Match{
+			Field:   "full_name",
+			Content: repo.FullName,
+			Score:   1.0,
+		})
+	}
+
+	if strings.Contains(strings.ToLower(repo.Description), queryLower) {
+		matches = append(matches, Match{
+			Field:   "description",
+			Content: truncateForMatch(repo.Description, queryLower),
+			Score:   0.8,
+		})
+	}
+
+	if strings.Contains(strings.ToLower(repo.Purpose), queryLower) {
+		matches = append(matches, Match{
+			Field:   "purpose",
+			Content: truncateForMatch(repo.Purpose, queryLower),
+			Score:   0.9,
+		})
+	}
+
+	if strings.Contains(strings.ToLower(repo.Language), queryLower) {
+		matches = append(matches, Match{
+			Field:   "language",
+			Content: repo.Language,
+			Score:   0.7,
+		})
+	}
+
+	// Check technologies
+	for _, tech := range repo.Technologies {
+		if strings.Contains(strings.ToLower(tech), queryLower) {
+			matches = append(matches, Match{
+				Field:   "technologies",
+				Content: tech,
+				Score:   0.8,
+			})
+		}
+	}
+
+	// Check topics
+	for _, topic := range repo.Topics {
+		if strings.Contains(strings.ToLower(topic), queryLower) {
+			matches = append(matches, Match{
+				Field:   "topics",
+				Content: topic,
+				Score:   0.6,
+			})
+		}
+	}
+
+	return matches
+}
+
+// truncateForMatch truncates text around the matching term
+func truncateForMatch(text, query string) string {
+	textLower := strings.ToLower(text)
+	queryLower := strings.ToLower(query)
+
+	index := strings.Index(textLower, queryLower)
+	if index == -1 {
+		// Fallback to simple truncation
+		if len(text) > 100 {
+			return text[:100] + "..."
+		}
+		return text
+	}
+
+	// Show context around the match
+	start := index - 30
+	if start < 0 {
+		start = 0
+	}
+
+	end := index + len(query) + 30
+	if end > len(text) {
+		end = len(text)
+	}
+
+	result := text[start:end]
+	if start > 0 {
+		result = "..." + result
+	}
+	if end < len(text) {
+		result = result + "..."
+	}
+
+	return result
 }
 
 // GetStats returns database statistics

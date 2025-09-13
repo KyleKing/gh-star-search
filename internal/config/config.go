@@ -1,6 +1,11 @@
 package config
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/kyleking/gh-star-search/internal/llm"
 )
 
@@ -73,4 +78,66 @@ func DefaultConfig() *Config {
 			CleanupFreq: "1h",
 		},
 	}
+}
+
+// LoadConfig loads configuration from file or returns default config
+func LoadConfig() (*Config, error) {
+	configPath := getConfigPath()
+
+	// If config file doesn't exist, return default config
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return DefaultConfig(), nil
+	}
+
+	// Read config file
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	// Parse JSON
+	var config Config
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	// Fill in missing values with defaults
+	defaultConfig := DefaultConfig()
+	if config.LLM.DefaultProvider == "" {
+		config.LLM = defaultConfig.LLM
+	}
+
+	return &config, nil
+}
+
+// SaveConfig saves configuration to file
+func SaveConfig(config *Config) error {
+	configPath := getConfigPath()
+
+	// Ensure directory exists
+	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	// Marshal to JSON
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(configPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	return nil
+}
+
+// getConfigPath returns the path to the configuration file
+func getConfigPath() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "./config.json"
+	}
+	return filepath.Join(homeDir, ".config", "gh-star-search", "config.json")
 }

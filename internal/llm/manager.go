@@ -36,6 +36,13 @@ func NewManager(config ManagerConfig) *Manager {
 	}
 }
 
+// NewManagerFromConfig creates a new LLM manager from LLMConfig
+func NewManagerFromConfig(llmConfig interface{}) (Service, error) {
+	// For now, return a simple fallback service since we don't have actual LLM providers implemented
+	// In a real implementation, this would initialize the appropriate providers based on the config
+	return NewFallbackService(), nil
+}
+
 // RegisterProvider registers a new LLM provider
 func (m *Manager) RegisterProvider(name string, service Service) error {
 	if name == "" {
