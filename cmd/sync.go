@@ -21,8 +21,8 @@ import (
 var syncCmd = &cobra.Command{
 	Use:   "sync",
 	Short: "Sync starred repositories to local database",
-	Long: `Incrementally fetch and process each repository that the authenticated GitHub user 
-has starred. Collects both structured metadata and unstructured content to enable 
+	Long: `Incrementally fetch and process each repository that the authenticated GitHub user
+has starred. Collects both structured metadata and unstructured content to enable
 intelligent search capabilities.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
@@ -91,7 +91,7 @@ func (p *ProgressTracker) Start() {
 func (p *ProgressTracker) Update(repoName string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	
+
 	p.processed++
 	p.spinner.Suffix = fmt.Sprintf(" Processing %s (%d/%d)", repoName, p.processed, p.total)
 }
@@ -111,7 +111,7 @@ func (p *ProgressTracker) Stop() {
 func (s *SyncStats) SafeIncrement(field string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	switch field {
 	case "new":
 		s.NewRepos++
@@ -142,7 +142,7 @@ func runSync(ctx context.Context, cmd *cobra.Command, args []string) error {
 
 	// Load configuration
 	cfg := config.DefaultConfig()
-	
+
 	// Initialize services
 	syncService, err := initializeSyncService(cfg, verbose)
 	if err != nil {
@@ -182,25 +182,25 @@ func initializeSyncService(cfg *config.Config, verbose bool) (*SyncService, erro
 	var llmService processor.LLMService
 	if cfg.LLM.DefaultProvider != "" {
 		llmManager := llm.NewManager(llm.DefaultManagerConfig())
-		
+
 		// Register available providers with default configs
 		defaultConfig := llm.Config{Provider: llm.ProviderOpenAI, Model: llm.ModelGPT35Turbo}
 		if err := llmManager.RegisterProvider(llm.ProviderOpenAI, llm.NewClient(defaultConfig)); err != nil {
 			fmt.Printf("Warning: Failed to register OpenAI provider: %v\n", err)
 		}
-		
+
 		defaultConfig.Provider = llm.ProviderAnthropic
 		defaultConfig.Model = llm.ModelClaude3
 		if err := llmManager.RegisterProvider(llm.ProviderAnthropic, llm.NewClient(defaultConfig)); err != nil {
 			fmt.Printf("Warning: Failed to register Anthropic provider: %v\n", err)
 		}
-		
+
 		defaultConfig.Provider = llm.ProviderLocal
 		defaultConfig.Model = llm.ModelLlama2
 		if err := llmManager.RegisterProvider(llm.ProviderLocal, llm.NewClient(defaultConfig)); err != nil {
 			fmt.Printf("Warning: Failed to register Local provider: %v\n", err)
 		}
-		
+
 		// Configure the default provider
 		if llmConfig, exists := cfg.LLM.Providers[cfg.LLM.DefaultProvider]; exists {
 			if err := llmManager.Configure(llmConfig); err != nil {
@@ -256,7 +256,7 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 
 	// Determine sync operations with enhanced change detection
 	operations := s.determineSyncOperations(starredRepos, existingRepos, force)
-	
+
 	fmt.Printf("\nSync Plan:\n")
 	fmt.Printf("  New repositories: %d\n", len(operations.toAdd))
 	fmt.Printf("  Updated repositories: %d\n", len(operations.toUpdate))
@@ -326,20 +326,20 @@ func (s *SyncService) compareModelsForRepository(ctx context.Context, repo githu
 
 	// Test different LLM providers
 	providers := []string{llm.ProviderOpenAI, llm.ProviderAnthropic, llm.ProviderLocal}
-	
+
 	for _, provider := range providers {
 		fmt.Printf("\n--- Testing %s ---\n", provider)
-		
+
 		// Create processor with specific provider
 		llmManager := llm.NewManager(llm.DefaultManagerConfig())
-		
+
 		// Register and configure the provider
 		defaultConfig := llm.Config{Provider: provider, Model: llm.ModelGPT35Turbo}
 		if err := llmManager.RegisterProvider(provider, llm.NewClient(defaultConfig)); err != nil {
 			fmt.Printf("Skipping %s: failed to register: %v\n", provider, err)
 			continue
 		}
-		
+
 		if llmConfig, exists := s.config.LLM.Providers[provider]; exists {
 			if err := llmManager.Configure(llmConfig); err != nil {
 				fmt.Printf("Skipping %s: failed to configure: %v\n", provider, err)
@@ -348,7 +348,7 @@ func (s *SyncService) compareModelsForRepository(ctx context.Context, repo githu
 		}
 
 		processorService := processor.NewService(s.githubClient, &llmServiceAdapter{manager: llmManager})
-		
+
 		// Process repository
 		processed, err := processorService.ProcessRepository(ctx, repo, content)
 		if err != nil {
@@ -389,7 +389,7 @@ func (s *SyncService) determineSyncOperations(starredRepos []github.Repository, 
 	// Determine additions and updates
 	for _, repo := range starredRepos {
 		existing, exists := existingRepos[repo.FullName]
-		
+
 		if !exists {
 			// New repository
 			ops.toAdd = append(ops.toAdd, repo)
@@ -434,7 +434,7 @@ func (s *SyncService) needsUpdate(repo github.Repository, existing *storage.Stor
 // getUpdateReason returns a human-readable reason why a repository needs updating
 func (s *SyncService) getUpdateReason(repo github.Repository, existing *storage.StoredRepo) string {
 	reasons := []string{}
-	
+
 	if repo.UpdatedAt.After(existing.LastSynced) {
 		reasons = append(reasons, "repository updated")
 	}
@@ -459,11 +459,11 @@ func (s *SyncService) getUpdateReason(repo github.Repository, existing *storage.
 	if s.licenseChanged(repo.License, existing.LicenseName, existing.LicenseSPDXID) {
 		reasons = append(reasons, "license changed")
 	}
-	
+
 	if len(reasons) == 0 {
 		return "unknown"
 	}
-	
+
 	return strings.Join(reasons, ", ")
 }
 
@@ -472,25 +472,25 @@ func (s *SyncService) topicsEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	
+
 	// Create maps for comparison
 	mapA := make(map[string]bool)
 	mapB := make(map[string]bool)
-	
+
 	for _, topic := range a {
 		mapA[topic] = true
 	}
 	for _, topic := range b {
 		mapB[topic] = true
 	}
-	
+
 	// Compare maps
 	for topic := range mapA {
 		if !mapB[topic] {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -499,39 +499,39 @@ func (s *SyncService) licenseChanged(newLicense *github.License, existingName, e
 	if newLicense == nil {
 		return existingName != "" || existingSPDX != ""
 	}
-	
+
 	return newLicense.Name != existingName || newLicense.SPDXID != existingSPDX
 }
 
 func (s *SyncService) getExistingRepositories(ctx context.Context) (map[string]*storage.StoredRepo, error) {
 	existingMap := make(map[string]*storage.StoredRepo)
-	
+
 	// Get all repositories from database (paginated)
 	limit := 100
 	offset := 0
-	
+
 	for {
 		repos, err := s.storage.ListRepositories(ctx, limit, offset)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if len(repos) == 0 {
 			break
 		}
-		
+
 		for _, repo := range repos {
 			repoCopy := repo // Create copy to avoid pointer issues
 			existingMap[repo.FullName] = &repoCopy
 		}
-		
+
 		if len(repos) < limit {
 			break
 		}
-		
+
 		offset += limit
 	}
-	
+
 	return existingMap, nil
 }
 
@@ -541,7 +541,7 @@ func (s *SyncService) removeRepositories(ctx context.Context, toRemove []string,
 	}
 
 	fmt.Printf("\nRemoving %d unstarred repositories...\n", len(toRemove))
-	
+
 	progress := NewProgressTracker(len(toRemove), "Removing repositories")
 	progress.Start()
 
@@ -554,7 +554,7 @@ func (s *SyncService) removeRepositories(ctx context.Context, toRemove []string,
 		}
 
 		progress.Update(fullName)
-		
+
 		if err := s.storage.DeleteRepository(ctx, fullName); err != nil {
 			s.logVerbose(fmt.Sprintf("Failed to remove %s: %v", fullName, err))
 			stats.SafeIncrement("error")
@@ -578,15 +578,15 @@ func (s *SyncService) processRepositoriesInBatchesWithForce(ctx context.Context,
 	}
 
 	totalBatches := (len(repos) + batchSize - 1) / batchSize
-	
+
 	fmt.Printf("\nProcessing %d repositories in %d batches (batch size: %d)...\n", len(repos), totalBatches, batchSize)
-	
+
 	// Create a map to track which repos are new vs updates for better progress reporting
 	isNewRepo := make(map[string]bool)
 	for _, repo := range operations.toAdd {
 		isNewRepo[repo.FullName] = true
 	}
-	
+
 	for i := 0; i < len(repos); i += batchSize {
 		select {
 		case <-ctx.Done():
@@ -598,29 +598,29 @@ func (s *SyncService) processRepositoriesInBatchesWithForce(ctx context.Context,
 		if end > len(repos) {
 			end = len(repos)
 		}
-		
+
 		batch := repos[i:end]
 		batchNum := (i / batchSize) + 1
-		
+
 		fmt.Printf("\n--- Batch %d/%d ---\n", batchNum, totalBatches)
-		
+
 		progress := NewProgressTracker(len(batch), fmt.Sprintf("Processing batch %d/%d", batchNum, totalBatches))
 		progress.Start()
-		
+
 		if err := s.processBatch(ctx, batch, stats, progress, isNewRepo, forceUpdate); err != nil {
 			progress.Stop()
 			return fmt.Errorf("failed to process batch %d: %w", batchNum, err)
 		}
-		
+
 		progress.Finish(fmt.Sprintf("Completed batch %d/%d", batchNum, totalBatches))
-		
+
 		// Small delay between batches to be respectful to APIs
 		if batchNum < totalBatches {
 			s.logVerbose("Waiting between batches...")
 			time.Sleep(2 * time.Second)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -631,25 +631,25 @@ func (s *SyncService) processBatch(ctx context.Context, batch []github.Repositor
 			return ctx.Err()
 		default:
 		}
-		
+
 		progress.Update(repo.FullName)
-		
+
 		// Get existing repository to track changes
 		existing, _ := s.storage.GetRepository(ctx, repo.FullName)
-		
+
 		result, err := s.processRepositoryWithChangeTrackingAndForce(ctx, repo, existing, false, forceUpdate)
 		if err != nil {
 			s.logVerbose(fmt.Sprintf("Failed to process %s: %v", repo.FullName, err))
 			stats.SafeIncrement("error")
 		} else {
 			stats.SafeIncrement("processed")
-			
+
 			// Track the type of operation
 			if isNewRepo[repo.FullName] {
 				stats.SafeIncrement("new")
 			} else {
 				stats.SafeIncrement("updated")
-				
+
 				// Track what type of changes occurred
 				if result.ContentChanged {
 					stats.SafeIncrement("content_changes")
@@ -659,11 +659,11 @@ func (s *SyncService) processBatch(ctx context.Context, batch []github.Repositor
 				}
 			}
 		}
-		
+
 		// Small delay between repositories to be respectful to APIs
 		time.Sleep(200 * time.Millisecond)
 	}
-	
+
 	return nil
 }
 
@@ -679,7 +679,7 @@ func (s *SyncService) processRepository(ctx context.Context, repo github.Reposit
 	if err != nil {
 		return err
 	}
-	
+
 	_ = result // Ignore result for backward compatibility
 	return nil
 }
@@ -744,15 +744,15 @@ func (s *SyncService) processRepositoryWithChangeTrackingAndForce(ctx context.Co
 		// Enhanced change detection with content hash comparison
 		contentChanged := existing.ContentHash != processed.ContentHash
 		metadataChanged := s.hasMetadataChanged(existing, processed)
-		
+
 		if contentChanged || metadataChanged || forceUpdate {
 			if err := s.storage.UpdateRepository(ctx, *processed); err != nil {
 				return result, fmt.Errorf("failed to update repository: %w", err)
 			}
-			
+
 			result.ContentChanged = contentChanged
 			result.MetadataChanged = metadataChanged
-			
+
 			if showDetails {
 				if forceUpdate && !contentChanged && !metadataChanged {
 					fmt.Printf("  Force updated repository (LastSynced timestamp updated)\n")
@@ -765,7 +765,7 @@ func (s *SyncService) processRepositoryWithChangeTrackingAndForce(ctx context.Co
 						changes = append(changes, "metadata")
 					}
 					fmt.Printf("  Updated repository (%s changed)\n", strings.Join(changes, " and "))
-					
+
 					if contentChanged {
 						fmt.Printf("    Content hash: %s → %s\n", existing.ContentHash[:8], processed.ContentHash[:8])
 					}
@@ -826,28 +826,28 @@ func (s *SyncService) printSyncSummary(stats *SyncStats) {
 	fmt.Printf("Repositories removed: %d\n", stats.RemovedRepos)
 	fmt.Printf("Repositories skipped: %d\n", stats.SkippedRepos)
 	fmt.Printf("Failed repositories: %d\n", stats.ErrorRepos)
-	
+
 	if stats.UpdatedRepos > 0 {
 		fmt.Printf("\nChange Details:\n")
 		fmt.Printf("  Content changes: %d\n", stats.ContentChanges)
 		fmt.Printf("  Metadata changes: %d\n", stats.MetadataChanges)
 	}
-	
+
 	fmt.Printf("\nTiming:\n")
 	fmt.Printf("  Total processing time: %v\n", stats.ProcessingTime)
 	if stats.ProcessedRepos > 0 {
 		avgTime := stats.ProcessingTime / time.Duration(stats.ProcessedRepos)
 		fmt.Printf("  Average time per repository: %v\n", avgTime)
 	}
-	
+
 	// Success rate
 	successRate := float64(stats.ProcessedRepos) / float64(stats.ProcessedRepos+stats.ErrorRepos) * 100
 	if stats.ProcessedRepos+stats.ErrorRepos > 0 {
 		fmt.Printf("  Success rate: %.1f%%\n", successRate)
 	}
-	
+
 	fmt.Println(strings.Repeat("=", 60))
-	
+
 	if stats.ErrorRepos > 0 {
 		fmt.Printf("⚠️  %d repositories failed to process. Check logs for details.\n", stats.ErrorRepos)
 	} else if stats.ProcessedRepos > 0 {
@@ -884,7 +884,7 @@ func (a *llmServiceAdapter) Summarize(ctx context.Context, prompt string, conten
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert llm.SummaryResponse to processor.SummaryResponse
 	return &processor.SummaryResponse{
 		Purpose:      response.Purpose,

@@ -99,4 +99,3 @@ go test ./...
 ## License
 
 MIT License
-

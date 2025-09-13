@@ -1,0 +1,41 @@
+# Dialect and template are set per-file
+# templater docs: https://docs.sqlfluff.com/en/stable/configuration/templating/placeholder.html
+
+[tool.sqlfluff.core]
+dialect = "sqlite" # Required even when set per-file (https://github.com/sqlfluff/sqlfluff/issues/3559#issuecomment-2491931050)
+templater = "placeholder"
+
+[tool.sqlfluff.indentation]
+allow_implicit_indents = true
+
+[tool.sqlfluff.rules]
+
+[tool.sqlfluff.rules.capitalisation.functions]
+extended_capitalisation_policy = "upper"
+
+[tool.sqlfluff.rules.capitalisation.identifiers]
+extended_capitalisation_policy = "lower"
+
+[tool.sqlfluff.rules.capitalisation.keywords]
+capitalisation_policy = "upper"
+
+[tool.sqlfluff.rules.capitalisation.literals]
+capitalisation_policy = "upper"
+
+[tool.sqlfluff.rules.capitalisation.types]
+extended_capitalisation_policy = "upper"
+
+[tool.sqlfluff.rules.convention.not_equal]
+# Default to preferring the "c_style" (i.e. `!=`)
+preferred_not_equal_style = "c_style"
+
+# templater docs: https://docs.sqlfluff.com/en/stable/configuration/templating/placeholder.html
+[tool.sqlfluff.templater.placeholder]
+param_style = "colon"
+
+[tool.tomlsort]
+in_place = true
+sort_inline_arrays = true
+sort_inline_tables = true
+sort_table_keys = true
+trailing_comma_inline_array = true

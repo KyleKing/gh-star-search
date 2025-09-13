@@ -492,14 +492,14 @@ func TestFallbackService_ParseQuery(t *testing.T) {
 
 func TestFallbackService_Configure(t *testing.T) {
 	fallback := NewFallbackService()
-	
+
 	// Configure should always succeed for fallback service
 	err := fallback.Configure(Config{
 		Provider: "any",
 		Model:    "any",
 		APIKey:   "any",
 	})
-	
+
 	if err != nil {
 		t.Errorf("Configure() should not fail for fallback service, got: %v", err)
 	}

@@ -1,0 +1,12 @@
+[tools]
+actionlint = "v1.7.6"
+go = "latest"
+"go:github.com/Zxilly/go-size-analyzer/cmd/gsa" = "latest"
+"go:github.com/golangci/golangci-lint/cmd/golangci-lint" = "latest"
+"go:github.com/loeffel-io/ls-lint" = "latest"
+"go:github.com/segmentio/golines" = "latest"
+hk = "latest"
+"pipx:commitizen" = "latest"
+"pipx:pre-commit-hooks" = "latest"
+"pipx:sqlfluff" = "latest"
+"pipx:toml-sort" = "latest"

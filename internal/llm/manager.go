@@ -40,11 +40,11 @@ func (m *Manager) RegisterProvider(name string, service Service) error {
 	if name == "" {
 		return fmt.Errorf("provider name cannot be empty")
 	}
-	
+
 	if service == nil {
 		return fmt.Errorf("service cannot be nil")
 	}
-	
+
 	m.providers[name] = service
 	return nil
 }
@@ -55,7 +55,7 @@ func (m *Manager) Configure(config Config) error {
 	if !exists {
 		return fmt.Errorf("provider %s not registered", config.Provider)
 	}
-	
+
 	return provider.Configure(config)
 }
 
@@ -67,7 +67,7 @@ func (m *Manager) Summarize(ctx context.Context, prompt string, content string) 
 		ctx, cancel = context.WithTimeout(ctx, m.config.Timeout)
 		defer cancel()
 	}
-	
+
 	// Try default provider first
 	if m.config.DefaultProvider != "" {
 		if provider, exists := m.providers[m.config.DefaultProvider]; exists {
@@ -78,7 +78,7 @@ func (m *Manager) Summarize(ctx context.Context, prompt string, content string) 
 			log.Printf("Default provider %s failed: %v", m.config.DefaultProvider, err)
 		}
 	}
-	
+
 	// Try fallback providers
 	for _, providerName := range m.config.FallbackProviders {
 		if provider, exists := m.providers[providerName]; exists {
@@ -89,13 +89,13 @@ func (m *Manager) Summarize(ctx context.Context, prompt string, content string) 
 			log.Printf("Fallback provider %s failed: %v", providerName, err)
 		}
 	}
-	
+
 	// Use rule-based fallback if enabled
 	if m.config.EnableFallback {
 		log.Println("Using rule-based fallback for summarization")
 		return m.fallback.Summarize(ctx, prompt, content)
 	}
-	
+
 	return nil, fmt.Errorf("all LLM providers failed and fallback is disabled")
 }
 
@@ -107,7 +107,7 @@ func (m *Manager) ParseQuery(ctx context.Context, query string, schema types.Sch
 		ctx, cancel = context.WithTimeout(ctx, m.config.Timeout)
 		defer cancel()
 	}
-	
+
 	// Try default provider first
 	if m.config.DefaultProvider != "" {
 		if provider, exists := m.providers[m.config.DefaultProvider]; exists {
@@ -118,7 +118,7 @@ func (m *Manager) ParseQuery(ctx context.Context, query string, schema types.Sch
 			log.Printf("Default provider %s failed: %v", m.config.DefaultProvider, err)
 		}
 	}
-	
+
 	// Try fallback providers
 	for _, providerName := range m.config.FallbackProviders {
 		if provider, exists := m.providers[providerName]; exists {
@@ -129,20 +129,20 @@ func (m *Manager) ParseQuery(ctx context.Context, query string, schema types.Sch
 			log.Printf("Fallback provider %s failed: %v", providerName, err)
 		}
 	}
-	
+
 	// Use rule-based fallback if enabled
 	if m.config.EnableFallback {
 		log.Println("Using rule-based fallback for query parsing")
 		return m.fallback.ParseQuery(ctx, query, schema)
 	}
-	
+
 	return nil, fmt.Errorf("all LLM providers failed and fallback is disabled")
 }
 
 // tryProviderSummarize attempts to use a provider for summarization with retries
 func (m *Manager) tryProviderSummarize(ctx context.Context, provider Service, prompt string, content string) (*SummaryResponse, error) {
 	var lastErr error
-	
+
 	for attempt := 0; attempt <= m.config.RetryAttempts; attempt++ {
 		if attempt > 0 {
 			// Wait before retry
@@ -152,27 +152,27 @@ func (m *Manager) tryProviderSummarize(ctx context.Context, provider Service, pr
 			case <-time.After(m.config.RetryDelay):
 			}
 		}
-		
+
 		response, err := provider.Summarize(ctx, prompt, content)
 		if err == nil {
 			return response, nil
 		}
-		
+
 		lastErr = err
-		
+
 		// Don't retry on context cancellation
 		if ctx.Err() != nil {
 			break
 		}
 	}
-	
+
 	return nil, fmt.Errorf("provider failed after %d attempts: %w", m.config.RetryAttempts+1, lastErr)
 }
 
 // tryProviderParseQuery attempts to use a provider for query parsing with retries
 func (m *Manager) tryProviderParseQuery(ctx context.Context, provider Service, query string, schema types.Schema) (*QueryResponse, error) {
 	var lastErr error
-	
+
 	for attempt := 0; attempt <= m.config.RetryAttempts; attempt++ {
 		if attempt > 0 {
 			// Wait before retry
@@ -182,20 +182,20 @@ func (m *Manager) tryProviderParseQuery(ctx context.Context, provider Service, q
 			case <-time.After(m.config.RetryDelay):
 			}
 		}
-		
+
 		response, err := provider.ParseQuery(ctx, query, schema)
 		if err == nil {
 			return response, nil
 		}
-		
+
 		lastErr = err
-		
+
 		// Don't retry on context cancellation
 		if ctx.Err() != nil {
 			break
 		}
 	}
-	
+
 	return nil, fmt.Errorf("provider failed after %d attempts: %w", m.config.RetryAttempts+1, lastErr)
 }
 

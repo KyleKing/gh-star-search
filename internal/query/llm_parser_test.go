@@ -33,7 +33,7 @@ func (m *MockLLMService) Configure(config llm.Config) error {
 func TestNewLLMParser(t *testing.T) {
 	mockLLM := &MockLLMService{}
 	parser := NewLLMParser(mockLLM, nil)
-	
+
 	assert.NotNil(t, parser)
 	assert.Equal(t, mockLLM, parser.llmService)
 	assert.NotNil(t, parser.schema)
@@ -503,12 +503,12 @@ func TestGetDefaultSchema(t *testing.T) {
 	for _, col := range repoTable.Columns {
 		repoColumns[col.Name] = true
 	}
-	
+
 	expectedColumns := []string{
 		"id", "full_name", "description", "language", "stargazers_count",
 		"forks_count", "purpose", "technologies", "use_cases", "features",
 	}
-	
+
 	for _, col := range expectedColumns {
 		assert.True(t, repoColumns[col], "Column %s should exist in repositories table", col)
 	}
@@ -521,7 +521,7 @@ func TestLLMParser_ExplainQuery_Integration(t *testing.T) {
 
 	// This would be an integration test that requires a real database
 	// It's skipped by default but can be enabled for full testing
-	
+
 	/*
 	db, err := sql.Open("duckdb", ":memory:")
 	require.NoError(t, err)
@@ -539,7 +539,7 @@ func TestLLMParser_ExplainQuery_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	parser := NewLLMParser(&MockLLMService{}, db)
-	
+
 	plan, err := parser.ExplainQuery("SELECT * FROM repositories WHERE language = 'Go'")
 	assert.NoError(t, err)
 	assert.NotNil(t, plan)

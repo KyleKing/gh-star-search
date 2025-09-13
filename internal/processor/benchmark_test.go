@@ -64,10 +64,10 @@ func BenchmarkProcessRepository(b *testing.B) {
 
 func BenchmarkChunkContent(b *testing.B) {
 	service := &serviceImpl{}
-	
+
 	// Create large content for chunking
 	content := strings.Repeat("This is a line of content that will be chunked for performance testing.\n", 1000)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		chunks := service.chunkContent(content, "test.md", ContentTypeReadme, PriorityHigh)
@@ -79,7 +79,7 @@ func BenchmarkChunkContent(b *testing.B) {
 
 func BenchmarkDetermineContentType(b *testing.B) {
 	service := &serviceImpl{}
-	
+
 	paths := []string{
 		"README.md",
 		"main.go",
@@ -90,7 +90,7 @@ func BenchmarkDetermineContentType(b *testing.B) {
 		"LICENSE",
 		"CHANGELOG.md",
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, path := range paths {
@@ -101,7 +101,7 @@ func BenchmarkDetermineContentType(b *testing.B) {
 
 func BenchmarkFilterContent(b *testing.B) {
 	service := &serviceImpl{}
-	
+
 	// Create content with mix of valid and invalid files
 	content := []github.Content{
 		{Path: "README.md", Type: "file", Size: 1000},
@@ -113,7 +113,7 @@ func BenchmarkFilterContent(b *testing.B) {
 		{Path: "binary.exe", Type: "file", Size: 1000000},
 		{Path: "docs.md", Type: "file", Size: 1500},
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		filtered := service.filterContent(content)
@@ -125,7 +125,7 @@ func BenchmarkFilterContent(b *testing.B) {
 
 func BenchmarkGenerateContentHash(b *testing.B) {
 	service := &serviceImpl{}
-	
+
 	// Create chunks for hashing
 	chunks := make([]ContentChunk, 100)
 	for i := range chunks {
@@ -135,7 +135,7 @@ func BenchmarkGenerateContentHash(b *testing.B) {
 			Type:    ContentTypeReadme,
 		}
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		hash := service.generateContentHash(chunks)
@@ -147,7 +147,7 @@ func BenchmarkGenerateContentHash(b *testing.B) {
 
 func BenchmarkSplitMarkdownContent(b *testing.B) {
 	service := &serviceImpl{}
-	
+
 	// Create markdown content with multiple sections
 	content := ""
 	for i := 0; i < 50; i++ {
@@ -156,7 +156,7 @@ func BenchmarkSplitMarkdownContent(b *testing.B) {
 		content += "## Subsection\n\n"
 		content += strings.Repeat("More detailed content in the subsection.\n\n", 5)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		sections := service.splitMarkdownContent(content)
@@ -168,16 +168,16 @@ func BenchmarkSplitMarkdownContent(b *testing.B) {
 
 func BenchmarkDecodeContent(b *testing.B) {
 	service := &serviceImpl{}
-	
+
 	// Create base64 encoded content
 	originalText := strings.Repeat("This is test content for decoding benchmarks.\n", 100)
 	encoded := base64.StdEncoding.EncodeToString([]byte(originalText))
-	
+
 	file := github.Content{
 		Content:  encoded,
 		Encoding: "base64",
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		decoded, err := service.decodeContent(file)

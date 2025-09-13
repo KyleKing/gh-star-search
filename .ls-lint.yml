@@ -1,0 +1,12 @@
+ls:
+  .github/**/:
+    yml: kebab-case
+    yaml: kebab-case
+
+  # TODO: Some files are in snake_case and need to be revisited
+  # .go: regex:.+_test | camelCase
+  .html: camelCase
+
+ignore:
+  - .git
+  - .jj

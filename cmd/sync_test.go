@@ -77,7 +77,7 @@ func (m *MockLLMService) Summarize(ctx context.Context, prompt string, content s
 
 func TestSyncService_DetermineSyncOperations(t *testing.T) {
 	baseTime := time.Now().Add(-2 * time.Hour)
-	
+
 	// Create test repositories
 	starredRepos := []github.Repository{
 		{
@@ -152,9 +152,9 @@ func TestSyncService_DetermineSyncOperations(t *testing.T) {
 
 func TestSyncService_NeedsUpdate(t *testing.T) {
 	syncService := &SyncService{}
-	
+
 	baseTime := time.Now().Add(-2 * time.Hour)
-	
+
 	tests := []struct {
 		name     string
 		repo     github.Repository
@@ -236,7 +236,7 @@ func TestSyncService_ProcessRepository(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	dbPath := filepath.Join(tempDir, "test.db")
-	
+
 	// Initialize storage
 	repo, err := storage.NewDuckDBRepository(dbPath)
 	if err != nil {
@@ -345,7 +345,7 @@ func TestSyncService_ProcessRepositoriesInBatches(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	dbPath := filepath.Join(tempDir, "test.db")
-	
+
 	// Initialize storage
 	repo, err := storage.NewDuckDBRepository(dbPath)
 	if err != nil {
@@ -386,7 +386,7 @@ func TestSyncService_ProcessRepositoriesInBatches(t *testing.T) {
 	}
 
 	stats := &SyncStats{}
-	
+
 	// Create operations for the new batch processing signature
 	operations := &syncOperations{
 		toAdd:    testRepos, // All repos are new
@@ -409,7 +409,7 @@ func TestSyncService_ProcessRepositoriesInBatches(t *testing.T) {
 			t.Errorf("Expected %s, got %s", testRepo.FullName, stored.FullName)
 		}
 	}
-	
+
 	// Verify stats were updated correctly
 	if stats.NewRepos != 3 {
 		t.Errorf("Expected 3 new repos, got %d", stats.NewRepos)
@@ -459,9 +459,9 @@ func TestExpandPath(t *testing.T) {
 
 func TestSyncService_GetUpdateReason(t *testing.T) {
 	syncService := &SyncService{}
-	
+
 	baseTime := time.Now().Add(-2 * time.Hour)
-	
+
 	tests := []struct {
 		name     string
 		repo     github.Repository
@@ -522,7 +522,7 @@ func TestSyncService_GetUpdateReason(t *testing.T) {
 
 func TestSyncService_TopicsEqual(t *testing.T) {
 	syncService := &SyncService{}
-	
+
 	tests := []struct {
 		name     string
 		a        []string
@@ -573,7 +573,7 @@ func TestSyncService_TopicsEqual(t *testing.T) {
 
 func TestSyncService_LicenseChanged(t *testing.T) {
 	syncService := &SyncService{}
-	
+
 	tests := []struct {
 		name         string
 		newLicense   *github.License
@@ -633,21 +633,21 @@ func TestSyncService_LicenseChanged(t *testing.T) {
 func TestProgressTracker(t *testing.T) {
 	// Test progress tracker functionality
 	tracker := NewProgressTracker(5, "Testing progress")
-	
+
 	if tracker.total != 5 {
 		t.Errorf("Expected total 5, got %d", tracker.total)
 	}
-	
+
 	if tracker.processed != 0 {
 		t.Errorf("Expected processed 0, got %d", tracker.processed)
 	}
-	
+
 	// Test update
 	tracker.Update("test-repo")
 	if tracker.processed != 1 {
 		t.Errorf("Expected processed 1 after update, got %d", tracker.processed)
 	}
-	
+
 	// Test multiple updates
 	tracker.Update("test-repo-2")
 	tracker.Update("test-repo-3")
@@ -658,10 +658,10 @@ func TestProgressTracker(t *testing.T) {
 
 func TestSyncStats_SafeIncrement(t *testing.T) {
 	stats := &SyncStats{}
-	
+
 	// Test concurrent increments
 	var wg sync.WaitGroup
-	
+
 	// Start multiple goroutines to test thread safety
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
@@ -672,9 +672,9 @@ func TestSyncStats_SafeIncrement(t *testing.T) {
 			stats.SafeIncrement("processed")
 		}()
 	}
-	
+
 	wg.Wait()
-	
+
 	// Each field should be incremented 10 times
 	if stats.NewRepos != 10 {
 		t.Errorf("Expected NewRepos 10, got %d", stats.NewRepos)

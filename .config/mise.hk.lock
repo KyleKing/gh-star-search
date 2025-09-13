@@ -1,0 +1,43 @@
+[[tools.actionlint]]
+version = "v1.7.6"
+backend = "aqua:rhysd/actionlint"
+
+[[tools.go]]
+version = "1.25.1"
+backend = "core:go"
+
+[[tools."go:github.com/Zxilly/go-size-analyzer/cmd/gsa"]]
+version = "1.9.2"
+backend = "go:github.com/Zxilly/go-size-analyzer/cmd/gsa"
+
+[[tools."go:github.com/golangci/golangci-lint/cmd/golangci-lint"]]
+version = "1.64.8"
+backend = "go:github.com/golangci/golangci-lint/cmd/golangci-lint"
+
+[[tools."go:github.com/loeffel-io/ls-lint"]]
+version = "1.11.2"
+backend = "go:github.com/loeffel-io/ls-lint"
+
+[[tools."go:github.com/segmentio/golines"]]
+version = "0.12.2"
+backend = "go:github.com/segmentio/golines"
+
+[[tools.hk]]
+version = "1.12.0"
+backend = "aqua:jdx/hk"
+
+[[tools."pipx:commitizen"]]
+version = "4.7.0"
+backend = "pipx:commitizen"
+
+[[tools."pipx:pre-commit-hooks"]]
+version = "5.0.0"
+backend = "pipx:pre-commit-hooks"
+
+[[tools."pipx:sqlfluff"]]
+version = "3.4.2"
+backend = "pipx:sqlfluff"
+
+[[tools."pipx:toml-sort"]]
+version = "latest"
+backend = "pipx:toml-sort"

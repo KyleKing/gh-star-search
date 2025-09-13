@@ -18,7 +18,7 @@ func ExampleDuckDBRepository() {
 	tempDir, _ := os.MkdirTemp("", "example_test")
 	defer os.RemoveAll(tempDir)
 	dbPath := filepath.Join(tempDir, "example.db")
-	
+
 	// Create repository instance
 	repo, err := NewDuckDBRepository(dbPath)
 	if err != nil {
@@ -102,7 +102,7 @@ func ExampleDuckDBRepository() {
 		log.Fatalf("Failed to get stats: %v", err)
 	}
 
-	fmt.Printf("Database contains %d repositories and %d content chunks\n", 
+	fmt.Printf("Database contains %d repositories and %d content chunks\n",
 		stats.TotalRepositories, stats.TotalContentChunks)
 
 	// Output:

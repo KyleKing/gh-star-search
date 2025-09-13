@@ -202,7 +202,7 @@ func TestSyncIntegration(t *testing.T) {
 		UpdatedAt:       time.Now(), // Recently updated
 		Topics:          []string{"javascript", "frontend", "react"},
 	}
-	
+
 	// Create new repository
 	brandNewRepo := github.Repository{
 		FullName:        "user/brand-new-repo",
@@ -215,7 +215,7 @@ func TestSyncIntegration(t *testing.T) {
 		UpdatedAt:       time.Now().Add(-1 * time.Hour),
 		Topics:          []string{"rust", "systems", "performance"},
 	}
-	
+
 	// Update the starred repos list (remove new-repo, update updated-repo, add brand-new-repo)
 	mockGitHub.starredRepos = []github.Repository{
 		mockGitHub.starredRepos[0], // active-repo (unchanged)
@@ -239,14 +239,14 @@ func TestSyncIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Incremental sync failed: %v", err)
 	}
-	
+
 	// Debug: Check what the mock data looks like
 	for _, repo := range mockGitHub.starredRepos {
 		if repo.FullName == "user/updated-repo" {
 			t.Logf("Mock updated-repo has %d stars", repo.StargazersCount)
 		}
 	}
-	
+
 	// Wait a moment to ensure any async operations complete
 	time.Sleep(100 * time.Millisecond)
 
@@ -301,7 +301,7 @@ func TestSyncIntegration(t *testing.T) {
 
 	// Step 4: Test content change detection with hash comparison
 	t.Log("Step 4: Content change detection")
-	
+
 	// Update content for active-repo to test content change detection
 	mockGitHub.content["user/active-repo"] = []github.Content{
 		{
@@ -319,7 +319,7 @@ func TestSyncIntegration(t *testing.T) {
 			Encoding: "base64",
 		},
 	}
-	
+
 	// Update the repository's UpdatedAt timestamp to trigger processing
 	for i, repo := range mockGitHub.starredRepos {
 		if repo.FullName == "user/active-repo" {
@@ -327,30 +327,30 @@ func TestSyncIntegration(t *testing.T) {
 			break
 		}
 	}
-	
+
 	// Get the current content hash
 	oldActiveRepo, err := repo.GetRepository(ctx, "user/active-repo")
 	if err != nil {
 		t.Fatalf("Failed to get active-repo before content update: %v", err)
 	}
 	oldContentHash := oldActiveRepo.ContentHash
-	
+
 	// Perform sync to detect content changes
 	err = syncService.performFullSync(ctx, 2, false)
 	if err != nil {
 		t.Fatalf("Content change sync failed: %v", err)
 	}
-	
+
 	// Verify content hash changed
 	updatedActiveRepo, err := repo.GetRepository(ctx, "user/active-repo")
 	if err != nil {
 		t.Fatalf("Failed to get active-repo after content update: %v", err)
 	}
-	
+
 	if updatedActiveRepo.ContentHash == oldContentHash {
 		t.Error("Expected content hash to change after content update")
 	}
-	
+
 	t.Logf("Content hash changed: %s → %s", oldContentHash[:8], updatedActiveRepo.ContentHash[:8])
 
 	t.Log("Integration test completed successfully")
@@ -686,7 +686,7 @@ func TestSyncIncrementalUpdates(t *testing.T) {
 
 	// Step 3: Test content-only changes (simulate GitHub repository update)
 	t.Log("Step 3: Content-only changes")
-	
+
 	// Update both content AND UpdatedAt to simulate a real GitHub repository update
 	mockGitHub.content["user/test-repo"] = []github.Content{
 		{
@@ -697,7 +697,7 @@ func TestSyncIncrementalUpdates(t *testing.T) {
 			Encoding: "base64",
 		},
 	}
-	
+
 	// Update the repository's UpdatedAt timestamp to trigger processing
 	mockGitHub.starredRepos[0].UpdatedAt = time.Now()
 
@@ -738,10 +738,10 @@ func TestSyncIncrementalUpdates(t *testing.T) {
 
 	// Step 5: Test force sync
 	t.Log("Step 5: Force sync")
-	
+
 	// Add a small delay to ensure timestamp difference
 	time.Sleep(10 * time.Millisecond)
-	
+
 	err = syncService.performFullSync(ctx, 1, true)
 	if err != nil {
 		t.Fatalf("Force sync failed: %v", err)
@@ -811,7 +811,7 @@ func TestSyncProgressTracking(t *testing.T) {
 		// Create base64 encoded content for each repo
 		readmeContent := fmt.Sprintf("# Repository %d\n\nTest content for repo %d", i+1, i+1)
 		encodedContent := base64.StdEncoding.EncodeToString([]byte(readmeContent))
-		
+
 		content[repoName] = []github.Content{
 			{
 				Path:     "README.md",

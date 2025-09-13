@@ -113,7 +113,7 @@ func TestGetStarredRepos_Success(t *testing.T) {
 	client := &clientImpl{apiClient: mockClient}
 
 	testRepo := createTestRepository()
-	
+
 	// Mock first page response with less than per_page results to end pagination
 	mockClient.setResponse("user/starred?page=1&per_page=100", []Repository{testRepo})
 
@@ -269,10 +269,10 @@ func TestGetRepositoryContent_MultiplePaths(t *testing.T) {
 	client := &clientImpl{apiClient: mockClient}
 
 	testRepo := createTestRepository()
-	
+
 	readmeContent := createTestContent()
 	readmeContent.Path = "README.md"
-	
+
 	licenseContent := createTestContent()
 	licenseContent.Path = "LICENSE"
 
@@ -422,8 +422,8 @@ func TestGetRepositoryMetadata_NoReleases(t *testing.T) {
 
 // Helper function to check if a string contains a substring
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || (len(s) > len(substr) && 
-		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || 
+	return len(s) >= len(substr) && (s == substr || (len(s) > len(substr) &&
+		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
 		 containsAt(s, substr))))
 }
 

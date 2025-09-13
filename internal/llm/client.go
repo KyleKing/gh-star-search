@@ -34,11 +34,11 @@ func (c *Client) Configure(config Config) error {
 	if config.Provider == "" {
 		return fmt.Errorf("provider is required")
 	}
-	
+
 	if config.Model == "" {
 		return fmt.Errorf("model is required")
 	}
-	
+
 	// Validate provider-specific requirements
 	switch config.Provider {
 	case ProviderOpenAI:
@@ -62,7 +62,7 @@ func (c *Client) Configure(config Config) error {
 	default:
 		return fmt.Errorf("unsupported provider: %s", config.Provider)
 	}
-	
+
 	c.config = config
 	return nil
 }
@@ -72,10 +72,10 @@ func (c *Client) Summarize(ctx context.Context, prompt string, content string) (
 	if c.config.Provider == "" {
 		return nil, fmt.Errorf("LLM client not configured")
 	}
-	
+
 	// Build the summarization prompt
 	fullPrompt := c.buildSummarizationPrompt(prompt, content)
-	
+
 	// Make the API call based on provider
 	switch c.config.Provider {
 	case ProviderOpenAI:
@@ -94,10 +94,10 @@ func (c *Client) ParseQuery(ctx context.Context, query string, schema types.Sche
 	if c.config.Provider == "" {
 		return nil, fmt.Errorf("LLM client not configured")
 	}
-	
+
 	// Build the query parsing prompt
 	fullPrompt := c.buildQueryParsingPrompt(query, schema)
-	
+
 	// Make the API call based on provider
 	switch c.config.Provider {
 	case ProviderOpenAI:
@@ -113,7 +113,7 @@ func (c *Client) ParseQuery(ctx context.Context, query string, schema types.Sche
 
 // buildSummarizationPrompt creates a structured prompt for content summarization
 func (c *Client) buildSummarizationPrompt(userPrompt, content string) string {
-	systemPrompt := `You are an expert at analyzing software repositories and extracting key information. 
+	systemPrompt := `You are an expert at analyzing software repositories and extracting key information.
 Your task is to analyze the provided repository content and generate a structured summary.
 
 Please respond with a JSON object containing the following fields:
@@ -166,7 +166,7 @@ User Query: %s`
 // formatSchema converts the schema to a readable string format
 func (c *Client) formatSchema(schema types.Schema) string {
 	var sb strings.Builder
-	
+
 	for tableName, table := range schema.Tables {
 		sb.WriteString(fmt.Sprintf("Table: %s\n", tableName))
 		sb.WriteString("Columns:\n")
@@ -185,7 +185,7 @@ func (c *Client) formatSchema(schema types.Schema) string {
 		}
 		sb.WriteString("\n")
 	}
-	
+
 	return sb.String()
 }
 
@@ -233,31 +233,31 @@ func (c *Client) summarizeOpenAI(ctx context.Context, prompt string) (*SummaryRe
 		MaxTokens:   2000,
 		ResponseFormat: &openAIResponseFormat{Type: "json_object"},
 	}
-	
+
 	respBody, err := c.makeOpenAIRequest(ctx, "/chat/completions", reqBody)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var response openAIResponse
 	if err := json.Unmarshal(respBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse OpenAI response: %w", err)
 	}
-	
+
 	if response.Error != nil {
 		return nil, fmt.Errorf("OpenAI API error: %s", response.Error.Message)
 	}
-	
+
 	if len(response.Choices) == 0 {
 		return nil, fmt.Errorf("no response from OpenAI")
 	}
-	
+
 	// Parse the JSON response
 	var summary SummaryResponse
 	if err := json.Unmarshal([]byte(response.Choices[0].Message.Content), &summary); err != nil {
 		return nil, fmt.Errorf("failed to parse summary JSON: %w", err)
 	}
-	
+
 	return &summary, nil
 }
 
@@ -272,31 +272,31 @@ func (c *Client) parseQueryOpenAI(ctx context.Context, prompt string) (*QueryRes
 		MaxTokens:   1000,
 		ResponseFormat: &openAIResponseFormat{Type: "json_object"},
 	}
-	
+
 	respBody, err := c.makeOpenAIRequest(ctx, "/chat/completions", reqBody)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var response openAIResponse
 	if err := json.Unmarshal(respBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse OpenAI response: %w", err)
 	}
-	
+
 	if response.Error != nil {
 		return nil, fmt.Errorf("OpenAI API error: %s", response.Error.Message)
 	}
-	
+
 	if len(response.Choices) == 0 {
 		return nil, fmt.Errorf("no response from OpenAI")
 	}
-	
+
 	// Parse the JSON response
 	var queryResp QueryResponse
 	if err := json.Unmarshal([]byte(response.Choices[0].Message.Content), &queryResp); err != nil {
 		return nil, fmt.Errorf("failed to parse query JSON: %w", err)
 	}
-	
+
 	return &queryResp, nil
 }
 
@@ -306,30 +306,30 @@ func (c *Client) makeOpenAIRequest(ctx context.Context, endpoint string, reqBody
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "POST", c.config.BaseURL+endpoint, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.config.APIKey)
-	
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
 	}
-	
+
 	return body, nil
 }
 
@@ -370,31 +370,31 @@ func (c *Client) summarizeAnthropic(ctx context.Context, prompt string) (*Summar
 			{Role: "user", Content: prompt},
 		},
 	}
-	
+
 	respBody, err := c.makeAnthropicRequest(ctx, "/messages", reqBody)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var response anthropicResponse
 	if err := json.Unmarshal(respBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse Anthropic response: %w", err)
 	}
-	
+
 	if response.Error != nil {
 		return nil, fmt.Errorf("Anthropic API error: %s", response.Error.Message)
 	}
-	
+
 	if len(response.Content) == 0 {
 		return nil, fmt.Errorf("no response from Anthropic")
 	}
-	
+
 	// Parse the JSON response
 	var summary SummaryResponse
 	if err := json.Unmarshal([]byte(response.Content[0].Text), &summary); err != nil {
 		return nil, fmt.Errorf("failed to parse summary JSON: %w", err)
 	}
-	
+
 	return &summary, nil
 }
 
@@ -407,31 +407,31 @@ func (c *Client) parseQueryAnthropic(ctx context.Context, prompt string) (*Query
 			{Role: "user", Content: prompt},
 		},
 	}
-	
+
 	respBody, err := c.makeAnthropicRequest(ctx, "/messages", reqBody)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var response anthropicResponse
 	if err := json.Unmarshal(respBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse Anthropic response: %w", err)
 	}
-	
+
 	if response.Error != nil {
 		return nil, fmt.Errorf("Anthropic API error: %s", response.Error.Message)
 	}
-	
+
 	if len(response.Content) == 0 {
 		return nil, fmt.Errorf("no response from Anthropic")
 	}
-	
+
 	// Parse the JSON response
 	var queryResp QueryResponse
 	if err := json.Unmarshal([]byte(response.Content[0].Text), &queryResp); err != nil {
 		return nil, fmt.Errorf("failed to parse query JSON: %w", err)
 	}
-	
+
 	return &queryResp, nil
 }
 
@@ -441,31 +441,31 @@ func (c *Client) makeAnthropicRequest(ctx context.Context, endpoint string, reqB
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "POST", c.config.BaseURL+endpoint, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", c.config.APIKey)
 	req.Header.Set("anthropic-version", "2023-06-01")
-	
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
 	}
-	
+
 	return body, nil
 }
 
@@ -491,27 +491,27 @@ func (c *Client) summarizeOllama(ctx context.Context, prompt string) (*SummaryRe
 		Stream: false,
 		Format: "json",
 	}
-	
+
 	respBody, err := c.makeOllamaRequest(ctx, "/api/generate", reqBody)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var response ollamaResponse
 	if err := json.Unmarshal(respBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse Ollama response: %w", err)
 	}
-	
+
 	if response.Error != "" {
 		return nil, fmt.Errorf("Ollama API error: %s", response.Error)
 	}
-	
+
 	// Parse the JSON response
 	var summary SummaryResponse
 	if err := json.Unmarshal([]byte(response.Response), &summary); err != nil {
 		return nil, fmt.Errorf("failed to parse summary JSON: %w", err)
 	}
-	
+
 	return &summary, nil
 }
 
@@ -523,27 +523,27 @@ func (c *Client) parseQueryOllama(ctx context.Context, prompt string) (*QueryRes
 		Stream: false,
 		Format: "json",
 	}
-	
+
 	respBody, err := c.makeOllamaRequest(ctx, "/api/generate", reqBody)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var response ollamaResponse
 	if err := json.Unmarshal(respBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse Ollama response: %w", err)
 	}
-	
+
 	if response.Error != "" {
 		return nil, fmt.Errorf("Ollama API error: %s", response.Error)
 	}
-	
+
 	// Parse the JSON response
 	var queryResp QueryResponse
 	if err := json.Unmarshal([]byte(response.Response), &queryResp); err != nil {
 		return nil, fmt.Errorf("failed to parse query JSON: %w", err)
 	}
-	
+
 	return &queryResp, nil
 }
 
@@ -553,28 +553,28 @@ func (c *Client) makeOllamaRequest(ctx context.Context, endpoint string, reqBody
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "POST", c.config.BaseURL+endpoint, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
 	}
-	
+
 	return body, nil
 }

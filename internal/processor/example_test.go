@@ -118,7 +118,7 @@ func ExampleService_GenerateSummary() {
 	// Create service and generate summary
 	service := processor.NewService(&mockClient{}, &mockLLMService{})
 	ctx := context.Background()
-	
+
 	summary, err := service.GenerateSummary(ctx, chunks)
 	if err != nil {
 		log.Fatal(err)

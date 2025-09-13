@@ -164,7 +164,7 @@ func (m *MigrationManager) ApplyMigration(ctx context.Context, migration Migrati
 	}
 
 	// Record the migration as applied
-	_, err = tx.ExecContext(ctx, 
+	_, err = tx.ExecContext(ctx,
 		"INSERT INTO schema_migrations (version, description) VALUES (?, ?)",
 		migration.Version, migration.Description)
 	if err != nil {

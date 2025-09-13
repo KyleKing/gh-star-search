@@ -142,7 +142,7 @@ func (s *serviceImpl) ProcessRepository(ctx context.Context, repo github.Reposit
 func (s *serviceImpl) ExtractContent(ctx context.Context, repo github.Repository) ([]github.Content, error) {
 	// Define priority paths to extract
 	priorityPaths := s.getPriorityPaths()
-	
+
 	// Fetch content from GitHub
 	content, err := s.githubClient.GetRepositoryContent(ctx, repo, priorityPaths)
 	if err != nil {
@@ -151,7 +151,7 @@ func (s *serviceImpl) ExtractContent(ctx context.Context, repo github.Repository
 
 	// Filter and validate content
 	filteredContent := s.filterContent(content)
-	
+
 	return filteredContent, nil
 }
 
@@ -161,14 +161,14 @@ func (s *serviceImpl) GenerateSummary(ctx context.Context, chunks []ContentChunk
 		// Fallback to basic summary if no LLM service available
 		return s.generateBasicSummary(chunks), nil
 	}
-	
+
 	// Prepare content for LLM processing
 	content := s.prepareContentForLLM(chunks)
 	if content == "" {
 		// If no content to process, return basic summary
 		return s.generateBasicSummary(chunks), nil
 	}
-	
+
 	// Use LLM service to generate summary
 	llmResponse, err := s.llmService.Summarize(ctx, "", content)
 	if err != nil {
@@ -176,7 +176,7 @@ func (s *serviceImpl) GenerateSummary(ctx context.Context, chunks []ContentChunk
 		fmt.Printf("LLM summarization failed, using fallback: %v\n", err)
 		return s.generateBasicSummary(chunks), nil
 	}
-	
+
 	// Convert LLM response to our Summary format
 	summary := &Summary{
 		Purpose:      llmResponse.Purpose,
@@ -186,7 +186,7 @@ func (s *serviceImpl) GenerateSummary(ctx context.Context, chunks []ContentChunk
 		Installation: llmResponse.Installation,
 		Usage:        llmResponse.Usage,
 	}
-	
+
 	return summary, nil
 }
 
@@ -215,7 +215,7 @@ func (s *serviceImpl) extractAndChunkContent(ctx context.Context, repo github.Re
 
 		// Create chunks from the content
 		chunks := s.chunkContent(decodedContent, file.Path, contentType, priority)
-		
+
 		// Add chunks while respecting token limits
 		for _, chunk := range chunks {
 			if totalTokens+chunk.Tokens > MaxTotalTokens {
@@ -244,24 +244,24 @@ func (s *serviceImpl) getPriorityPaths() []string {
 		// README files (highest priority)
 		"README.md", "README.rst", "README.txt", "README",
 		"readme.md", "readme.rst", "readme.txt", "readme",
-		
+
 		// Package manifests
 		"package.json", "Cargo.toml", "go.mod", "setup.py", "pom.xml",
 		"composer.json", "Gemfile", "requirements.txt", "pyproject.toml",
-		
+
 		// Documentation
 		"CHANGELOG.md", "CHANGELOG.rst", "CHANGELOG.txt", "CHANGELOG",
 		"CHANGES.md", "CHANGES.rst", "CHANGES.txt", "CHANGES",
 		"HISTORY.md", "HISTORY.rst", "HISTORY.txt", "HISTORY",
-		
+
 		// License files
 		"LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING",
 		"license", "license.md", "license.txt", "copying",
-		
+
 		// Configuration files
 		".github/README.md", "docs/README.md", "doc/README.md",
 		"docs/index.md", "doc/index.md",
-		
+
 		// Main entry points (common patterns)
 		"main.go", "main.py", "index.js", "index.ts", "app.js", "app.py",
 		"src/main.go", "src/main.py", "src/index.js", "src/index.ts",
@@ -271,26 +271,26 @@ func (s *serviceImpl) getPriorityPaths() []string {
 // filterContent filters out unwanted content and validates files
 func (s *serviceImpl) filterContent(content []github.Content) []github.Content {
 	var filtered []github.Content
-	
+
 	for _, file := range content {
 		// Skip if file is too large (> 1MB)
 		if file.Size > 1024*1024 {
 			continue
 		}
-		
+
 		// Skip binary files
 		if s.isBinaryFile(file.Path) {
 			continue
 		}
-		
+
 		// Skip if content type is file (not directory)
 		if file.Type != "file" {
 			continue
 		}
-		
+
 		filtered = append(filtered, file)
 	}
-	
+
 	return filtered
 }
 
@@ -301,15 +301,15 @@ func (s *serviceImpl) decodeContent(file github.Content) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to decode base64 content: %w", err)
 		}
-		
+
 		// Validate UTF-8
 		if !utf8.Valid(decoded) {
 			return "", fmt.Errorf("content is not valid UTF-8")
 		}
-		
+
 		return string(decoded), nil
 	}
-	
+
 	return file.Content, nil
 }
 
@@ -318,27 +318,27 @@ func (s *serviceImpl) determineContentType(path string) string {
 	lowerPath := strings.ToLower(path)
 	ext := strings.ToLower(filepath.Ext(path))
 	base := strings.ToLower(filepath.Base(path))
-	
+
 	// README files
 	if strings.HasPrefix(base, "readme") {
 		return ContentTypeReadme
 	}
-	
+
 	// Documentation files
 	if strings.Contains(lowerPath, "doc") || strings.Contains(lowerPath, "wiki") {
 		return ContentTypeDocs
 	}
-	
+
 	// Changelog files
 	if strings.Contains(base, "changelog") || strings.Contains(base, "changes") || strings.Contains(base, "history") {
 		return ContentTypeChangelog
 	}
-	
+
 	// License files
 	if strings.Contains(base, "license") || strings.Contains(base, "copying") {
 		return ContentTypeLicense
 	}
-	
+
 	// Package manifests
 	packageFiles := []string{"package.json", "cargo.toml", "go.mod", "setup.py", "pom.xml", "composer.json", "gemfile", "requirements.txt", "pyproject.toml"}
 	for _, pkg := range packageFiles {
@@ -346,7 +346,7 @@ func (s *serviceImpl) determineContentType(path string) string {
 			return ContentTypePackage
 		}
 	}
-	
+
 	// Configuration files
 	configExts := []string{".json", ".yaml", ".yml", ".toml", ".ini", ".conf", ".config"}
 	for _, configExt := range configExts {
@@ -354,7 +354,7 @@ func (s *serviceImpl) determineContentType(path string) string {
 			return ContentTypeConfig
 		}
 	}
-	
+
 	// Code files
 	codeExts := []string{".go", ".py", ".js", ".ts", ".java", ".c", ".cpp", ".h", ".hpp", ".rs", ".rb", ".php", ".cs", ".swift", ".kt", ".scala", ".clj", ".hs", ".ml", ".r", ".m", ".sh", ".bash", ".zsh", ".fish"}
 	for _, codeExt := range codeExts {
@@ -362,7 +362,7 @@ func (s *serviceImpl) determineContentType(path string) string {
 			return ContentTypeCode
 		}
 	}
-	
+
 	return ContentTypeDocs // Default to docs
 }
 
@@ -398,12 +398,12 @@ func (s *serviceImpl) determinePriority(contentType, path string) int {
 // chunkContent splits content into manageable chunks
 func (s *serviceImpl) chunkContent(content, source, contentType string, priority int) []ContentChunk {
 	var chunks []ContentChunk
-	
+
 	// Estimate tokens (rough approximation: 1 token ≈ 4 characters)
 	estimateTokens := func(text string) int {
 		return len(text) / 4
 	}
-	
+
 	// If content is small enough, return as single chunk
 	if estimateTokens(content) <= MaxTokensPerChunk {
 		return []ContentChunk{{
@@ -414,10 +414,10 @@ func (s *serviceImpl) chunkContent(content, source, contentType string, priority
 			Priority: priority,
 		}}
 	}
-	
+
 	// Split content based on type
 	var sections []string
-	
+
 	switch contentType {
 	case ContentTypeReadme, ContentTypeDocs, ContentTypeChangelog:
 		sections = s.splitMarkdownContent(content)
@@ -426,13 +426,13 @@ func (s *serviceImpl) chunkContent(content, source, contentType string, priority
 	default:
 		sections = s.splitGenericContent(content)
 	}
-	
+
 	// Create chunks from sections
 	for i, section := range sections {
 		if strings.TrimSpace(section) == "" {
 			continue
 		}
-		
+
 		tokens := estimateTokens(section)
 		if tokens > MaxTokensPerChunk {
 			// Further split large sections
@@ -456,7 +456,7 @@ func (s *serviceImpl) chunkContent(content, source, contentType string, priority
 			})
 		}
 	}
-	
+
 	return chunks
 }
 
@@ -465,9 +465,9 @@ func (s *serviceImpl) splitMarkdownContent(content string) []string {
 	lines := strings.Split(content, "\n")
 	var sections []string
 	var currentSection strings.Builder
-	
+
 	headerRegex := regexp.MustCompile(`^#{1,6}\s+`)
-	
+
 	for _, line := range lines {
 		if headerRegex.MatchString(line) && currentSection.Len() > 0 {
 			// Start new section
@@ -476,11 +476,11 @@ func (s *serviceImpl) splitMarkdownContent(content string) []string {
 		}
 		currentSection.WriteString(line + "\n")
 	}
-	
+
 	if currentSection.Len() > 0 {
 		sections = append(sections, currentSection.String())
 	}
-	
+
 	return sections
 }
 
@@ -489,10 +489,10 @@ func (s *serviceImpl) splitCodeContent(content string) []string {
 	lines := strings.Split(content, "\n")
 	var sections []string
 	var currentSection strings.Builder
-	
+
 	// Simple heuristic: split on function/class definitions
 	functionRegex := regexp.MustCompile(`^(func|function|def|class|interface|type|struct|impl|fn)\s+`)
-	
+
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if functionRegex.MatchString(trimmed) && currentSection.Len() > 0 {
@@ -502,16 +502,16 @@ func (s *serviceImpl) splitCodeContent(content string) []string {
 		}
 		currentSection.WriteString(line + "\n")
 	}
-	
+
 	if currentSection.Len() > 0 {
 		sections = append(sections, currentSection.String())
 	}
-	
+
 	// If no functions found, split by paragraphs
 	if len(sections) <= 1 {
 		return s.splitGenericContent(content)
 	}
-	
+
 	return sections
 }
 
@@ -519,14 +519,14 @@ func (s *serviceImpl) splitCodeContent(content string) []string {
 func (s *serviceImpl) splitGenericContent(content string) []string {
 	// Split by double newlines (paragraphs)
 	sections := strings.Split(content, "\n\n")
-	
+
 	// If sections are too few, split by single newlines
 	if len(sections) <= 2 {
 		lines := strings.Split(content, "\n")
 		var sections []string
 		var currentSection strings.Builder
 		linesPerSection := 50 // Arbitrary limit
-		
+
 		for i, line := range lines {
 			currentSection.WriteString(line + "\n")
 			if (i+1)%linesPerSection == 0 {
@@ -534,14 +534,14 @@ func (s *serviceImpl) splitGenericContent(content string) []string {
 				currentSection.Reset()
 			}
 		}
-		
+
 		if currentSection.Len() > 0 {
 			sections = append(sections, currentSection.String())
 		}
-		
+
 		return sections
 	}
-	
+
 	return sections
 }
 
@@ -550,11 +550,11 @@ func (s *serviceImpl) splitLargeSection(content string, maxTokens int) []string 
 	var sections []string
 	lines := strings.Split(content, "\n")
 	var currentSection strings.Builder
-	
+
 	estimateTokens := func(text string) int {
 		return len(text) / 4
 	}
-	
+
 	for _, line := range lines {
 		testContent := currentSection.String() + line + "\n"
 		if estimateTokens(testContent) > maxTokens && currentSection.Len() > 0 {
@@ -563,11 +563,11 @@ func (s *serviceImpl) splitLargeSection(content string, maxTokens int) []string 
 		}
 		currentSection.WriteString(line + "\n")
 	}
-	
+
 	if currentSection.Len() > 0 {
 		sections = append(sections, currentSection.String())
 	}
-	
+
 	return sections
 }
 
@@ -582,31 +582,31 @@ func (s *serviceImpl) isBinaryFile(path string) bool {
 		".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
 		".woff", ".woff2", ".ttf", ".otf", ".eot",
 	}
-	
+
 	for _, binaryExt := range binaryExts {
 		if ext == binaryExt {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
 // generateContentHash creates a hash of the processed content for change detection
 func (s *serviceImpl) generateContentHash(chunks []ContentChunk) string {
 	hasher := sha256.New()
-	
+
 	// Sort chunks by source for consistent hashing
 	sortedChunks := make([]ContentChunk, len(chunks))
 	copy(sortedChunks, chunks)
 	sort.Slice(sortedChunks, func(i, j int) bool {
 		return sortedChunks[i].Source < sortedChunks[j].Source
 	})
-	
+
 	for _, chunk := range sortedChunks {
 		hasher.Write([]byte(chunk.Source + chunk.Content))
 	}
-	
+
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 
@@ -615,28 +615,28 @@ func (s *serviceImpl) prepareContentForLLM(chunks []ContentChunk) string {
 	var contentBuilder strings.Builder
 	totalTokens := 0
 	maxTokens := 8000 // Leave room for prompt and response
-	
+
 	// Sort chunks by priority (high priority first)
 	sortedChunks := make([]ContentChunk, len(chunks))
 	copy(sortedChunks, chunks)
 	sort.Slice(sortedChunks, func(i, j int) bool {
 		return sortedChunks[i].Priority < sortedChunks[j].Priority
 	})
-	
+
 	// Add chunks while respecting token limits
 	for _, chunk := range sortedChunks {
 		if totalTokens+chunk.Tokens > maxTokens {
 			break
 		}
-		
+
 		// Add section header
 		contentBuilder.WriteString(fmt.Sprintf("\n=== %s (%s) ===\n", chunk.Source, chunk.Type))
 		contentBuilder.WriteString(chunk.Content)
 		contentBuilder.WriteString("\n")
-		
+
 		totalTokens += chunk.Tokens
 	}
-	
+
 	return contentBuilder.String()
 }
 
@@ -647,7 +647,7 @@ func (s *serviceImpl) generateBasicSummary(chunks []ContentChunk) *Summary {
 		UseCases:     []string{},
 		Features:     []string{},
 	}
-	
+
 	// Extract basic information from chunks
 	for _, chunk := range chunks {
 		if chunk.Type == ContentTypeReadme {
@@ -663,7 +663,7 @@ func (s *serviceImpl) generateBasicSummary(chunks []ContentChunk) *Summary {
 				}
 			}
 		}
-		
+
 		if chunk.Type == ContentTypePackage {
 			// Extract technologies from package files
 			content := strings.ToLower(chunk.Content)
@@ -684,10 +684,10 @@ func (s *serviceImpl) generateBasicSummary(chunks []ContentChunk) *Summary {
 			}
 		}
 	}
-	
+
 	// Remove duplicates from technologies
 	summary.Technologies = removeDuplicates(summary.Technologies)
-	
+
 	return summary
 }
 
@@ -695,13 +695,13 @@ func (s *serviceImpl) generateBasicSummary(chunks []ContentChunk) *Summary {
 func removeDuplicates(slice []string) []string {
 	keys := make(map[string]bool)
 	var result []string
-	
+
 	for _, item := range slice {
 		if !keys[item] {
 			keys[item] = true
 			result = append(result, item)
 		}
 	}
-	
+
 	return result
 }

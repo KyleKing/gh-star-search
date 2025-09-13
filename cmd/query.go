@@ -10,7 +10,7 @@ import (
 var queryCmd = &cobra.Command{
 	Use:   "query [natural language query]",
 	Short: "Search repositories using natural language",
-	Long: `Parse natural language queries to search through your starred repositories. 
+	Long: `Parse natural language queries to search through your starred repositories.
 The system will generate a DuckDB query that you can review and modify before execution.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

@@ -158,9 +158,9 @@ func TestComplexNaturalLanguageQueries(t *testing.T) {
 		{
 			name:         "multi-condition search",
 			naturalQuery: "find Go web frameworks with good documentation updated this year",
-			expectedSQL: `SELECT DISTINCT r.* FROM repositories r 
-				LEFT JOIN content_chunks c ON r.id = c.repository_id 
-				WHERE r.language = 'Go' 
+			expectedSQL: `SELECT DISTINCT r.* FROM repositories r
+				LEFT JOIN content_chunks c ON r.id = c.repository_id
+				WHERE r.language = 'Go'
 				AND (r.topics LIKE '%web%' OR r.topics LIKE '%framework%' OR r.description ILIKE '%web framework%')
 				AND (r.description ILIKE '%documentation%' OR c.content ILIKE '%documentation%')
 				AND r.updated_at >= '2024-01-01'
@@ -170,15 +170,15 @@ func TestComplexNaturalLanguageQueries(t *testing.T) {
 		{
 			name:         "comparative analysis",
 			naturalQuery: "compare star counts between React and Vue repositories",
-			expectedSQL: `SELECT 
-				CASE 
+			expectedSQL: `SELECT
+				CASE
 					WHEN (topics LIKE '%react%' OR description ILIKE '%react%') THEN 'React'
 					WHEN (topics LIKE '%vue%' OR description ILIKE '%vue%') THEN 'Vue'
 				END as framework,
 				COUNT(*) as repo_count,
 				AVG(stargazers_count) as avg_stars,
 				MAX(stargazers_count) as max_stars
-				FROM repositories 
+				FROM repositories
 				WHERE (topics LIKE '%react%' OR description ILIKE '%react%' OR topics LIKE '%vue%' OR description ILIKE '%vue%')
 				GROUP BY framework
 				ORDER BY avg_stars DESC`,
@@ -187,10 +187,10 @@ func TestComplexNaturalLanguageQueries(t *testing.T) {
 		{
 			name:         "trend analysis",
 			naturalQuery: "show repository creation trends by year for machine learning projects",
-			expectedSQL: `SELECT 
+			expectedSQL: `SELECT
 				EXTRACT(YEAR FROM created_at) as year,
 				COUNT(*) as repos_created
-				FROM repositories 
+				FROM repositories
 				WHERE (description ILIKE '%machine learning%' OR topics LIKE '%machine-learning%' OR purpose ILIKE '%machine learning%')
 				GROUP BY EXTRACT(YEAR FROM created_at)
 				ORDER BY year DESC`,

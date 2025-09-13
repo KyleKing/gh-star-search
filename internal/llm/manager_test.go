@@ -259,7 +259,7 @@ func TestManager_ParseQueryWithRetry(t *testing.T) {
 
 	ctx := context.Background()
 	schema := query.Schema{Tables: map[string]query.Table{}}
-	
+
 	queryResp, err := manager.ParseQuery(ctx, "test query", schema)
 
 	if err != nil {

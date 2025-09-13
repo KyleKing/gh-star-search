@@ -135,7 +135,7 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.ProcessedRepo) error {
 	// For now, let's use a simple approach: delete the old repository and insert the new one
 	// This avoids the complex update logic that's causing issues
-	
+
 	// Get the repository ID first
 	var repoID string
 	err := r.db.QueryRowContext(ctx, "SELECT id FROM repositories WHERE full_name = ?", repo.Repository.FullName).Scan(&repoID)
@@ -265,10 +265,10 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 	FROM repositories WHERE full_name = ?`
 
 	row := r.db.QueryRowContext(ctx, query, fullName)
-	
+
 	var repo StoredRepo
 	var topicsJSON, technologiesJSON, useCasesJSON, featuresJSON string
-	
+
 	err := row.Scan(
 		&repo.ID, &repo.FullName, &repo.Description, &repo.Language,
 		&repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,
@@ -341,7 +341,7 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 		   created_at, updated_at, last_synced, topics, license_name, license_spdx_id,
 		   purpose, technologies, use_cases, features, installation_instructions,
 		   usage_instructions, content_hash
-	FROM repositories 
+	FROM repositories
 	ORDER BY stargazers_count DESC, full_name
 	LIMIT ? OFFSET ?`
 
@@ -355,7 +355,7 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 	for rows.Next() {
 		var repo StoredRepo
 		var topicsJSON, technologiesJSON, useCasesJSON, featuresJSON string
-		
+
 		err := rows.Scan(
 			&repo.ID, &repo.FullName, &repo.Description, &repo.Language,
 			&repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,
@@ -398,13 +398,13 @@ func (r *DuckDBRepository) SearchRepositories(ctx context.Context, query string)
 		   r.usage_instructions, r.content_hash,
 		   CAST(1.0 AS DOUBLE) as score
 	FROM repositories r
-	WHERE r.full_name ILIKE ? 
+	WHERE r.full_name ILIKE ?
 		OR r.description ILIKE ?
 		OR r.purpose ILIKE ?
 		OR r.installation_instructions ILIKE ?
 		OR r.usage_instructions ILIKE ?
 		OR EXISTS (
-			SELECT 1 FROM content_chunks c 
+			SELECT 1 FROM content_chunks c
 			WHERE c.repository_id = r.id AND c.content ILIKE ?
 		)
 	ORDER BY r.stargazers_count DESC
@@ -422,7 +422,7 @@ func (r *DuckDBRepository) SearchRepositories(ctx context.Context, query string)
 		var repo StoredRepo
 		var score float64
 		var topicsJSON, technologiesJSON, useCasesJSON, featuresJSON string
-		
+
 		err := rows.Scan(
 			&repo.ID, &repo.FullName, &repo.Description, &repo.Language,
 			&repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,

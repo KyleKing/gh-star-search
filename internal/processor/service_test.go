@@ -50,7 +50,7 @@ func TestNewService(t *testing.T) {
 	client := &mockGitHubClient{}
 	llmService := &mockLLMService{}
 	service := NewService(client, llmService)
-	
+
 	if service == nil {
 		t.Fatal("NewService returned nil")
 	}
@@ -59,7 +59,7 @@ func TestNewService(t *testing.T) {
 func TestNewServiceWithNilLLM(t *testing.T) {
 	client := &mockGitHubClient{}
 	service := NewService(client, nil)
-	
+
 	if service == nil {
 		t.Fatal("NewService returned nil")
 	}
@@ -67,7 +67,7 @@ func TestNewServiceWithNilLLM(t *testing.T) {
 
 func TestDetermineContentType(t *testing.T) {
 	service := &serviceImpl{}
-	
+
 	tests := []struct {
 		path     string
 		expected string
@@ -84,7 +84,7 @@ func TestDetermineContentType(t *testing.T) {
 		{"config.yaml", ContentTypeConfig},
 		{"unknown.txt", ContentTypeDocs},
 	}
-	
+
 	for _, test := range tests {
 		result := service.determineContentType(test.path)
 		if result != test.expected {
@@ -95,7 +95,7 @@ func TestDetermineContentType(t *testing.T) {
 
 func TestDeterminePriority(t *testing.T) {
 	service := &serviceImpl{}
-	
+
 	tests := []struct {
 		contentType string
 		path        string
@@ -110,7 +110,7 @@ func TestDeterminePriority(t *testing.T) {
 		{ContentTypeConfig, "config.yaml", PriorityMedium},
 		{ContentTypeLicense, "LICENSE", PriorityLow},
 	}
-	
+
 	for _, test := range tests {
 		result := service.determinePriority(test.contentType, test.path)
 		if result != test.expected {
@@ -121,7 +121,7 @@ func TestDeterminePriority(t *testing.T) {
 
 func TestIsBinaryFile(t *testing.T) {
 	service := &serviceImpl{}
-	
+
 	tests := []struct {
 		path     string
 		expected bool
@@ -136,7 +136,7 @@ func TestIsBinaryFile(t *testing.T) {
 		{"script.sh", false},
 		{"data.json", false},
 	}
-	
+
 	for _, test := range tests {
 		result := service.isBinaryFile(test.path)
 		if result != test.expected {
@@ -147,36 +147,36 @@ func TestIsBinaryFile(t *testing.T) {
 
 func TestDecodeContent(t *testing.T) {
 	service := &serviceImpl{}
-	
+
 	// Test base64 encoded content
 	originalText := "Hello, World!"
 	encoded := base64.StdEncoding.EncodeToString([]byte(originalText))
-	
+
 	file := github.Content{
 		Content:  encoded,
 		Encoding: "base64",
 	}
-	
+
 	decoded, err := service.decodeContent(file)
 	if err != nil {
 		t.Fatalf("decodeContent failed: %v", err)
 	}
-	
+
 	if decoded != originalText {
 		t.Errorf("decodeContent() = %q, want %q", decoded, originalText)
 	}
-	
+
 	// Test plain text content
 	plainFile := github.Content{
 		Content:  originalText,
 		Encoding: "",
 	}
-	
+
 	decoded, err = service.decodeContent(plainFile)
 	if err != nil {
 		t.Fatalf("decodeContent failed for plain text: %v", err)
 	}
-	
+
 	if decoded != originalText {
 		t.Errorf("decodeContent() for plain text = %q, want %q", decoded, originalText)
 	}
@@ -184,7 +184,7 @@ func TestDecodeContent(t *testing.T) {
 
 func TestFilterContent(t *testing.T) {
 	service := &serviceImpl{}
-	
+
 	content := []github.Content{
 		{Path: "README.md", Type: "file", Size: 1000},
 		{Path: "image.png", Type: "file", Size: 500},
@@ -192,21 +192,21 @@ func TestFilterContent(t *testing.T) {
 		{Path: "directory", Type: "dir", Size: 0},
 		{Path: "main.go", Type: "file", Size: 2000},
 	}
-	
+
 	filtered := service.filterContent(content)
-	
+
 	// Should keep README.md and main.go, filter out image.png (binary), large.txt (too big), directory (not file)
 	expected := 2
 	if len(filtered) != expected {
 		t.Errorf("filterContent() returned %d files, want %d", len(filtered), expected)
 	}
-	
+
 	// Check that the right files are kept
 	paths := make(map[string]bool)
 	for _, file := range filtered {
 		paths[file.Path] = true
 	}
-	
+
 	if !paths["README.md"] {
 		t.Error("filterContent() should keep README.md")
 	}
@@ -217,7 +217,7 @@ func TestFilterContent(t *testing.T) {
 
 func TestSplitMarkdownContent(t *testing.T) {
 	service := &serviceImpl{}
-	
+
 	content := `# Title
 This is the introduction.
 
@@ -229,13 +229,13 @@ Content of subsection 1.1.
 
 ## Section 2
 Content of section 2.`
-	
+
 	sections := service.splitMarkdownContent(content)
-	
+
 	if len(sections) != 4 {
 		t.Errorf("splitMarkdownContent() returned %d sections, want 4", len(sections))
 	}
-	
+
 	// First section should contain title and introduction
 	if !contains(sections[0], "# Title") || !contains(sections[0], "introduction") {
 		t.Error("First section should contain title and introduction")
@@ -244,7 +244,7 @@ Content of section 2.`
 
 func TestSplitCodeContent(t *testing.T) {
 	service := &serviceImpl{}
-	
+
 	content := `package main
 
 import "fmt"
@@ -260,9 +260,9 @@ func helper() {
 type MyStruct struct {
     Field string
 }`
-	
+
 	sections := service.splitCodeContent(content)
-	
+
 	// Should split on function and type definitions
 	if len(sections) < 3 {
 		t.Errorf("splitCodeContent() returned %d sections, want at least 3", len(sections))
@@ -271,35 +271,35 @@ type MyStruct struct {
 
 func TestChunkContent(t *testing.T) {
 	service := &serviceImpl{}
-	
+
 	// Test small content (should return single chunk)
 	smallContent := "This is a small piece of content."
 	chunks := service.chunkContent(smallContent, "test.md", ContentTypeReadme, PriorityHigh)
-	
+
 	if len(chunks) != 1 {
 		t.Errorf("chunkContent() for small content returned %d chunks, want 1", len(chunks))
 	}
-	
+
 	if chunks[0].Content != smallContent {
 		t.Error("Chunk content doesn't match original")
 	}
-	
+
 	if chunks[0].Type != ContentTypeReadme {
 		t.Error("Chunk type doesn't match expected")
 	}
-	
+
 	if chunks[0].Priority != PriorityHigh {
 		t.Error("Chunk priority doesn't match expected")
 	}
-	
+
 	// Test large content (should be split into multiple chunks)
 	largeContent := strings.Repeat("This is a line of content that will be repeated many times.\n", 200)
 	chunks = service.chunkContent(largeContent, "large.md", ContentTypeReadme, PriorityHigh)
-	
+
 	if len(chunks) <= 1 {
 		t.Errorf("chunkContent() for large content returned %d chunks, want > 1", len(chunks))
 	}
-	
+
 	// Verify all chunks have reasonable token counts
 	for i, chunk := range chunks {
 		if chunk.Tokens <= 0 {
@@ -318,7 +318,7 @@ func TestProcessRepository(t *testing.T) {
 		Description: "A test repository",
 		Language:    "Go",
 	}
-	
+
 	// Create sample content
 	readmeContent := base64.StdEncoding.EncodeToString([]byte(`# Test Repository
 This is a test repository for unit testing.
@@ -329,7 +329,7 @@ This is a test repository for unit testing.
 
 ## Installation
 Run go install.`))
-	
+
 	content := []github.Content{
 		{
 			Path:     "README.md",
@@ -339,36 +339,36 @@ Run go install.`))
 			Size:     100,
 		},
 	}
-	
+
 	// Create service with mock client
 	client := &mockGitHubClient{content: content}
 	llmService := &mockLLMService{}
 	service := NewService(client, llmService)
-	
+
 	// Process repository
 	ctx := context.Background()
 	processed, err := service.ProcessRepository(ctx, repo, content)
-	
+
 	if err != nil {
 		t.Fatalf("ProcessRepository failed: %v", err)
 	}
-	
+
 	if processed == nil {
 		t.Fatal("ProcessRepository returned nil")
 	}
-	
+
 	if processed.Repository.FullName != repo.FullName {
 		t.Error("Processed repository doesn't match original")
 	}
-	
+
 	if len(processed.Chunks) == 0 {
 		t.Error("ProcessRepository should create chunks")
 	}
-	
+
 	if processed.ContentHash == "" {
 		t.Error("ProcessRepository should generate content hash")
 	}
-	
+
 	if processed.ProcessedAt.IsZero() {
 		t.Error("ProcessRepository should set processed time")
 	}
@@ -378,25 +378,25 @@ func TestExtractContent(t *testing.T) {
 	repo := github.Repository{
 		FullName: "test/repo",
 	}
-	
+
 	// Create sample content including binary and text files
 	content := []github.Content{
 		{Path: "README.md", Type: "file", Size: 100},
 		{Path: "image.png", Type: "file", Size: 500},
 		{Path: "main.go", Type: "file", Size: 200},
 	}
-	
+
 	client := &mockGitHubClient{content: content}
 	llmService := &mockLLMService{}
 	service := NewService(client, llmService)
-	
+
 	ctx := context.Background()
 	extracted, err := service.ExtractContent(ctx, repo)
-	
+
 	if err != nil {
 		t.Fatalf("ExtractContent failed: %v", err)
 	}
-	
+
 	// Should filter out binary files
 	if len(extracted) != 2 {
 		t.Errorf("ExtractContent returned %d files, want 2", len(extracted))
@@ -405,36 +405,36 @@ func TestExtractContent(t *testing.T) {
 
 func TestGenerateContentHash(t *testing.T) {
 	service := &serviceImpl{}
-	
+
 	chunks1 := []ContentChunk{
 		{Source: "README.md", Content: "Hello"},
 		{Source: "main.go", Content: "package main"},
 	}
-	
+
 	chunks2 := []ContentChunk{
 		{Source: "main.go", Content: "package main"},
 		{Source: "README.md", Content: "Hello"},
 	}
-	
+
 	chunks3 := []ContentChunk{
 		{Source: "README.md", Content: "Hello World"},
 		{Source: "main.go", Content: "package main"},
 	}
-	
+
 	hash1 := service.generateContentHash(chunks1)
 	hash2 := service.generateContentHash(chunks2)
 	hash3 := service.generateContentHash(chunks3)
-	
+
 	// Same content in different order should produce same hash
 	if hash1 != hash2 {
 		t.Error("Content hash should be consistent regardless of chunk order")
 	}
-	
+
 	// Different content should produce different hash
 	if hash1 == hash3 {
 		t.Error("Different content should produce different hashes")
 	}
-	
+
 	if hash1 == "" {
 		t.Error("Content hash should not be empty")
 	}
@@ -442,7 +442,7 @@ func TestGenerateContentHash(t *testing.T) {
 
 func TestGenerateBasicSummary(t *testing.T) {
 	service := &serviceImpl{}
-	
+
 	chunks := []ContentChunk{
 		{
 			Source:  "README.md",
@@ -455,21 +455,21 @@ func TestGenerateBasicSummary(t *testing.T) {
 			Content: "module test\n\ngo 1.21",
 		},
 	}
-	
+
 	summary := service.generateBasicSummary(chunks)
-	
+
 	if summary == nil {
 		t.Fatal("generateBasicSummary returned nil")
 	}
-	
+
 	if summary.Purpose == "" {
 		t.Error("Summary should extract purpose from README")
 	}
-	
+
 	if len(summary.Technologies) == 0 {
 		t.Error("Summary should extract technologies from package files")
 	}
-	
+
 	// Should detect Go from go.mod
 	found := false
 	for _, tech := range summary.Technologies {
@@ -486,18 +486,18 @@ func TestGenerateBasicSummary(t *testing.T) {
 func TestRemoveDuplicates(t *testing.T) {
 	input := []string{"Go", "JavaScript", "Go", "Python", "JavaScript"}
 	result := removeDuplicates(input)
-	
+
 	expected := 3 // Go, JavaScript, Python
 	if len(result) != expected {
 		t.Errorf("removeDuplicates returned %d items, want %d", len(result), expected)
 	}
-	
+
 	// Check that all unique items are present
 	items := make(map[string]bool)
 	for _, item := range result {
 		items[item] = true
 	}
-	
+
 	if !items["Go"] || !items["JavaScript"] || !items["Python"] {
 		t.Error("removeDuplicates should preserve all unique items")
 	}

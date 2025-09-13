@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    tags: ["*"]
+    branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+        with:
+          mise_toml: |
+            [env]
+            MISE_ENV = "ci"
+
+      - uses: actions/setup-go@v5
+
+      - run: mise run ci --jobs=1

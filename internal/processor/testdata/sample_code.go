@@ -30,11 +30,11 @@ func NewServer(config *Config) *Server {
 // Start begins serving requests on the configured port
 func (s *Server) Start() error {
 	s.logger.Printf("Starting server on port %d", s.config.Port)
-	
+
 	if s.config.Debug {
 		s.logger.Println("Debug mode enabled")
 	}
-	
+
 	// Server startup logic would go here
 	return nil
 }
@@ -51,7 +51,7 @@ func (s *Server) handleRequest(req string) string {
 	if s.config.Debug {
 		s.logger.Printf("Processing request: %s", req)
 	}
-	
+
 	// Request processing logic
 	return fmt.Sprintf("Processed: %s", req)
 }
@@ -61,11 +61,11 @@ func validateConfig(config *Config) error {
 	if config.Port <= 0 {
 		return fmt.Errorf("invalid port: %d", config.Port)
 	}
-	
+
 	if config.Database == "" {
 		return fmt.Errorf("database connection string is required")
 	}
-	
+
 	return nil
 }
 
@@ -75,13 +75,13 @@ func main() {
 		Database: "localhost:5432",
 		Debug:    true,
 	}
-	
+
 	if err := validateConfig(config); err != nil {
 		log.Fatal(err)
 	}
-	
+
 	server := NewServer(config)
-	
+
 	if err := server.Start(); err != nil {
 		log.Fatal(err)
 	}

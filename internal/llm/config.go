@@ -28,19 +28,19 @@ func (cm *ConfigManager) LoadConfig() (*ManagerConfig, error) {
 		defaultConfig := DefaultManagerConfig()
 		return &defaultConfig, nil
 	}
-	
+
 	// Read config file
 	data, err := os.ReadFile(cm.configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
-	
+
 	// Parse JSON
 	var config ManagerConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
-	
+
 	return &config, nil
 }
 
@@ -51,18 +51,18 @@ func (cm *ConfigManager) SaveConfig(config *ManagerConfig) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
-	
+
 	// Marshal to JSON
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
-	
+
 	// Write to file
 	if err := os.WriteFile(cm.configPath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -82,19 +82,19 @@ func SetupDefaultProviders(manager *Manager) error {
 	if err := manager.RegisterProvider(ProviderOpenAI, openAIClient); err != nil {
 		return fmt.Errorf("failed to register OpenAI provider: %w", err)
 	}
-	
+
 	// Register Anthropic provider
 	anthropicClient := NewClient(Config{})
 	if err := manager.RegisterProvider(ProviderAnthropic, anthropicClient); err != nil {
 		return fmt.Errorf("failed to register Anthropic provider: %w", err)
 	}
-	
+
 	// Register Ollama provider
 	ollamaClient := NewClient(Config{})
 	if err := manager.RegisterProvider(ProviderOllama, ollamaClient); err != nil {
 		return fmt.Errorf("failed to register Ollama provider: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -111,7 +111,7 @@ func ConfigureFromEnvironment(manager *Manager) error {
 			return fmt.Errorf("failed to configure OpenAI: %w", err)
 		}
 	}
-	
+
 	// Configure Anthropic if API key is available
 	if apiKey := os.Getenv("ANTHROPIC_API_KEY"); apiKey != "" {
 		config := Config{
@@ -123,14 +123,14 @@ func ConfigureFromEnvironment(manager *Manager) error {
 			return fmt.Errorf("failed to configure Anthropic: %w", err)
 		}
 	}
-	
+
 	// Configure Ollama if base URL is available
 	if baseURL := os.Getenv("OLLAMA_BASE_URL"); baseURL != "" {
 		model := os.Getenv("OLLAMA_MODEL")
 		if model == "" {
 			model = ModelLlama2
 		}
-		
+
 		config := Config{
 			Provider: ProviderOllama,
 			Model:    model,
@@ -140,7 +140,7 @@ func ConfigureFromEnvironment(manager *Manager) error {
 			return fmt.Errorf("failed to configure Ollama: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -152,20 +152,20 @@ func CreateManagerWithDefaults() (*Manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
-	
+
 	// Create manager
 	manager := NewManager(*config)
-	
+
 	// Setup default providers
 	if err := SetupDefaultProviders(manager); err != nil {
 		return nil, fmt.Errorf("failed to setup providers: %w", err)
 	}
-	
+
 	// Configure from environment
 	if err := ConfigureFromEnvironment(manager); err != nil {
 		return nil, fmt.Errorf("failed to configure from environment: %w", err)
 	}
-	
+
 	return manager, nil
 }
 
@@ -193,11 +193,11 @@ func (mc *ManagerConfig) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(mc),
 	}
-	
+
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	
+
 	// Parse duration strings
 	if aux.RetryDelay != "" {
 		duration, err := time.ParseDuration(aux.RetryDelay)
@@ -206,7 +206,7 @@ func (mc *ManagerConfig) UnmarshalJSON(data []byte) error {
 		}
 		mc.RetryDelay = duration
 	}
-	
+
 	if aux.Timeout != "" {
 		duration, err := time.ParseDuration(aux.Timeout)
 		if err != nil {
@@ -214,6 +214,6 @@ func (mc *ManagerConfig) UnmarshalJSON(data []byte) error {
 		}
 		mc.Timeout = duration
 	}
-	
+
 	return nil
 }

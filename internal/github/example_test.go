@@ -97,8 +97,8 @@ func ExampleClient_GetRepositoryMetadata() {
 	fmt.Printf("  Last commit: %s\n", metadata.LastCommitDate.Format("2006-01-02"))
 
 	if metadata.LatestRelease != nil {
-		fmt.Printf("  Latest release: %s (%s)\n", 
-			metadata.LatestRelease.TagName, 
+		fmt.Printf("  Latest release: %s (%s)\n",
+			metadata.LatestRelease.TagName,
 			metadata.LatestRelease.PublishedAt.Format("2006-01-02"))
 	}
 

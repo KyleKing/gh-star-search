@@ -63,7 +63,7 @@ func (p *LLMParser) ValidateSQL(sql string) error {
 
 	// Basic SQL injection protection - check for specific injection patterns first
 	injectionPatterns := []string{
-		"--", "/*", "*/", ";", 
+		"--", "/*", "*/", ";",
 		"or 1=1", "or '1'='1", "or \"1\"=\"1\"",
 		"and 1=1", "and '1'='1", "and \"1\"=\"1\"",
 		"' or '", "\" or \"", "' and '", "\" and \"",
@@ -210,7 +210,7 @@ func (p *LLMParser) determineQueryType(sql string) QueryType {
 func (p *LLMParser) parseOperation(planLine string) *QueryOperation {
 	// This is a simplified parser for DuckDB explain output
 	// In a real implementation, you'd need more sophisticated parsing
-	
+
 	planLine = strings.TrimSpace(planLine)
 	if planLine == "" {
 		return nil
@@ -223,7 +223,7 @@ func (p *LLMParser) parseOperation(planLine string) *QueryOperation {
 	}
 
 	opType := parts[0]
-	
+
 	// Try to extract table name and estimated rows
 	var table string
 	var estimatedRows int
@@ -273,7 +273,7 @@ func (p *LLMParser) generateOptimizationTips(sql string, operations []QueryOpera
 	// Check for missing indexes
 	hasSeqScan := false
 	for _, op := range operations {
-		if strings.Contains(strings.ToLower(op.Type), "seq_scan") || 
+		if strings.Contains(strings.ToLower(op.Type), "seq_scan") ||
 		   strings.Contains(strings.ToLower(op.Type), "table_scan") {
 			hasSeqScan = true
 			break
