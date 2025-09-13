@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/kyleking/gh-star-search/internal/query"
+	"github.com/kyleking/gh-star-search/internal/types"
 )
 
 func TestClient_Configure(t *testing.T) {
@@ -124,11 +124,15 @@ func TestClient_SummarizeOpenAI(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Fatalf("Failed to encode response: %v", err)
+		}
 	}))
 	defer server.Close()
 
 	client := NewClient(Config{})
+
 	err := client.Configure(Config{
 		Provider: ProviderOpenAI,
 		Model:    ModelGPT35Turbo,
@@ -161,7 +165,7 @@ func TestClient_SummarizeOpenAI(t *testing.T) {
 
 func TestClient_SummarizeOpenAI_Error(t *testing.T) {
 	// Mock OpenAI API server with error response
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		response := openAIResponse{
 			Error: &openAIError{
 				Message: "Invalid API key",
@@ -171,11 +175,15 @@ func TestClient_SummarizeOpenAI_Error(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Fatalf("Failed to encode response: %v", err)
+		}
 	}))
 	defer server.Close()
 
 	client := NewClient(Config{})
+
 	err := client.Configure(Config{
 		Provider: ProviderOpenAI,
 		Model:    ModelGPT35Turbo,
@@ -200,7 +208,7 @@ func TestClient_SummarizeOpenAI_Error(t *testing.T) {
 
 func TestClient_ParseQueryOpenAI(t *testing.T) {
 	// Mock OpenAI API server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		response := openAIResponse{
 			Choices: []openAIChoice{
 				{
@@ -218,11 +226,15 @@ func TestClient_ParseQueryOpenAI(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Fatalf("Failed to encode response: %v", err)
+		}
 	}))
 	defer server.Close()
 
 	client := NewClient(Config{})
+
 	err := client.Configure(Config{
 		Provider: ProviderOpenAI,
 		Model:    ModelGPT35Turbo,
@@ -233,11 +245,11 @@ func TestClient_ParseQueryOpenAI(t *testing.T) {
 		t.Fatalf("Failed to configure client: %v", err)
 	}
 
-	schema := query.Schema{
-		Tables: map[string]query.Table{
+	schema := types.Schema{
+		Tables: map[string]types.Table{
 			"repositories": {
 				Name: "repositories",
-				Columns: []query.Column{
+				Columns: []types.Column{
 					{Name: "full_name", Type: "VARCHAR"},
 					{Name: "description", Type: "TEXT"},
 					{Name: "language", Type: "VARCHAR"},
@@ -292,11 +304,15 @@ func TestClient_SummarizeAnthropic(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Fatalf("Failed to encode response: %v", err)
+		}
 	}))
 	defer server.Close()
 
 	client := NewClient(Config{})
+
 	err := client.Configure(Config{
 		Provider: ProviderAnthropic,
 		Model:    ModelClaude3,
@@ -344,11 +360,15 @@ func TestClient_SummarizeOllama(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Fatalf("Failed to encode response: %v", err)
+		}
 	}))
 	defer server.Close()
 
 	client := NewClient(Config{})
+
 	err := client.Configure(Config{
 		Provider: ProviderOllama,
 		Model:    ModelLlama2,
@@ -386,7 +406,8 @@ func TestClient_UnconfiguredError(t *testing.T) {
 	}
 
 	// Test parse query with unconfigured client
-	schema := query.Schema{Tables: map[string]query.Table{}}
+	schema := types.Schema{Tables: map[string]types.Table{}}
+
 	_, err = client.ParseQuery(ctx, "test query", schema)
 	if err == nil {
 		t.Error("Expected error for unconfigured client, got nil")
@@ -395,13 +416,17 @@ func TestClient_UnconfiguredError(t *testing.T) {
 
 func TestClient_HTTPError(t *testing.T) {
 	// Mock server that returns HTTP error
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal Server Error"))
+
+		if _, err := w.Write([]byte("Internal Server Error")); err != nil {
+			t.Fatalf("Failed to write response: %v", err)
+		}
 	}))
 	defer server.Close()
 
 	client := NewClient(Config{})
+
 	err := client.Configure(Config{
 		Provider: ProviderOpenAI,
 		Model:    ModelGPT35Turbo,
@@ -448,11 +473,11 @@ func TestBuildSummarizationPrompt(t *testing.T) {
 func TestBuildQueryParsingPrompt(t *testing.T) {
 	client := NewClient(Config{})
 
-	schema := query.Schema{
-		Tables: map[string]query.Table{
+	schema := types.Schema{
+		Tables: map[string]types.Table{
 			"repositories": {
 				Name: "repositories",
-				Columns: []query.Column{
+				Columns: []types.Column{
 					{Name: "full_name", Type: "VARCHAR", Description: "Repository full name"},
 					{Name: "language", Type: "VARCHAR", Description: "Primary language"},
 				},
@@ -483,12 +508,12 @@ func TestBuildQueryParsingPrompt(t *testing.T) {
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
 		(len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
-		func() bool {
-			for i := 1; i <= len(s)-len(substr); i++ {
-				if s[i:i+len(substr)] == substr {
-					return true
+			func() bool {
+				for i := 1; i <= len(s)-len(substr); i++ {
+					if s[i:i+len(substr)] == substr {
+						return true
+					}
 				}
-			}
-			return false
-		}())))
+				return false
+			}())))
 }

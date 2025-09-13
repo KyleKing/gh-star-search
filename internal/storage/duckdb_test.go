@@ -33,6 +33,7 @@ func TestDuckDBRepository(t *testing.T) {
 	t.Run("Initialize", func(t *testing.T) {
 		// Verify tables exist
 		var count int
+
 		err = repo.db.QueryRow("SELECT COUNT(*) FROM repositories").Scan(&count)
 		if err != nil {
 			t.Fatalf("Failed to query repositories table: %v", err)
@@ -160,9 +161,11 @@ func TestDuckDBRepository(t *testing.T) {
 			if result.Repository.FullName == "" {
 				t.Errorf("Search result missing repository data")
 			}
+
 			if result.Score <= 0 {
 				t.Errorf("Search result missing score")
 			}
+
 			if len(result.Matches) == 0 {
 				t.Errorf("Search result missing matches")
 			}
@@ -204,9 +207,11 @@ func TestDuckDBRepository(t *testing.T) {
 
 		// Verify chunks were also deleted (cascade)
 		var chunkCount int
+
 		err = repo.db.QueryRow("SELECT COUNT(*) FROM content_chunks WHERE repository_id = (SELECT id FROM repositories WHERE full_name = ?)", testRepo.Repository.FullName).Scan(&chunkCount)
 		if err != nil {
 			// This is expected since the repository was deleted
+			_ = err // explicitly ignore the error
 		}
 	})
 
@@ -250,6 +255,7 @@ func TestMigrations(t *testing.T) {
 
 		// Verify migration table exists
 		var count int
+
 		err = repo.db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count)
 		if err != nil {
 			t.Fatalf("Migration table not created: %v", err)
@@ -274,6 +280,7 @@ func TestMigrations(t *testing.T) {
 
 		// Verify tables exist
 		var count int
+
 		err = repo.db.QueryRow("SELECT COUNT(*) FROM repositories").Scan(&count)
 		if err != nil {
 			t.Fatalf("Repositories table not created: %v", err)
@@ -328,7 +335,7 @@ func TestDuckDBRepositoryErrors(t *testing.T) {
 		}
 	})
 
-	t.Run("UpdateNonexistentRepository", func(t *testing.T) {
+	t.Run("UpdateNonexistentRepository", func(_ *testing.T) {
 		testRepo := createTestProcessedRepo()
 		testRepo.Repository.FullName = "nonexistent/repo"
 
@@ -336,6 +343,7 @@ func TestDuckDBRepositoryErrors(t *testing.T) {
 		if err != nil {
 			// This should not error, it should just not update anything
 			// But we can verify no rows were affected
+			_ = err // explicitly ignore the error
 		}
 	})
 

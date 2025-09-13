@@ -11,7 +11,7 @@ var statsCmd = &cobra.Command{
 	Use:   "stats",
 	Short: "Display database statistics",
 	Long:  `Show statistics about the local database including total repositories, last sync time, and database size.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		return runStats(ctx)
 	},

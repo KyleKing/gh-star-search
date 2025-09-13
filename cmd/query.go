@@ -25,7 +25,7 @@ func init() {
 	queryCmd.Flags().StringP("format", "f", "table", "Output format (table, json, csv)")
 }
 
-func runQuery(ctx context.Context, query string) error {
+func runQuery(_ context.Context, query string) error {
 	// TODO: Implement query functionality
 	fmt.Printf("Query command not yet implemented for: %s\n", query)
 	return nil

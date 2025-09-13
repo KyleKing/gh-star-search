@@ -19,7 +19,7 @@ var infoCmd = &cobra.Command{
 	},
 }
 
-func runInfo(ctx context.Context, repo string) error {
+func runInfo(_ context.Context, repo string) error {
 	// TODO: Implement info functionality
 	fmt.Printf("Info command not yet implemented for repository: %s\n", repo)
 	return nil

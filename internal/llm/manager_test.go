@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kyleking/gh-star-search/internal/query"
+	"github.com/kyleking/gh-star-search/internal/types"
 )
 
 // MockService implements the Service interface for testing
 type MockService struct {
-	summarizeFunc   func(ctx context.Context, prompt string, content string) (*SummaryResponse, error)
-	parseQueryFunc  func(ctx context.Context, query string, schema query.Schema) (*QueryResponse, error)
-	configureFunc   func(config Config) error
-	shouldFail      bool
-	failAfterCalls  int
-	callCount       int
+	summarizeFunc  func(ctx context.Context, prompt string, content string) (*SummaryResponse, error)
+	parseQueryFunc func(ctx context.Context, query string, schema types.Schema) (*QueryResponse, error)
+	configureFunc  func(config Config) error
+	shouldFail     bool
+	failAfterCalls int
+	callCount      int
 }
 
 func (m *MockService) Summarize(ctx context.Context, prompt string, content string) (*SummaryResponse, error) {
@@ -24,23 +24,27 @@ func (m *MockService) Summarize(ctx context.Context, prompt string, content stri
 	if m.shouldFail || (m.failAfterCalls > 0 && m.callCount <= m.failAfterCalls) {
 		return nil, errors.New("mock service error")
 	}
+
 	if m.summarizeFunc != nil {
 		return m.summarizeFunc(ctx, prompt, content)
 	}
+
 	return &SummaryResponse{
 		Purpose:    "Mock summary",
 		Confidence: 0.8,
 	}, nil
 }
 
-func (m *MockService) ParseQuery(ctx context.Context, query string, schema query.Schema) (*QueryResponse, error) {
+func (m *MockService) ParseQuery(ctx context.Context, query string, schema types.Schema) (*QueryResponse, error) {
 	m.callCount++
 	if m.shouldFail || (m.failAfterCalls > 0 && m.callCount <= m.failAfterCalls) {
 		return nil, errors.New("mock service error")
 	}
+
 	if m.parseQueryFunc != nil {
 		return m.parseQueryFunc(ctx, query, schema)
 	}
+
 	return &QueryResponse{
 		SQL:        "SELECT * FROM repositories",
 		Confidence: 0.8,
@@ -51,6 +55,7 @@ func (m *MockService) Configure(config Config) error {
 	if m.configureFunc != nil {
 		return m.configureFunc(config)
 	}
+
 	return nil
 }
 
@@ -58,28 +63,28 @@ func TestManager_RegisterProvider(t *testing.T) {
 	manager := NewManager(DefaultManagerConfig())
 
 	tests := []struct {
-		name        string
+		name         string
 		providerName string
-		service     Service
-		wantErr     bool
+		service      Service
+		wantErr      bool
 	}{
 		{
-			name:        "valid provider",
+			name:         "valid provider",
 			providerName: "test-provider",
-			service:     &MockService{},
-			wantErr:     false,
+			service:      &MockService{},
+			wantErr:      false,
 		},
 		{
-			name:        "empty name",
+			name:         "empty name",
 			providerName: "",
-			service:     &MockService{},
-			wantErr:     true,
+			service:      &MockService{},
+			wantErr:      true,
 		},
 		{
-			name:        "nil service",
+			name:         "nil service",
 			providerName: "test-provider",
-			service:     nil,
-			wantErr:     true,
+			service:      nil,
+			wantErr:      true,
 		},
 	}
 
@@ -188,6 +193,7 @@ func TestManager_SummarizeWithRuleFallback(t *testing.T) {
 
 	// Register failing provider
 	primaryService := &MockService{shouldFail: true}
+
 	err := manager.RegisterProvider("primary", primaryService)
 	if err != nil {
 		t.Fatalf("Failed to register primary provider: %v", err)
@@ -252,13 +258,14 @@ func TestManager_ParseQueryWithRetry(t *testing.T) {
 
 	// Provider that fails first 2 calls, then succeeds
 	primaryService := &MockService{failAfterCalls: 2}
+
 	err := manager.RegisterProvider("primary", primaryService)
 	if err != nil {
 		t.Fatalf("Failed to register primary provider: %v", err)
 	}
 
 	ctx := context.Background()
-	schema := query.Schema{Tables: map[string]query.Table{}}
+	schema := types.Schema{Tables: map[string]types.Table{}}
 
 	queryResp, err := manager.ParseQuery(ctx, "test query", schema)
 
@@ -286,7 +293,7 @@ func TestManager_TimeoutHandling(t *testing.T) {
 
 	// Provider that takes too long
 	primaryService := &MockService{
-		summarizeFunc: func(ctx context.Context, prompt string, content string) (*SummaryResponse, error) {
+		summarizeFunc: func(ctx context.Context, _ string, _ string) (*SummaryResponse, error) {
 			select {
 			case <-time.After(time.Millisecond * 100): // Longer than timeout
 				return &SummaryResponse{}, nil
@@ -411,7 +418,7 @@ func TestManager_ContextCancellation(t *testing.T) {
 
 	// Provider that checks for context cancellation
 	primaryService := &MockService{
-		summarizeFunc: func(ctx context.Context, prompt string, content string) (*SummaryResponse, error) {
+		summarizeFunc: func(ctx context.Context, _ string, _ string) (*SummaryResponse, error) {
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()

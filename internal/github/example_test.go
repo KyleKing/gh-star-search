@@ -30,6 +30,7 @@ func ExampleClient_GetStarredRepos() {
 		if i >= 3 { // Limit output for example
 			break
 		}
+
 		fmt.Printf("Repository: %s\n", repo.FullName)
 		fmt.Printf("  Description: %s\n", repo.Description)
 		fmt.Printf("  Language: %s\n", repo.Language)
@@ -55,6 +56,7 @@ func ExampleClient_GetRepositoryContent() {
 
 	// Fetch specific files from the repository
 	paths := []string{"README.md", "LICENSE", "package.json"}
+
 	contents, err := client.GetRepositoryContent(ctx, repo, paths)
 	if err != nil {
 		log.Fatalf("Failed to fetch repository content: %v", err)

@@ -15,10 +15,11 @@ type mockGitHubClient struct {
 	err     error
 }
 
-func (m *mockGitHubClient) GetRepositoryContent(ctx context.Context, repo github.Repository, paths []string) ([]github.Content, error) {
+func (m *mockGitHubClient) GetRepositoryContent(_ context.Context, _ github.Repository, _ []string) ([]github.Content, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
+
 	return m.content, nil
 }
 
@@ -28,13 +29,15 @@ type mockLLMService struct {
 	err      error
 }
 
-func (m *mockLLMService) Summarize(ctx context.Context, prompt string, content string) (*SummaryResponse, error) {
+func (m *mockLLMService) Summarize(_ context.Context, _ string, _ string) (*SummaryResponse, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
+
 	if m.response != nil {
 		return m.response, nil
 	}
+
 	return &SummaryResponse{
 		Purpose:      "Mock summary purpose",
 		Technologies: []string{"Go", "Testing"},
@@ -210,6 +213,7 @@ func TestFilterContent(t *testing.T) {
 	if !paths["README.md"] {
 		t.Error("filterContent() should keep README.md")
 	}
+
 	if !paths["main.go"] {
 		t.Error("filterContent() should keep main.go")
 	}
@@ -305,6 +309,7 @@ func TestChunkContent(t *testing.T) {
 		if chunk.Tokens <= 0 {
 			t.Errorf("Chunk %d has invalid token count: %d", i, chunk.Tokens)
 		}
+
 		if chunk.Tokens > MaxTokensPerChunk {
 			t.Errorf("Chunk %d exceeds max tokens: %d > %d", i, chunk.Tokens, MaxTokensPerChunk)
 		}
@@ -472,12 +477,14 @@ func TestGenerateBasicSummary(t *testing.T) {
 
 	// Should detect Go from go.mod
 	found := false
+
 	for _, tech := range summary.Technologies {
 		if tech == "Go" {
 			found = true
 			break
 		}
 	}
+
 	if !found {
 		t.Error("Summary should detect Go technology from go.mod")
 	}

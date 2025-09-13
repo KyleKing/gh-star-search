@@ -26,8 +26,8 @@ type Entry struct {
 
 // Stats represents cache statistics
 type Stats struct {
-	TotalEntries int64 `json:"total_entries"`
-	TotalSize    int64 `json:"total_size"`
+	TotalEntries int64   `json:"total_entries"`
+	TotalSize    int64   `json:"total_size"`
 	HitRate      float64 `json:"hit_rate"`
 	MissRate     float64 `json:"miss_rate"`
 }

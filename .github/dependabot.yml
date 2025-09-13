@@ -1,0 +1,16 @@
+# Please see the documentation for all configuration options:
+#   https://docs.github.com/en/code-security/dependabot/working-with-dependabot/keeping-your-actions-up-to-date-with-dependabot
+
+# See Dependabot logs in: https://github.com/<owner>/<repo>/network/updates (under "Insights" tab)
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      all-dependencies:
+        update-types:
+          - "major"
+          - "minor"
+          - "patch"

@@ -92,6 +92,7 @@ func ExampleDuckDBRepository() {
 	}
 
 	fmt.Printf("Found %d repositories matching 'awesome'\n", len(results))
+
 	for _, result := range results {
 		fmt.Printf("- %s: %s\n", result.Repository.FullName, result.Repository.Description)
 	}

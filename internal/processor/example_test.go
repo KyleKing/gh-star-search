@@ -16,7 +16,7 @@ type mockClient struct{}
 // mockLLMService implements LLMService for examples
 type mockLLMService struct{}
 
-func (m *mockLLMService) Summarize(ctx context.Context, prompt string, content string) (*processor.SummaryResponse, error) {
+func (m *mockLLMService) Summarize(_ context.Context, _ string, _ string) (*processor.SummaryResponse, error) {
 	return &processor.SummaryResponse{
 		Purpose:      "A RESTful API for web applications built with Go.",
 		Technologies: []string{"Go"},
@@ -68,6 +68,7 @@ func ExampleService_ProcessRepository() {
 
 	// Extract content from repository
 	ctx := context.Background()
+
 	content, err := service.ExtractContent(ctx, repo)
 	if err != nil {
 		log.Fatal(err)

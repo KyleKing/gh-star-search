@@ -10,8 +10,6 @@ import (
 	"github.com/kyleking/gh-star-search/internal/github"
 )
 
-
-
 func TestIntegrationContentExtraction(t *testing.T) {
 	// Read test fixtures
 	readmeContent, err := os.ReadFile(filepath.Join("testdata", "sample_readme.md"))
@@ -118,12 +116,15 @@ func TestIntegrationContentExtraction(t *testing.T) {
 		if chunk.Source == "" {
 			t.Error("Chunk missing source")
 		}
+
 		if chunk.Content == "" {
 			t.Error("Chunk missing content")
 		}
+
 		if chunk.Tokens <= 0 {
 			t.Error("Chunk has invalid token count")
 		}
+
 		if chunk.Tokens > MaxTokensPerChunk {
 			t.Errorf("Chunk exceeds max tokens: %d > %d", chunk.Tokens, MaxTokensPerChunk)
 		}
@@ -133,9 +134,11 @@ func TestIntegrationContentExtraction(t *testing.T) {
 	if chunkTypes[ContentTypeReadme] == 0 {
 		t.Error("No README chunks found")
 	}
+
 	if chunkTypes[ContentTypeCode] == 0 {
 		t.Error("No code chunks found")
 	}
+
 	if chunkTypes[ContentTypePackage] == 0 {
 		t.Error("No package chunks found")
 	}
@@ -163,7 +166,7 @@ func TestIntegrationContentExtraction(t *testing.T) {
 func TestIntegrationContentExtractionWithLargeContent(t *testing.T) {
 	// Create a large README that should be split into multiple chunks
 	largeReadme := "# Large Project\n\n"
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		largeReadme += "## Section " + string(rune('A'+i%26)) + "\n\n"
 		largeReadme += "This is a detailed section with lots of content. " +
 			"It contains multiple paragraphs and detailed explanations. " +

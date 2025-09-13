@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -39,6 +40,7 @@ func (m *mockRESTClient) Get(path string, response interface{}) error {
 		if err != nil {
 			return err
 		}
+
 		return json.Unmarshal(jsonData, response)
 	}
 
@@ -144,7 +146,8 @@ func TestGetStarredRepos_Pagination(t *testing.T) {
 
 	// Create 100 repos for first page (full page)
 	var page1Repos []Repository
-	for i := 0; i < 100; i++ {
+
+	for i := range 100 {
 		repo := createTestRepository()
 		repo.FullName = fmt.Sprintf("owner/repo%d", i)
 		page1Repos = append(page1Repos, repo)
@@ -172,6 +175,7 @@ func TestGetStarredRepos_Pagination(t *testing.T) {
 	if repos[0].FullName != "owner/repo0" {
 		t.Errorf("Expected first repository name owner/repo0, got: %s", repos[0].FullName)
 	}
+
 	if repos[100].FullName != testRepo2.FullName {
 		t.Errorf("Expected last repository name %s, got: %s", testRepo2.FullName, repos[100].FullName)
 	}
@@ -181,7 +185,7 @@ func TestGetStarredRepos_Error(t *testing.T) {
 	mockClient := newMockRESTClient()
 	client := &clientImpl{apiClient: mockClient}
 
-	expectedError := fmt.Errorf("API error")
+	expectedError := errors.New("API error")
 	mockClient.setError("user/starred?page=1&per_page=100", expectedError)
 
 	ctx := context.Background()
@@ -299,6 +303,7 @@ func TestGetRepositoryContent_MultiplePaths(t *testing.T) {
 	if !paths["README.md"] {
 		t.Error("Expected README.md to be retrieved")
 	}
+
 	if !paths["LICENSE"] {
 		t.Error("Expected LICENSE to be retrieved")
 	}
@@ -424,7 +429,7 @@ func TestGetRepositoryMetadata_NoReleases(t *testing.T) {
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || (len(s) > len(substr) &&
 		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
-		 containsAt(s, substr))))
+			containsAt(s, substr))))
 }
 
 func containsAt(s, substr string) bool {
@@ -433,5 +438,6 @@ func containsAt(s, substr string) bool {
 			return true
 		}
 	}
+
 	return false
 }

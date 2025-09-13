@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	_ "github.com/marcboeker/go-duckdb"
 	"github.com/kyleking/gh-star-search/internal/processor"
+	_ "github.com/marcboeker/go-duckdb" // DuckDB driver
 )
 
 // DuckDBRepository implements the Repository interface using DuckDB
@@ -53,7 +53,8 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+
+	defer func() { _ = tx.Rollback() }()
 
 	// Convert arrays to JSON
 	topicsJSON, _ := json.Marshal(repo.Repository.Topics)
@@ -113,6 +114,7 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 
 		for _, chunk := range repo.Chunks {
 			chunkID := uuid.New().String()
+
 			_, err := tx.ExecContext(ctx, insertChunkSQL,
 				chunkID,
 				repoID,
@@ -135,9 +137,9 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.ProcessedRepo) error {
 	// For now, let's use a simple approach: delete the old repository and insert the new one
 	// This avoids the complex update logic that's causing issues
-
 	// Get the repository ID first
 	var repoID string
+
 	err := r.db.QueryRowContext(ctx, "SELECT id FROM repositories WHERE full_name = ?", repo.Repository.FullName).Scan(&repoID)
 	if err != nil {
 		return fmt.Errorf("failed to get repository ID: %w", err)
@@ -210,6 +212,7 @@ func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.
 
 		for _, chunk := range repo.Chunks {
 			chunkID := uuid.New().String()
+
 			_, err := r.db.ExecContext(ctx, insertChunkSQL,
 				chunkID,
 				repoID,
@@ -232,11 +235,13 @@ func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.
 func (r *DuckDBRepository) DeleteRepository(ctx context.Context, fullName string) error {
 	// Get repository ID first
 	var repoID string
+
 	err := r.db.QueryRowContext(ctx, "SELECT id FROM repositories WHERE full_name = ?", fullName).Scan(&repoID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil // Repository doesn't exist, nothing to delete
 		}
+
 		return fmt.Errorf("failed to get repository ID: %w", err)
 	}
 
@@ -267,6 +272,7 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 	row := r.db.QueryRowContext(ctx, query, fullName)
 
 	var repo StoredRepo
+
 	var topicsJSON, technologiesJSON, useCasesJSON, featuresJSON string
 
 	err := row.Scan(
@@ -281,21 +287,37 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("repository not found: %s", fullName)
 		}
+
 		return nil, fmt.Errorf("failed to scan repository: %w", err)
 	}
 
 	// Parse JSON arrays
 	if topicsJSON != "" {
-		json.Unmarshal([]byte(topicsJSON), &repo.Topics)
+		if err := json.Unmarshal([]byte(topicsJSON), &repo.Topics); err != nil {
+			// Log error or handle, but for now ignore since data should be valid JSON
+			_ = err // explicitly ignore the error
+		}
 	}
+
 	if technologiesJSON != "" {
-		json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
+		if err := json.Unmarshal([]byte(technologiesJSON), &repo.Technologies); err != nil {
+			// Log error or handle, but for now ignore since data should be valid JSON
+			_ = err // explicitly ignore the error
+		}
 	}
+
 	if useCasesJSON != "" {
-		json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
+		if err := json.Unmarshal([]byte(useCasesJSON), &repo.UseCases); err != nil {
+			// Log error or handle, but for now ignore since data should be valid JSON
+			_ = err // explicitly ignore the error
+		}
 	}
+
 	if featuresJSON != "" {
-		json.Unmarshal([]byte(featuresJSON), &repo.Features)
+		if err := json.Unmarshal([]byte(featuresJSON), &repo.Features); err != nil {
+			// Log error or handle, but for now ignore since data should be valid JSON
+			_ = err // explicitly ignore the error
+		}
 	}
 
 	// Load chunks
@@ -303,6 +325,7 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to load chunks: %w", err)
 	}
+
 	repo.Chunks = chunks
 
 	return &repo, nil
@@ -322,12 +345,15 @@ func (r *DuckDBRepository) getRepositoryChunks(ctx context.Context, repoID strin
 	defer rows.Close()
 
 	var chunks []processor.ContentChunk
+
 	for rows.Next() {
 		var chunk processor.ContentChunk
+
 		err := rows.Scan(&chunk.Source, &chunk.Type, &chunk.Content, &chunk.Tokens, &chunk.Priority)
 		if err != nil {
 			return nil, err
 		}
+
 		chunks = append(chunks, chunk)
 	}
 
@@ -352,8 +378,10 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 	defer rows.Close()
 
 	var repos []StoredRepo
+
 	for rows.Next() {
 		var repo StoredRepo
+
 		var topicsJSON, technologiesJSON, useCasesJSON, featuresJSON string
 
 		err := rows.Scan(
@@ -370,16 +398,27 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 
 		// Parse JSON arrays
 		if topicsJSON != "" {
-			json.Unmarshal([]byte(topicsJSON), &repo.Topics)
+			if err := json.Unmarshal([]byte(topicsJSON), &repo.Topics); err != nil {
+				// Log error or handle, but for now ignore since data should be valid JSON
+			}
 		}
+
 		if technologiesJSON != "" {
-			json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
+			if err := json.Unmarshal([]byte(technologiesJSON), &repo.Technologies); err != nil {
+				// Log error or handle, but for now ignore since data should be valid JSON
+			}
 		}
+
 		if useCasesJSON != "" {
-			json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
+			if err := json.Unmarshal([]byte(useCasesJSON), &repo.UseCases); err != nil {
+				// Log error or handle, but for now ignore since data should be valid JSON
+			}
 		}
+
 		if featuresJSON != "" {
-			json.Unmarshal([]byte(featuresJSON), &repo.Features)
+			if err := json.Unmarshal([]byte(featuresJSON), &repo.Features); err != nil {
+				// Log error or handle, but for now ignore since data should be valid JSON
+			}
 		}
 
 		repos = append(repos, repo)
@@ -411,16 +450,21 @@ func (r *DuckDBRepository) SearchRepositories(ctx context.Context, query string)
 	LIMIT 50`
 
 	searchTerm := "%" + query + "%"
+
 	rows, err := r.db.QueryContext(ctx, searchQuery, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search repositories: %w", err)
 	}
+
 	defer rows.Close()
 
 	var results []SearchResult
+
 	for rows.Next() {
 		var repo StoredRepo
+
 		var score float64
+
 		var topicsJSON, technologiesJSON, useCasesJSON, featuresJSON string
 
 		err := rows.Scan(
@@ -438,14 +482,19 @@ func (r *DuckDBRepository) SearchRepositories(ctx context.Context, query string)
 
 		// Parse JSON arrays
 		if topicsJSON != "" {
-			json.Unmarshal([]byte(topicsJSON), &repo.Topics)
+			if err := json.Unmarshal([]byte(topicsJSON), &repo.Topics); err != nil {
+				// Log error or handle, but for now ignore since data should be valid JSON
+			}
 		}
+
 		if technologiesJSON != "" {
 			json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
 		}
+
 		if useCasesJSON != "" {
 			json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
 		}
+
 		if featuresJSON != "" {
 			json.Unmarshal([]byte(featuresJSON), &repo.Features)
 		}
@@ -490,10 +539,12 @@ func (r *DuckDBRepository) GetStats(ctx context.Context) (*Stats, error) {
 
 	// Get last sync time
 	var lastSyncTime *time.Time
+
 	err = r.db.QueryRowContext(ctx, "SELECT MAX(last_synced) FROM repositories").Scan(&lastSyncTime)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("failed to get last sync time: %w", err)
 	}
+
 	if lastSyncTime != nil {
 		stats.LastSyncTime = *lastSyncTime
 	}
@@ -512,10 +563,12 @@ func (r *DuckDBRepository) GetStats(ctx context.Context) (*Stats, error) {
 
 	for langRows.Next() {
 		var language string
+
 		var count int
 		if err := langRows.Scan(&language, &count); err != nil {
 			return nil, err
 		}
+
 		stats.LanguageBreakdown[language] = count
 	}
 
@@ -544,5 +597,6 @@ func (r *DuckDBRepository) Close() error {
 	if r.db != nil {
 		return r.db.Close()
 	}
+
 	return nil
 }

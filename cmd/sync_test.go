@@ -23,20 +23,23 @@ type MockGitHubClient struct {
 	errors       map[string]error
 }
 
-func (m *MockGitHubClient) GetStarredRepos(ctx context.Context, username string) ([]github.Repository, error) {
+func (m *MockGitHubClient) GetStarredRepos(_ context.Context, username string) ([]github.Repository, error) {
 	if err, exists := m.errors["starred"]; exists {
 		return nil, err
 	}
+
 	return m.starredRepos, nil
 }
 
-func (m *MockGitHubClient) GetRepositoryContent(ctx context.Context, repo github.Repository, paths []string) ([]github.Content, error) {
+func (m *MockGitHubClient) GetRepositoryContent(_ context.Context, repo github.Repository, paths []string) ([]github.Content, error) {
 	if err, exists := m.errors[repo.FullName]; exists {
 		return nil, err
 	}
+
 	if content, exists := m.content[repo.FullName]; exists {
 		return content, nil
 	}
+
 	return []github.Content{}, nil
 }
 
@@ -44,9 +47,11 @@ func (m *MockGitHubClient) GetRepositoryMetadata(ctx context.Context, repo githu
 	if err, exists := m.errors[repo.FullName+"_metadata"]; exists {
 		return nil, err
 	}
+
 	if metadata, exists := m.metadata[repo.FullName]; exists {
 		return metadata, nil
 	}
+
 	return &github.Metadata{}, nil
 }
 
@@ -61,9 +66,11 @@ func (m *MockLLMService) Summarize(ctx context.Context, prompt string, content s
 	if err, exists := m.errors[key]; exists {
 		return nil, err
 	}
+
 	if response, exists := m.responses[key]; exists {
 		return response, nil
 	}
+
 	return &processor.SummaryResponse{
 		Purpose:      "Test repository purpose",
 		Technologies: []string{"Go", "Test"},
@@ -90,7 +97,7 @@ func TestSyncService_DetermineSyncOperations(t *testing.T) {
 		{
 			FullName:        "user/repo2",
 			UpdatedAt:       baseTime.Add(-30 * time.Minute), // Older than LastSynced
-			StargazersCount: 200, // Different star count - needs update
+			StargazersCount: 200,                             // Different star count - needs update
 			ForksCount:      20,
 			Size:            2000,
 		},
@@ -131,6 +138,7 @@ func TestSyncService_DetermineSyncOperations(t *testing.T) {
 	if len(operations.toAdd) != 1 {
 		t.Errorf("Expected 1 repository to add, got %d", len(operations.toAdd))
 	}
+
 	if operations.toAdd[0].FullName != "user/repo3" {
 		t.Errorf("Expected to add user/repo3, got %s", operations.toAdd[0].FullName)
 	}
@@ -138,6 +146,7 @@ func TestSyncService_DetermineSyncOperations(t *testing.T) {
 	if len(operations.toUpdate) != 1 {
 		t.Errorf("Expected 1 repository to update, got %d", len(operations.toUpdate))
 	}
+
 	if operations.toUpdate[0].FullName != "user/repo2" {
 		t.Errorf("Expected to update user/repo2, got %s", operations.toUpdate[0].FullName)
 	}
@@ -145,6 +154,7 @@ func TestSyncService_DetermineSyncOperations(t *testing.T) {
 	if len(operations.toRemove) != 1 {
 		t.Errorf("Expected 1 repository to remove, got %d", len(operations.toRemove))
 	}
+
 	if operations.toRemove[0] != "user/old-repo" {
 		t.Errorf("Expected to remove user/old-repo, got %s", operations.toRemove[0])
 	}
@@ -322,15 +332,19 @@ func TestSyncService_ProcessRepository(t *testing.T) {
 	if stored.FullName != "user/test-repo" {
 		t.Errorf("Expected FullName 'user/test-repo', got '%s'", stored.FullName)
 	}
+
 	if stored.StargazersCount != 42 {
 		t.Errorf("Expected StargazersCount 42, got %d", stored.StargazersCount)
 	}
+
 	if stored.Purpose != "Test repository for unit testing" {
 		t.Errorf("Expected Purpose 'Test repository for unit testing', got '%s'", stored.Purpose)
 	}
+
 	if len(stored.Technologies) != 2 {
 		t.Errorf("Expected 2 technologies, got %d", len(stored.Technologies))
 	}
+
 	if len(stored.Chunks) == 0 {
 		t.Error("Expected content chunks to be stored")
 	}
@@ -414,6 +428,7 @@ func TestSyncService_ProcessRepositoriesInBatches(t *testing.T) {
 	if stats.NewRepos != 3 {
 		t.Errorf("Expected 3 new repos, got %d", stats.NewRepos)
 	}
+
 	if stats.ProcessedRepos != 3 {
 		t.Errorf("Expected 3 processed repos, got %d", stats.ProcessedRepos)
 	}
@@ -644,6 +659,7 @@ func TestProgressTracker(t *testing.T) {
 
 	// Test update
 	tracker.Update("test-repo")
+
 	if tracker.processed != 1 {
 		t.Errorf("Expected processed 1 after update, got %d", tracker.processed)
 	}
@@ -651,6 +667,7 @@ func TestProgressTracker(t *testing.T) {
 	// Test multiple updates
 	tracker.Update("test-repo-2")
 	tracker.Update("test-repo-3")
+
 	if tracker.processed != 3 {
 		t.Errorf("Expected processed 3 after multiple updates, got %d", tracker.processed)
 	}
@@ -663,8 +680,9 @@ func TestSyncStats_SafeIncrement(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Start multiple goroutines to test thread safety
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		wg.Add(1)
+
 		go func() {
 			defer wg.Done()
 			stats.SafeIncrement("new")
@@ -679,9 +697,11 @@ func TestSyncStats_SafeIncrement(t *testing.T) {
 	if stats.NewRepos != 10 {
 		t.Errorf("Expected NewRepos 10, got %d", stats.NewRepos)
 	}
+
 	if stats.UpdatedRepos != 10 {
 		t.Errorf("Expected UpdatedRepos 10, got %d", stats.UpdatedRepos)
 	}
+
 	if stats.ProcessedRepos != 10 {
 		t.Errorf("Expected ProcessedRepos 10, got %d", stats.ProcessedRepos)
 	}

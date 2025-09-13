@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/kyleking/gh-star-search/internal/query"
+	"github.com/kyleking/gh-star-search/internal/types"
 )
 
 func TestFallbackService_Summarize(t *testing.T) {
@@ -15,10 +15,10 @@ func TestFallbackService_Summarize(t *testing.T) {
 		name     string
 		content  string
 		expected struct {
-			purposeContains    string
-			technologiesCount  int
-			useCasesCount      int
-			featuresCount      int
+			purposeContains   string
+			technologiesCount int
+			useCasesCount     int
+			featuresCount     int
 		}
 	}{
 		{
@@ -43,10 +43,10 @@ npm install my-awesome-project
 import { awesome } from 'my-awesome-project';
 `,
 			expected: struct {
-				purposeContains    string
-				technologiesCount  int
-				useCasesCount      int
-				featuresCount      int
+				purposeContains   string
+				technologiesCount int
+				useCasesCount     int
+				featuresCount     int
 			}{
 				purposeContains:   "JavaScript library",
 				technologiesCount: 5, // JavaScript, TypeScript, React, Vue, Java (from "JavaScript")
@@ -73,10 +73,10 @@ Requirements:
 - matplotlib
 `,
 			expected: struct {
-				purposeContains    string
-				technologiesCount  int
-				useCasesCount      int
-				featuresCount      int
+				purposeContains   string
+				technologiesCount int
+				useCasesCount     int
+				featuresCount     int
 			}{
 				purposeContains:   "Python tool",
 				technologiesCount: 2, // Python, TypeScript (from "datasets")
@@ -103,10 +103,10 @@ Usage:
 cli-tool list --language=go
 `,
 			expected: struct {
-				purposeContains    string
-				technologiesCount  int
-				useCasesCount      int
-				featuresCount      int
+				purposeContains   string
+				technologiesCount int
+				useCasesCount     int
+				featuresCount     int
 			}{
 				purposeContains:   "command line",
 				technologiesCount: 2, // Go, TypeScript (from "repositories")
@@ -197,12 +197,14 @@ func TestFallbackService_ExtractTechnologies(t *testing.T) {
 
 			for _, expected := range tt.expected {
 				found := false
+
 				for _, tech := range technologies {
 					if tech == expected {
 						found = true
 						break
 					}
 				}
+
 				if !found {
 					t.Errorf("Expected technology '%s' not found in %v", expected, technologies)
 				}
@@ -252,12 +254,14 @@ func TestFallbackService_ExtractUseCases(t *testing.T) {
 
 			for _, expected := range tt.expected {
 				found := false
+
 				for _, useCase := range useCases {
 					if useCase == expected {
 						found = true
 						break
 					}
 				}
+
 				if !found {
 					t.Errorf("Expected use case '%s' not found in %v", expected, useCases)
 				}
@@ -400,11 +404,11 @@ func TestFallbackService_ParseQuery(t *testing.T) {
 	fallback := NewFallbackService()
 	ctx := context.Background()
 
-	schema := query.Schema{
-		Tables: map[string]query.Table{
+	schema := types.Schema{
+		Tables: map[string]types.Table{
 			"repositories": {
 				Name: "repositories",
-				Columns: []query.Column{
+				Columns: []types.Column{
 					{Name: "full_name", Type: "VARCHAR"},
 					{Name: "description", Type: "TEXT"},
 					{Name: "language", Type: "VARCHAR"},
@@ -415,10 +419,10 @@ func TestFallbackService_ParseQuery(t *testing.T) {
 	}
 
 	tests := []struct {
-		name          string
-		query         string
-		expectedSQL   string
-		expectedExpl  string
+		name         string
+		query        string
+		expectedSQL  string
+		expectedExpl string
 	}{
 		{
 			name:         "List repositories",

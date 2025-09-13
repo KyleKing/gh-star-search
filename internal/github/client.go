@@ -111,8 +111,9 @@ func NewClient() (Client, error) {
 }
 
 // GetStarredRepos fetches all starred repositories for the authenticated user
-func (c *clientImpl) GetStarredRepos(ctx context.Context, username string) ([]Repository, error) {
+func (c *clientImpl) GetStarredRepos(ctx context.Context, _ string) ([]Repository, error) {
 	var allRepos []Repository
+
 	page := 1
 	perPage := 100
 
@@ -124,6 +125,7 @@ func (c *clientImpl) GetStarredRepos(ctx context.Context, username string) ([]Re
 		}
 
 		var repos []Repository
+
 		err := c.apiClient.Get(fmt.Sprintf("user/starred?page=%d&per_page=%d", page, perPage), &repos)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch starred repositories (page %d): %w", page, err)
@@ -162,12 +164,14 @@ func (c *clientImpl) GetRepositoryContent(ctx context.Context, repo Repository, 
 		}
 
 		var content Content
+
 		err := c.apiClient.Get(fmt.Sprintf("repos/%s/contents/%s", repo.FullName, path), &content)
 		if err != nil {
 			// If file doesn't exist, skip it rather than failing
 			if httpErr, ok := err.(*api.HTTPError); ok && httpErr.StatusCode == http.StatusNotFound {
 				continue
 			}
+
 			return nil, fmt.Errorf("failed to fetch content for %s in %s: %w", path, repo.FullName, err)
 		}
 
@@ -216,6 +220,7 @@ func (c *clientImpl) fetchCommitCount(ctx context.Context, repo Repository, meta
 
 	// Get commits from the default branch with per_page=1 to get total count from headers
 	var commits []map[string]interface{}
+
 	err := c.apiClient.Get(fmt.Sprintf("repos/%s/commits?sha=%s&per_page=1", repo.FullName, repo.DefaultBranch), &commits)
 	if err != nil {
 		return fmt.Errorf("failed to fetch commit count: %w", err)
@@ -225,6 +230,7 @@ func (c *clientImpl) fetchCommitCount(ctx context.Context, repo Repository, meta
 	// This is a limitation of the REST API - GraphQL would be better for this
 	if len(commits) > 0 {
 		metadata.CommitCount = 1 // At least one commit exists
+
 		if lastCommit, ok := commits[0]["commit"].(map[string]interface{}); ok {
 			if committer, ok := lastCommit["committer"].(map[string]interface{}); ok {
 				if dateStr, ok := committer["date"].(string); ok {
@@ -248,12 +254,14 @@ func (c *clientImpl) fetchContributors(ctx context.Context, repo Repository, met
 	}
 
 	var contributors []map[string]interface{}
+
 	err := c.apiClient.Get(fmt.Sprintf("repos/%s/contributors?per_page=10", repo.FullName), &contributors)
 	if err != nil {
 		return fmt.Errorf("failed to fetch contributors: %w", err)
 	}
 
 	var contributorNames []string
+
 	for _, contributor := range contributors {
 		if login, ok := contributor["login"].(string); ok {
 			contributorNames = append(contributorNames, login)
@@ -261,6 +269,7 @@ func (c *clientImpl) fetchContributors(ctx context.Context, repo Repository, met
 	}
 
 	metadata.Contributors = contributorNames
+
 	return nil
 }
 
@@ -274,12 +283,14 @@ func (c *clientImpl) fetchLatestRelease(ctx context.Context, repo Repository, me
 
 	// First get the latest release
 	var release Release
+
 	err := c.apiClient.Get(fmt.Sprintf("repos/%s/releases/latest", repo.FullName), &release)
 	if err != nil {
 		// If no releases exist, that's okay
 		if httpErr, ok := err.(*api.HTTPError); ok && httpErr.StatusCode == http.StatusNotFound {
 			return nil
 		}
+
 		return fmt.Errorf("failed to fetch latest release: %w", err)
 	}
 
@@ -287,6 +298,7 @@ func (c *clientImpl) fetchLatestRelease(ctx context.Context, repo Repository, me
 
 	// Get total release count
 	var releases []map[string]interface{}
+
 	err = c.apiClient.Get(fmt.Sprintf("repos/%s/releases?per_page=1", repo.FullName), &releases)
 	if err != nil {
 		return fmt.Errorf("failed to fetch release count: %w", err)

@@ -4,27 +4,27 @@ import (
 	"context"
 	"testing"
 
+	"github.com/kyleking/gh-star-search/internal/llm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/kyleking/gh-star-search/internal/llm"
 )
 
 // TestNaturalLanguageQueryExamples demonstrates various natural language queries
 // and their expected SQL translations
 func TestNaturalLanguageQueryExamples(t *testing.T) {
 	examples := []struct {
-		name            string
-		naturalQuery    string
-		expectedSQL     string
-		expectedType    QueryType
-		confidence      float64
-		explanation     string
+		name         string
+		naturalQuery string
+		expectedSQL  string
+		expectedType Type
+		confidence   float64
+		explanation  string
 	}{
 		{
 			name:         "simple language filter",
 			naturalQuery: "show me all Go repositories",
 			expectedSQL:  "SELECT * FROM repositories WHERE language = 'Go' ORDER BY stargazers_count DESC",
-			expectedType: QueryTypeFilter,
+			expectedType: TypeFilter,
 			confidence:   0.95,
 			explanation:  "Filter repositories by Go programming language, ordered by popularity",
 		},
@@ -32,7 +32,7 @@ func TestNaturalLanguageQueryExamples(t *testing.T) {
 			name:         "popularity threshold",
 			naturalQuery: "find popular JavaScript projects with more than 1000 stars",
 			expectedSQL:  "SELECT * FROM repositories WHERE language = 'JavaScript' AND stargazers_count > 1000 ORDER BY stargazers_count DESC",
-			expectedType: QueryTypeComparison,
+			expectedType: TypeComparison,
 			confidence:   0.9,
 			explanation:  "Find JavaScript repositories with high star count",
 		},
@@ -40,7 +40,7 @@ func TestNaturalLanguageQueryExamples(t *testing.T) {
 			name:         "recent activity",
 			naturalQuery: "repositories updated in the last month",
 			expectedSQL:  "SELECT * FROM repositories WHERE updated_at >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH) ORDER BY updated_at DESC",
-			expectedType: QueryTypeComparison,
+			expectedType: TypeComparison,
 			confidence:   0.85,
 			explanation:  "Find recently updated repositories",
 		},
@@ -48,7 +48,7 @@ func TestNaturalLanguageQueryExamples(t *testing.T) {
 			name:         "language statistics",
 			naturalQuery: "count repositories by programming language",
 			expectedSQL:  "SELECT language, COUNT(*) as count FROM repositories WHERE language IS NOT NULL GROUP BY language ORDER BY count DESC",
-			expectedType: QueryTypeAggregate,
+			expectedType: TypeAggregate,
 			confidence:   0.95,
 			explanation:  "Aggregate repository count by programming language",
 		},
@@ -56,7 +56,7 @@ func TestNaturalLanguageQueryExamples(t *testing.T) {
 			name:         "content search",
 			naturalQuery: "find repositories about machine learning",
 			expectedSQL:  "SELECT DISTINCT r.* FROM repositories r LEFT JOIN content_chunks c ON r.id = c.repository_id WHERE (r.description ILIKE '%machine learning%' OR r.purpose ILIKE '%machine learning%' OR c.content ILIKE '%machine learning%') ORDER BY r.stargazers_count DESC",
-			expectedType: QueryTypeSearch,
+			expectedType: TypeSearch,
 			confidence:   0.8,
 			explanation:  "Search for machine learning related repositories in descriptions and content",
 		},
@@ -64,7 +64,7 @@ func TestNaturalLanguageQueryExamples(t *testing.T) {
 			name:         "license filter",
 			naturalQuery: "show MIT licensed repositories",
 			expectedSQL:  "SELECT * FROM repositories WHERE license_spdx_id = 'MIT' OR license_name ILIKE '%MIT%' ORDER BY stargazers_count DESC",
-			expectedType: QueryTypeSearch, // Changed because it contains ILIKE
+			expectedType: TypeSearch, // Changed because it contains ILIKE
 			confidence:   0.9,
 			explanation:  "Filter repositories by MIT license",
 		},
@@ -72,7 +72,7 @@ func TestNaturalLanguageQueryExamples(t *testing.T) {
 			name:         "size comparison",
 			naturalQuery: "large repositories over 10MB",
 			expectedSQL:  "SELECT * FROM repositories WHERE size_kb > 10240 ORDER BY size_kb DESC",
-			expectedType: QueryTypeComparison,
+			expectedType: TypeComparison,
 			confidence:   0.85,
 			explanation:  "Find repositories larger than 10MB (10240 KB)",
 		},
@@ -80,7 +80,7 @@ func TestNaturalLanguageQueryExamples(t *testing.T) {
 			name:         "topic search",
 			naturalQuery: "web framework repositories",
 			expectedSQL:  "SELECT * FROM repositories WHERE topics LIKE '%web%' OR topics LIKE '%framework%' OR description ILIKE '%web framework%' ORDER BY stargazers_count DESC",
-			expectedType: QueryTypeSearch,
+			expectedType: TypeSearch,
 			confidence:   0.8,
 			explanation:  "Search for web framework repositories using topics and descriptions",
 		},
@@ -88,7 +88,7 @@ func TestNaturalLanguageQueryExamples(t *testing.T) {
 			name:         "fork analysis",
 			naturalQuery: "most forked Python repositories",
 			expectedSQL:  "SELECT * FROM repositories WHERE language = 'Python' ORDER BY forks_count DESC LIMIT 20",
-			expectedType: QueryTypeFilter,
+			expectedType: TypeFilter,
 			confidence:   0.9,
 			explanation:  "Find Python repositories with the most forks",
 		},
@@ -96,7 +96,7 @@ func TestNaturalLanguageQueryExamples(t *testing.T) {
 			name:         "installation instructions",
 			naturalQuery: "repositories with Docker installation",
 			expectedSQL:  "SELECT * FROM repositories WHERE installation_instructions ILIKE '%docker%' ORDER BY stargazers_count DESC",
-			expectedType: QueryTypeSearch,
+			expectedType: TypeSearch,
 			confidence:   0.85,
 			explanation:  "Find repositories that mention Docker in installation instructions",
 		},
@@ -104,7 +104,7 @@ func TestNaturalLanguageQueryExamples(t *testing.T) {
 			name:         "complex aggregation",
 			naturalQuery: "average stars per language for repositories with more than 100 stars",
 			expectedSQL:  "SELECT language, AVG(stargazers_count) as avg_stars, COUNT(*) as repo_count FROM repositories WHERE stargazers_count > 100 AND language IS NOT NULL GROUP BY language HAVING COUNT(*) >= 5 ORDER BY avg_stars DESC",
-			expectedType: QueryTypeAggregate,
+			expectedType: TypeAggregate,
 			confidence:   0.8,
 			explanation:  "Calculate average stars per language for popular repositories",
 		},
@@ -112,7 +112,7 @@ func TestNaturalLanguageQueryExamples(t *testing.T) {
 			name:         "date range query",
 			naturalQuery: "repositories created between 2020 and 2022",
 			expectedSQL:  "SELECT * FROM repositories WHERE created_at >= '2020-01-01' AND created_at < '2023-01-01' ORDER BY created_at DESC",
-			expectedType: QueryTypeComparison,
+			expectedType: TypeComparison,
 			confidence:   0.9,
 			explanation:  "Find repositories created in a specific date range",
 		},
@@ -138,7 +138,7 @@ func TestNaturalLanguageQueryExamples(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.Equal(t, example.expectedSQL, result.SQL)
-			assert.Equal(t, example.expectedType, result.QueryType)
+			assert.Equal(t, example.expectedType, result.Type)
 			assert.Equal(t, example.confidence, result.Confidence)
 			assert.Equal(t, example.explanation, result.Explanation)
 
@@ -218,7 +218,7 @@ func TestComplexNaturalLanguageQueries(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.Contains(t, result.SQL, "SELECT") // Basic validation
-			assert.True(t, result.Confidence > 0.0)
+			assert.Greater(t, result.Confidence, 0.0)
 			assert.NotEmpty(t, result.Explanation)
 
 			mockLLM.AssertExpectations(t)
@@ -273,7 +273,7 @@ func TestAmbiguousQueries(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.Equal(t, example.confidence, result.Confidence)
-			assert.True(t, result.Confidence < 0.7) // Should have low confidence
+			assert.Less(t, result.Confidence, 0.7) // Should have low confidence
 
 			mockLLM.AssertExpectations(t)
 		})
@@ -292,8 +292,8 @@ func TestQueryParsingErrorHandling(t *testing.T) {
 			name:         "malicious query attempt",
 			naturalQuery: "delete all my repositories",
 			llmResponse: &llm.QueryResponse{
-				SQL:         "DELETE FROM repositories",
-				Confidence:  0.9,
+				SQL:        "DELETE FROM repositories",
+				Confidence: 0.9,
 			},
 			expectedError: "only SELECT statements are allowed",
 		},
@@ -301,8 +301,8 @@ func TestQueryParsingErrorHandling(t *testing.T) {
 			name:         "injection attempt",
 			naturalQuery: "show repositories; drop table repositories;",
 			llmResponse: &llm.QueryResponse{
-				SQL:         "SELECT * FROM repositories; DROP TABLE repositories;",
-				Confidence:  0.1,
+				SQL:        "SELECT * FROM repositories; DROP TABLE repositories;",
+				Confidence: 0.1,
 			},
 			expectedError: "SQL contains suspicious pattern",
 		},
@@ -310,8 +310,8 @@ func TestQueryParsingErrorHandling(t *testing.T) {
 			name:         "invalid table reference",
 			naturalQuery: "show all users",
 			llmResponse: &llm.QueryResponse{
-				SQL:         "SELECT * FROM users",
-				Confidence:  0.8,
+				SQL:        "SELECT * FROM users",
+				Confidence: 0.8,
 			},
 			expectedError: "SQL must reference valid tables",
 		},

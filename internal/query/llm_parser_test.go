@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/kyleking/gh-star-search/internal/llm"
 	"github.com/kyleking/gh-star-search/internal/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 // MockLLMService is a mock implementation of the LLM service
@@ -43,13 +43,13 @@ func TestNewLLMParser(t *testing.T) {
 
 func TestLLMParser_Parse(t *testing.T) {
 	tests := []struct {
-		name           string
-		naturalQuery   string
-		llmResponse    *llm.QueryResponse
-		llmError       error
-		expectedSQL    string
-		expectedType   QueryType
-		expectedError  string
+		name          string
+		naturalQuery  string
+		llmResponse   *llm.QueryResponse
+		llmError      error
+		expectedSQL   string
+		expectedType  Type
+		expectedError string
 	}{
 		{
 			name:         "successful search query",
@@ -61,7 +61,7 @@ func TestLLMParser_Parse(t *testing.T) {
 				Confidence:  0.9,
 			},
 			expectedSQL:  "SELECT * FROM repositories WHERE language = 'JavaScript'",
-			expectedType: QueryTypeFilter,
+			expectedType: TypeFilter,
 		},
 		{
 			name:         "aggregation query",
@@ -73,7 +73,7 @@ func TestLLMParser_Parse(t *testing.T) {
 				Confidence:  0.95,
 			},
 			expectedSQL:  "SELECT language, COUNT(*) FROM repositories GROUP BY language",
-			expectedType: QueryTypeAggregate,
+			expectedType: TypeAggregate,
 		},
 		{
 			name:         "comparison query",
@@ -85,7 +85,7 @@ func TestLLMParser_Parse(t *testing.T) {
 				Confidence:  0.85,
 			},
 			expectedSQL:  "SELECT * FROM repositories WHERE stargazers_count > 1000",
-			expectedType: QueryTypeComparison,
+			expectedType: TypeComparison,
 		},
 		{
 			name:         "dangerous SQL injection attempt",
@@ -143,7 +143,7 @@ func TestLLMParser_Parse(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
 				assert.Equal(t, tt.expectedSQL, result.SQL)
-				assert.Equal(t, tt.expectedType, result.QueryType)
+				assert.Equal(t, tt.expectedType, result.Type)
 			}
 
 			mockLLM.AssertExpectations(t)
@@ -244,59 +244,59 @@ func TestLLMParser_DetermineQueryType(t *testing.T) {
 	tests := []struct {
 		name         string
 		sql          string
-		expectedType QueryType
+		expectedType Type
 	}{
 		{
 			name:         "search query",
 			sql:          "SELECT * FROM repositories",
-			expectedType: QueryTypeSearch,
+			expectedType: TypeSearch,
 		},
 		{
 			name:         "filter query with WHERE",
 			sql:          "SELECT * FROM repositories WHERE language = 'Go'",
-			expectedType: QueryTypeFilter,
+			expectedType: TypeFilter,
 		},
 		{
 			name:         "filter query with LIMIT",
 			sql:          "SELECT * FROM repositories LIMIT 10",
-			expectedType: QueryTypeFilter,
+			expectedType: TypeFilter,
 		},
 		{
 			name:         "aggregation query with COUNT",
 			sql:          "SELECT COUNT(*) FROM repositories",
-			expectedType: QueryTypeAggregate,
+			expectedType: TypeAggregate,
 		},
 		{
 			name:         "aggregation query with GROUP BY",
 			sql:          "SELECT language, COUNT(*) FROM repositories GROUP BY language",
-			expectedType: QueryTypeAggregate,
+			expectedType: TypeAggregate,
 		},
 		{
 			name:         "aggregation query with SUM",
 			sql:          "SELECT SUM(stargazers_count) FROM repositories",
-			expectedType: QueryTypeAggregate,
+			expectedType: TypeAggregate,
 		},
 		{
 			name:         "comparison query with greater than",
 			sql:          "SELECT * FROM repositories WHERE stargazers_count > 1000",
-			expectedType: QueryTypeComparison,
+			expectedType: TypeComparison,
 		},
 		{
 			name:         "comparison query with BETWEEN",
 			sql:          "SELECT * FROM repositories WHERE stargazers_count BETWEEN 100 AND 1000",
-			expectedType: QueryTypeComparison,
+			expectedType: TypeComparison,
 		},
 		{
 			name:         "comparison query with IN",
 			sql:          "SELECT * FROM repositories WHERE language IN ('Go', 'Python')",
-			expectedType: QueryTypeComparison,
+			expectedType: TypeComparison,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			parser := NewLLMParser(&MockLLMService{}, nil)
-			queryType := parser.determineQueryType(tt.sql)
+			queryType := parser.determineType(tt.sql)
 			assert.Equal(t, tt.expectedType, queryType)
 		})
 	}
@@ -306,12 +306,12 @@ func TestLLMParser_ParseOperation(t *testing.T) {
 	tests := []struct {
 		name              string
 		planLine          string
-		expectedOperation *QueryOperation
+		expectedOperation *Operation
 	}{
 		{
 			name:     "table scan operation",
 			planLine: "SEQ_SCAN repositories (1000 rows)",
-			expectedOperation: &QueryOperation{
+			expectedOperation: &Operation{
 				Type:          "SEQ_SCAN",
 				Table:         "repositories",
 				Condition:     "SEQ_SCAN repositories (1000 rows)",
@@ -322,7 +322,7 @@ func TestLLMParser_ParseOperation(t *testing.T) {
 		{
 			name:     "index scan operation",
 			planLine: "INDEX_SCAN content_chunks (50 rows)",
-			expectedOperation: &QueryOperation{
+			expectedOperation: &Operation{
 				Type:          "INDEX_SCAN",
 				Table:         "content_chunks",
 				Condition:     "INDEX_SCAN content_chunks (50 rows)",
@@ -338,7 +338,7 @@ func TestLLMParser_ParseOperation(t *testing.T) {
 		{
 			name:     "filter operation",
 			planLine: "FILTER language='Go' (100 rows)",
-			expectedOperation: &QueryOperation{
+			expectedOperation: &Operation{
 				Type:          "FILTER",
 				Table:         "",
 				Condition:     "FILTER language='Go' (100 rows)",
@@ -370,13 +370,13 @@ func TestLLMParser_GenerateOptimizationTips(t *testing.T) {
 	tests := []struct {
 		name         string
 		sql          string
-		operations   []QueryOperation
+		operations   []Operation
 		expectedTips []string
 	}{
 		{
 			name: "query with sequential scan",
 			sql:  "SELECT * FROM repositories WHERE language = 'Go'",
-			operations: []QueryOperation{
+			operations: []Operation{
 				{Type: "SEQ_SCAN", Table: "repositories"},
 			},
 			expectedTips: []string{
@@ -386,7 +386,7 @@ func TestLLMParser_GenerateOptimizationTips(t *testing.T) {
 		{
 			name: "query with LIKE pattern starting with %",
 			sql:  "SELECT * FROM repositories WHERE name LIKE '%test%'",
-			operations: []QueryOperation{
+			operations: []Operation{
 				{Type: "INDEX_SCAN", Table: "repositories"},
 			},
 			expectedTips: []string{
@@ -396,7 +396,7 @@ func TestLLMParser_GenerateOptimizationTips(t *testing.T) {
 		{
 			name: "query with OR condition",
 			sql:  "SELECT * FROM repositories WHERE language = 'Go' OR language = 'Python'",
-			operations: []QueryOperation{
+			operations: []Operation{
 				{Type: "INDEX_SCAN", Table: "repositories"},
 			},
 			expectedTips: []string{
@@ -406,7 +406,7 @@ func TestLLMParser_GenerateOptimizationTips(t *testing.T) {
 		{
 			name: "query without LIMIT",
 			sql:  "SELECT * FROM repositories WHERE language = 'Go'",
-			operations: []QueryOperation{
+			operations: []Operation{
 				{Type: "INDEX_SCAN", Table: "repositories"},
 			},
 			expectedTips: []string{
@@ -416,7 +416,7 @@ func TestLLMParser_GenerateOptimizationTips(t *testing.T) {
 		{
 			name: "query without WHERE clause",
 			sql:  "SELECT * FROM repositories",
-			operations: []QueryOperation{
+			operations: []Operation{
 				{Type: "SEQ_SCAN", Table: "repositories"},
 			},
 			expectedTips: []string{
@@ -442,12 +442,12 @@ func TestLLMParser_GenerateOptimizationTips(t *testing.T) {
 func TestLLMParser_FindIndexesUsed(t *testing.T) {
 	tests := []struct {
 		name            string
-		operations      []QueryOperation
+		operations      []Operation
 		expectedIndexes []string
 	}{
 		{
 			name: "operations with index usage",
-			operations: []QueryOperation{
+			operations: []Operation{
 				{Type: "INDEX_SCAN", Condition: "using idx_repositories_language"},
 				{Type: "INDEX_SCAN", Condition: "using idx_repositories_stargazers"},
 			},
@@ -455,7 +455,7 @@ func TestLLMParser_FindIndexesUsed(t *testing.T) {
 		},
 		{
 			name: "operations without index usage",
-			operations: []QueryOperation{
+			operations: []Operation{
 				{Type: "SEQ_SCAN", Condition: "full table scan"},
 				{Type: "FILTER", Condition: "language = 'Go'"},
 			},
@@ -463,7 +463,7 @@ func TestLLMParser_FindIndexesUsed(t *testing.T) {
 		},
 		{
 			name:            "empty operations",
-			operations:      []QueryOperation{},
+			operations:      []Operation{},
 			expectedIndexes: []string{},
 		},
 	}
@@ -474,6 +474,7 @@ func TestLLMParser_FindIndexesUsed(t *testing.T) {
 			indexes := parser.findIndexesUsed(tt.operations)
 
 			assert.Equal(t, len(tt.expectedIndexes), len(indexes))
+
 			for _, expectedIndex := range tt.expectedIndexes {
 				assert.Contains(t, indexes, expectedIndex)
 			}
@@ -488,29 +489,73 @@ func TestGetDefaultSchema(t *testing.T) {
 	assert.Contains(t, schema.Tables, "repositories")
 	repoTable := schema.Tables["repositories"]
 	assert.Equal(t, "repositories", repoTable.Name)
-	assert.True(t, len(repoTable.Columns) > 0)
-	assert.True(t, len(repoTable.Indexes) > 0)
+	assert.Positive(t, len(repoTable.Columns))
+	assert.Positive(t, len(repoTable.Indexes))
 
 	// Test content_chunks table
 	assert.Contains(t, schema.Tables, "content_chunks")
 	chunksTable := schema.Tables["content_chunks"]
 	assert.Equal(t, "content_chunks", chunksTable.Name)
-	assert.True(t, len(chunksTable.Columns) > 0)
-	assert.True(t, len(chunksTable.Indexes) > 0)
+	assert.Positive(t, len(chunksTable.Columns))
+	assert.Positive(t, len(chunksTable.Indexes))
 
-	// Test specific columns exist
+	// Test specific columns exist in repositories table
 	repoColumns := make(map[string]bool)
 	for _, col := range repoTable.Columns {
 		repoColumns[col.Name] = true
 	}
 
-	expectedColumns := []string{
+	expectedRepoColumns := []string{
 		"id", "full_name", "description", "language", "stargazers_count",
 		"forks_count", "purpose", "technologies", "use_cases", "features",
 	}
 
-	for _, col := range expectedColumns {
+	for _, col := range expectedRepoColumns {
 		assert.True(t, repoColumns[col], "Column %s should exist in repositories table", col)
+	}
+
+	// Test specific columns exist in content_chunks table
+	chunksColumns := make(map[string]bool)
+	for _, col := range chunksTable.Columns {
+		chunksColumns[col.Name] = true
+	}
+
+	expectedChunksColumns := []string{
+		"id", "repository_id", "source_path", "chunk_type", "content",
+		"tokens", "priority", "created_at",
+	}
+
+	for _, col := range expectedChunksColumns {
+		assert.True(t, chunksColumns[col], "Column %s should exist in content_chunks table", col)
+	}
+
+	// Test specific indexes exist in repositories table
+	repoIndexes := make(map[string]bool)
+	for _, idx := range repoTable.Indexes {
+		repoIndexes[idx.Name] = true
+	}
+
+	expectedRepoIndexes := []string{
+		"idx_repositories_language", "idx_repositories_updated_at",
+		"idx_repositories_stargazers", "idx_repositories_full_name",
+	}
+
+	for _, idx := range expectedRepoIndexes {
+		assert.True(t, repoIndexes[idx], "Index %s should exist in repositories table", idx)
+	}
+
+	// Test specific indexes exist in content_chunks table
+	chunksIndexes := make(map[string]bool)
+	for _, idx := range chunksTable.Indexes {
+		chunksIndexes[idx.Name] = true
+	}
+
+	expectedChunksIndexes := []string{
+		"idx_content_chunks_repo_type", "idx_content_chunks_repository_id",
+	}
+
+	for _, idx := range expectedChunksIndexes {
+		assert.True(t, chunksIndexes[idx], "Index %s should exist in content_chunks table", idx)
 	}
 }
 
@@ -518,31 +563,29 @@ func TestGetDefaultSchema(t *testing.T) {
 func TestLLMParser_ExplainQuery_Integration(t *testing.T) {
 	// Skip if no database available
 	t.Skip("Integration test - requires DuckDB setup")
-
 	// This would be an integration test that requires a real database
 	// It's skipped by default but can be enabled for full testing
-
 	/*
-	db, err := sql.Open("duckdb", ":memory:")
-	require.NoError(t, err)
-	defer db.Close()
+		db, err := sql.Open("duckdb", ":memory:")
+		require.NoError(t, err)
+		defer db.Close()
 
-	// Create test schema
-	_, err = db.Exec(`
-		CREATE TABLE repositories (
-			id VARCHAR PRIMARY KEY,
-			full_name VARCHAR,
-			language VARCHAR,
-			stargazers_count INTEGER
-		)
-	`)
-	require.NoError(t, err)
+		// Create test schema
+		_, err = db.Exec(`
+			CREATE TABLE repositories (
+				id VARCHAR PRIMARY KEY,
+				full_name VARCHAR,
+				language VARCHAR,
+				stargazers_count INTEGER
+			)
+		`)
+		require.NoError(t, err)
 
-	parser := NewLLMParser(&MockLLMService{}, db)
+		parser := NewLLMParser(&MockLLMService{}, db)
 
-	plan, err := parser.ExplainQuery("SELECT * FROM repositories WHERE language = 'Go'")
-	assert.NoError(t, err)
-	assert.NotNil(t, plan)
+		plan, err := parser.ExplainQuery("SELECT * FROM repositories WHERE language = 'Go'")
+		assert.NoError(t, err)
+		assert.NotNil(t, plan)
 	*/
 }
 
@@ -552,7 +595,8 @@ func BenchmarkLLMParser_ValidateSQL(b *testing.B) {
 	sql := "SELECT * FROM repositories WHERE language = 'Go' AND stargazers_count > 100 ORDER BY stargazers_count DESC LIMIT 10"
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		_ = parser.ValidateSQL(sql)
 	}
 }
@@ -562,7 +606,8 @@ func BenchmarkLLMParser_DetermineQueryType(b *testing.B) {
 	sql := "SELECT language, COUNT(*) FROM repositories WHERE stargazers_count > 100 GROUP BY language ORDER BY COUNT(*) DESC"
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = parser.determineQueryType(sql)
+
+	for range b.N {
+		_ = parser.determineType(sql)
 	}
 }

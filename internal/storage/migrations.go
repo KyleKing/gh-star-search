@@ -111,18 +111,22 @@ func (m *MigrationManager) InitializeMigrationTable(ctx context.Context) error {
 // GetAppliedMigrations returns a list of applied migration versions
 func (m *MigrationManager) GetAppliedMigrations(ctx context.Context) ([]int, error) {
 	query := "SELECT version FROM schema_migrations ORDER BY version"
+
 	rows, err := m.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query applied migrations: %w", err)
 	}
+
 	defer rows.Close()
 
 	var versions []int
+
 	for rows.Next() {
 		var version int
 		if err := rows.Scan(&version); err != nil {
 			return nil, fmt.Errorf("failed to scan migration version: %w", err)
 		}
+
 		versions = append(versions, version)
 	}
 
@@ -132,11 +136,14 @@ func (m *MigrationManager) GetAppliedMigrations(ctx context.Context) ([]int, err
 // IsMigrationApplied checks if a specific migration version has been applied
 func (m *MigrationManager) IsMigrationApplied(ctx context.Context, version int) (bool, error) {
 	query := "SELECT COUNT(*) FROM schema_migrations WHERE version = ?"
+
 	var count int
+
 	err := m.db.QueryRowContext(ctx, query, version).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("failed to check migration status: %w", err)
 	}
+
 	return count > 0, nil
 }
 
@@ -147,6 +154,7 @@ func (m *MigrationManager) ApplyMigration(ctx context.Context, migration Migrati
 	if err != nil {
 		return err
 	}
+
 	if applied {
 		return fmt.Errorf("migration %d already applied", migration.Version)
 	}
@@ -155,7 +163,8 @@ func (m *MigrationManager) ApplyMigration(ctx context.Context, migration Migrati
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+
+	defer func() { _ = tx.Rollback() }()
 
 	// Execute the migration
 	_, err = tx.ExecContext(ctx, migration.Up)
@@ -181,6 +190,7 @@ func (m *MigrationManager) RollbackMigration(ctx context.Context, migration Migr
 	if err != nil {
 		return err
 	}
+
 	if !applied {
 		return fmt.Errorf("migration %d not applied", migration.Version)
 	}
@@ -189,7 +199,8 @@ func (m *MigrationManager) RollbackMigration(ctx context.Context, migration Migr
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+
+	defer func() { _ = tx.Rollback() }()
 
 	// Execute the rollback
 	_, err = tx.ExecContext(ctx, migration.Down)
@@ -230,6 +241,7 @@ func (m *MigrationManager) MigrateUp(ctx context.Context) error {
 	for _, migration := range migrations {
 		if !appliedMap[migration.Version] {
 			fmt.Printf("Applying migration %d: %s\n", migration.Version, migration.Description)
+
 			if err := m.ApplyMigration(ctx, migration); err != nil {
 				return fmt.Errorf("failed to apply migration %d: %w", migration.Version, err)
 			}
@@ -248,6 +260,7 @@ func (m *MigrationManager) MigrateDown(ctx context.Context, targetVersion int) e
 
 	migrations := m.GetMigrations()
 	migrationMap := make(map[int]Migration)
+
 	for _, migration := range migrations {
 		migrationMap[migration.Version] = migration
 	}
@@ -266,6 +279,7 @@ func (m *MigrationManager) MigrateDown(ctx context.Context, targetVersion int) e
 		}
 
 		fmt.Printf("Rolling back migration %d: %s\n", version, migration.Description)
+
 		if err := m.RollbackMigration(ctx, migration); err != nil {
 			return fmt.Errorf("failed to rollback migration %d: %w", version, err)
 		}

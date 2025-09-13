@@ -21,10 +21,10 @@ type DatabaseConfig struct {
 
 // LLMConfig represents LLM service configuration
 type LLMConfig struct {
-	DefaultProvider string                   `json:"default_provider"`
-	Providers       map[string]llm.Config    `json:"providers"`
-	MaxTokens       int                      `json:"max_tokens"`
-	Temperature     float64                  `json:"temperature"`
+	DefaultProvider string                `json:"default_provider"`
+	Providers       map[string]llm.Config `json:"providers"`
+	MaxTokens       int                   `json:"max_tokens"`
+	Temperature     float64               `json:"temperature"`
 }
 
 // GitHubConfig represents GitHub API configuration

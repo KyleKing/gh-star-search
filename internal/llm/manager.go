@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -38,14 +39,15 @@ func NewManager(config ManagerConfig) *Manager {
 // RegisterProvider registers a new LLM provider
 func (m *Manager) RegisterProvider(name string, service Service) error {
 	if name == "" {
-		return fmt.Errorf("provider name cannot be empty")
+		return errors.New("provider name cannot be empty")
 	}
 
 	if service == nil {
-		return fmt.Errorf("service cannot be nil")
+		return errors.New("service cannot be nil")
 	}
 
 	m.providers[name] = service
+
 	return nil
 }
 
@@ -75,6 +77,7 @@ func (m *Manager) Summarize(ctx context.Context, prompt string, content string) 
 			if err == nil {
 				return response, nil
 			}
+
 			log.Printf("Default provider %s failed: %v", m.config.DefaultProvider, err)
 		}
 	}
@@ -86,6 +89,7 @@ func (m *Manager) Summarize(ctx context.Context, prompt string, content string) 
 			if err == nil {
 				return response, nil
 			}
+
 			log.Printf("Fallback provider %s failed: %v", providerName, err)
 		}
 	}
@@ -96,7 +100,7 @@ func (m *Manager) Summarize(ctx context.Context, prompt string, content string) 
 		return m.fallback.Summarize(ctx, prompt, content)
 	}
 
-	return nil, fmt.Errorf("all LLM providers failed and fallback is disabled")
+	return nil, errors.New("all LLM providers failed and fallback is disabled")
 }
 
 // ParseQuery converts natural language to SQL using the configured providers with fallback
@@ -115,6 +119,7 @@ func (m *Manager) ParseQuery(ctx context.Context, query string, schema types.Sch
 			if err == nil {
 				return response, nil
 			}
+
 			log.Printf("Default provider %s failed: %v", m.config.DefaultProvider, err)
 		}
 	}
@@ -126,6 +131,7 @@ func (m *Manager) ParseQuery(ctx context.Context, query string, schema types.Sch
 			if err == nil {
 				return response, nil
 			}
+
 			log.Printf("Fallback provider %s failed: %v", providerName, err)
 		}
 	}
@@ -136,7 +142,7 @@ func (m *Manager) ParseQuery(ctx context.Context, query string, schema types.Sch
 		return m.fallback.ParseQuery(ctx, query, schema)
 	}
 
-	return nil, fmt.Errorf("all LLM providers failed and fallback is disabled")
+	return nil, errors.New("all LLM providers failed and fallback is disabled")
 }
 
 // tryProviderSummarize attempts to use a provider for summarization with retries
@@ -205,6 +211,7 @@ func (m *Manager) GetAvailableProviders() []string {
 	for name := range m.providers {
 		providers = append(providers, name)
 	}
+
 	return providers
 }
 

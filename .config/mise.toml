@@ -1,5 +1,3 @@
-# FYI: './../' is required because the default is otherwise `.config/` where these files are located
-
 [env]
 MISE_ENV = "hk"
 
@@ -7,33 +5,27 @@ MISE_ENV = "hk"
 experimental = true # required for go for now
 
 [tasks.ci]
-description = "CI Steps"
-dir = "./../"
-run = "mise run test"
+description = "CI Steps (mise run test)"
+run = ["mise run test"]
 
 [tasks.format]
 description = "Format code"
-dir = "./../"
 run = ["golangci-lint run --fix ./...", "golines . --write-output"]
 
 [tasks.hooks]
 description = "Run git hooks"
-dir = "./../"
 run = ["hk fix --quiet"]
 
 [tasks.test]
 description = "Run test"
-dir = "./../"
 # https://stackoverflow.com/a/21725603/3219667
 run = "go test -coverprofile=coverage.out -coverpkg=./... ./..."
 
 [tasks."test:view-coverage"]
 description = "View last run test coverage. Alternatively, use `gocovsh`"
-dir = "./../"
 # https://go.dev/blog/cover#heat-maps
 run = "go tool cover -html=coverage.out"
 
 [tasks.update]
 description = "Update dependencies"
-dir = "./../"
 run = ["go get -u ./...", "go mod tidy"]

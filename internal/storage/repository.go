@@ -23,27 +23,27 @@ type Repository interface {
 
 // StoredRepo represents a repository as stored in the database
 type StoredRepo struct {
-	ID                     string                `json:"id"`
-	FullName               string                `json:"full_name"`
-	Description            string                `json:"description"`
-	Language               string                `json:"language"`
-	StargazersCount        int                   `json:"stargazers_count"`
-	ForksCount             int                   `json:"forks_count"`
-	SizeKB                 int                   `json:"size_kb"`
-	CreatedAt              time.Time             `json:"created_at"`
-	UpdatedAt              time.Time             `json:"updated_at"`
-	LastSynced             time.Time             `json:"last_synced"`
-	Topics                 []string              `json:"topics"`
-	LicenseName            string                `json:"license_name"`
-	LicenseSPDXID          string                `json:"license_spdx_id"`
-	Purpose                string                `json:"purpose"`
-	Technologies           []string              `json:"technologies"`
-	UseCases               []string              `json:"use_cases"`
-	Features               []string              `json:"features"`
-	InstallationInstructions string              `json:"installation_instructions"`
-	UsageInstructions      string                `json:"usage_instructions"`
-	ContentHash            string                `json:"content_hash"`
-	Chunks                 []processor.ContentChunk `json:"chunks,omitempty"`
+	ID                       string                   `json:"id"`
+	FullName                 string                   `json:"full_name"`
+	Description              string                   `json:"description"`
+	Language                 string                   `json:"language"`
+	StargazersCount          int                      `json:"stargazers_count"`
+	ForksCount               int                      `json:"forks_count"`
+	SizeKB                   int                      `json:"size_kb"`
+	CreatedAt                time.Time                `json:"created_at"`
+	UpdatedAt                time.Time                `json:"updated_at"`
+	LastSynced               time.Time                `json:"last_synced"`
+	Topics                   []string                 `json:"topics"`
+	LicenseName              string                   `json:"license_name"`
+	LicenseSPDXID            string                   `json:"license_spdx_id"`
+	Purpose                  string                   `json:"purpose"`
+	Technologies             []string                 `json:"technologies"`
+	UseCases                 []string                 `json:"use_cases"`
+	Features                 []string                 `json:"features"`
+	InstallationInstructions string                   `json:"installation_instructions"`
+	UsageInstructions        string                   `json:"usage_instructions"`
+	ContentHash              string                   `json:"content_hash"`
+	Chunks                   []processor.ContentChunk `json:"chunks,omitempty"`
 }
 
 // SearchResult represents a search result with relevance scoring
@@ -62,10 +62,10 @@ type Match struct {
 
 // Stats represents database statistics
 type Stats struct {
-	TotalRepositories int       `json:"total_repositories"`
-	LastSyncTime      time.Time `json:"last_sync_time"`
-	DatabaseSizeMB    float64   `json:"database_size_mb"`
-	TotalContentChunks int      `json:"total_content_chunks"`
-	LanguageBreakdown map[string]int `json:"language_breakdown"`
-	TopicBreakdown    map[string]int `json:"topic_breakdown"`
+	TotalRepositories  int            `json:"total_repositories"`
+	LastSyncTime       time.Time      `json:"last_sync_time"`
+	DatabaseSizeMB     float64        `json:"database_size_mb"`
+	TotalContentChunks int            `json:"total_content_chunks"`
+	LanguageBreakdown  map[string]int `json:"language_breakdown"`
+	TopicBreakdown     map[string]int `json:"topic_breakdown"`
 }

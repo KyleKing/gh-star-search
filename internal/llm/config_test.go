@@ -110,6 +110,7 @@ func TestConfigureFromEnvironment(t *testing.T) {
 	os.Setenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
 	manager := NewManager(DefaultManagerConfig())
+
 	err := SetupDefaultProviders(manager)
 	if err != nil {
 		t.Fatalf("SetupDefaultProviders() error = %v", err)
@@ -169,6 +170,7 @@ func TestManagerConfig_JSON(t *testing.T) {
 
 	// Test unmarshaling
 	var unmarshaled ManagerConfig
+
 	err = unmarshaled.UnmarshalJSON(data)
 	if err != nil {
 		t.Fatalf("UnmarshalJSON() error = %v", err)

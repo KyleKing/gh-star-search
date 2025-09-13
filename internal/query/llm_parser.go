@@ -3,6 +3,7 @@ package query
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -41,21 +42,21 @@ func (p *LLMParser) Parse(ctx context.Context, naturalQuery string) (*ParsedQuer
 	}
 
 	// Determine query type
-	queryType := p.determineQueryType(response.SQL)
+	queryType := p.determineType(response.SQL)
 
 	return &ParsedQuery{
 		SQL:         response.SQL,
 		Parameters:  response.Parameters,
 		Explanation: response.Explanation,
 		Confidence:  response.Confidence,
-		QueryType:   queryType,
+		Type:        queryType,
 	}, nil
 }
 
 // ValidateSQL validates SQL for safety and correctness
 func (p *LLMParser) ValidateSQL(sql string) error {
 	if sql == "" {
-		return fmt.Errorf("SQL query cannot be empty")
+		return errors.New("SQL query cannot be empty")
 	}
 
 	// Convert to lowercase for checking
@@ -78,7 +79,7 @@ func (p *LLMParser) ValidateSQL(sql string) error {
 
 	// Ensure it's a SELECT statement
 	if !strings.HasPrefix(lowerSQL, "select") {
-		return fmt.Errorf("only SELECT statements are allowed")
+		return errors.New("only SELECT statements are allowed")
 	}
 
 	// Check for dangerous operations
@@ -97,6 +98,7 @@ func (p *LLMParser) ValidateSQL(sql string) error {
 	// Check for valid table names
 	validTables := []string{"repositories", "content_chunks"}
 	hasValidTable := false
+
 	for _, table := range validTables {
 		if strings.Contains(lowerSQL, table) {
 			hasValidTable = true
@@ -114,6 +116,7 @@ func (p *LLMParser) ValidateSQL(sql string) error {
 		if err != nil {
 			return fmt.Errorf("SQL syntax error: %w", err)
 		}
+
 		stmt.Close()
 	}
 
@@ -121,21 +124,25 @@ func (p *LLMParser) ValidateSQL(sql string) error {
 }
 
 // ExplainQuery provides execution plan information for a SQL query
-func (p *LLMParser) ExplainQuery(sql string) (*QueryPlan, error) {
+func (p *LLMParser) ExplainQuery(sql string) (*Plan, error) {
 	if p.db == nil {
-		return nil, fmt.Errorf("database connection required for query explanation")
+		return nil, errors.New("database connection required for query explanation")
 	}
 
 	// DuckDB uses EXPLAIN for query plans
 	explainSQL := "EXPLAIN " + sql
+
 	rows, err := p.db.Query(explainSQL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to explain query: %w", err)
 	}
+
 	defer rows.Close()
 
-	var operations []QueryOperation
+	var operations []Operation
+
 	var estimatedRows int
+
 	var estimatedCost float64
 
 	// Parse the explain output (DuckDB specific format)
@@ -160,7 +167,7 @@ func (p *LLMParser) ExplainQuery(sql string) (*QueryPlan, error) {
 	// Find indexes used
 	indexesUsed := p.findIndexesUsed(operations)
 
-	return &QueryPlan{
+	return &Plan{
 		EstimatedRows:    estimatedRows,
 		EstimatedCost:    estimatedCost,
 		IndexesUsed:      indexesUsed,
@@ -169,15 +176,15 @@ func (p *LLMParser) ExplainQuery(sql string) (*QueryPlan, error) {
 	}, nil
 }
 
-// determineQueryType analyzes SQL to determine the query type
-func (p *LLMParser) determineQueryType(sql string) QueryType {
+// determineType analyzes SQL to determine the query type
+func (p *LLMParser) determineType(sql string) Type {
 	lowerSQL := strings.ToLower(sql)
 
 	// Check for aggregation functions first (highest priority)
 	aggregateFunctions := []string{"count(", "sum(", "avg(", "max(", "min(", "group by"}
 	for _, fn := range aggregateFunctions {
 		if strings.Contains(lowerSQL, fn) {
-			return QueryTypeAggregate
+			return TypeAggregate
 		}
 	}
 
@@ -185,7 +192,7 @@ func (p *LLMParser) determineQueryType(sql string) QueryType {
 	comparisonOps := []string{">", "<", ">=", "<=", "between", " in ("}
 	for _, op := range comparisonOps {
 		if strings.Contains(lowerSQL, op) {
-			return QueryTypeComparison
+			return TypeComparison
 		}
 	}
 
@@ -193,24 +200,23 @@ func (p *LLMParser) determineQueryType(sql string) QueryType {
 	searchPatterns := []string{"ilike", "like", "full text", "match", "contains"}
 	for _, pattern := range searchPatterns {
 		if strings.Contains(lowerSQL, pattern) {
-			return QueryTypeSearch
+			return TypeSearch
 		}
 	}
 
 	// Check for filtering (simple equality, LIMIT clauses, etc.)
 	if strings.Contains(lowerSQL, "where") || strings.Contains(lowerSQL, "having") || strings.Contains(lowerSQL, "limit") {
-		return QueryTypeFilter
+		return TypeFilter
 	}
 
 	// Default to search for basic SELECT statements
-	return QueryTypeSearch
+	return TypeSearch
 }
 
 // parseOperation parses a single operation from DuckDB explain output
-func (p *LLMParser) parseOperation(planLine string) *QueryOperation {
+func (p *LLMParser) parseOperation(planLine string) *Operation {
 	// This is a simplified parser for DuckDB explain output
 	// In a real implementation, you'd need more sophisticated parsing
-
 	planLine = strings.TrimSpace(planLine)
 	if planLine == "" {
 		return nil
@@ -226,7 +232,9 @@ func (p *LLMParser) parseOperation(planLine string) *QueryOperation {
 
 	// Try to extract table name and estimated rows
 	var table string
+
 	var estimatedRows int
+
 	var cost float64
 
 	// Look for table references
@@ -239,7 +247,10 @@ func (p *LLMParser) parseOperation(planLine string) *QueryOperation {
 	// Extract estimated rows (simplified - would need regex for real parsing)
 	rowsRegex := regexp.MustCompile(`(\d+)\s+rows`)
 	if matches := rowsRegex.FindStringSubmatch(planLine); len(matches) > 1 {
-		fmt.Sscanf(matches[1], "%d", &estimatedRows)
+		if _, err := fmt.Sscanf(matches[1], "%d", &estimatedRows); err != nil {
+			// Log error or handle, but for now ignore since it's parsing validated regex
+			_ = err // explicitly ignore the error
+		}
 	}
 
 	// Estimate cost based on operation type
@@ -256,7 +267,7 @@ func (p *LLMParser) parseOperation(planLine string) *QueryOperation {
 		cost = float64(estimatedRows) * 0.1
 	}
 
-	return &QueryOperation{
+	return &Operation{
 		Type:          opType,
 		Table:         table,
 		Condition:     planLine,
@@ -266,15 +277,17 @@ func (p *LLMParser) parseOperation(planLine string) *QueryOperation {
 }
 
 // generateOptimizationTips provides suggestions for query optimization
-func (p *LLMParser) generateOptimizationTips(sql string, operations []QueryOperation) []string {
+func (p *LLMParser) generateOptimizationTips(sql string, operations []Operation) []string {
 	var tips []string
+
 	lowerSQL := strings.ToLower(sql)
 
 	// Check for missing indexes
 	hasSeqScan := false
+
 	for _, op := range operations {
 		if strings.Contains(strings.ToLower(op.Type), "seq_scan") ||
-		   strings.Contains(strings.ToLower(op.Type), "table_scan") {
+			strings.Contains(strings.ToLower(op.Type), "table_scan") {
 			hasSeqScan = true
 			break
 		}
@@ -306,8 +319,9 @@ func (p *LLMParser) generateOptimizationTips(sql string, operations []QueryOpera
 }
 
 // findIndexesUsed extracts index names from operations
-func (p *LLMParser) findIndexesUsed(operations []QueryOperation) []string {
+func (p *LLMParser) findIndexesUsed(operations []Operation) []string {
 	var indexes []string
+
 	indexMap := make(map[string]bool)
 
 	for _, op := range operations {

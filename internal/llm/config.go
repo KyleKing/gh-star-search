@@ -59,7 +59,7 @@ func (cm *ConfigManager) SaveConfig(config *ManagerConfig) error {
 	}
 
 	// Write to file
-	if err := os.WriteFile(cm.configPath, data, 0644); err != nil {
+	if err := os.WriteFile(cm.configPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
@@ -72,6 +72,7 @@ func GetDefaultConfigPath() string {
 	if err != nil {
 		return ".gh-star-search-llm.json"
 	}
+
 	return filepath.Join(homeDir, ".config", "gh-star-search", "llm.json")
 }
 
@@ -148,6 +149,7 @@ func ConfigureFromEnvironment(manager *Manager) error {
 func CreateManagerWithDefaults() (*Manager, error) {
 	// Load configuration
 	configManager := NewConfigManager(GetDefaultConfigPath())
+
 	config, err := configManager.LoadConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
@@ -172,6 +174,7 @@ func CreateManagerWithDefaults() (*Manager, error) {
 // MarshalJSON implements json.Marshaler for ManagerConfig
 func (mc ManagerConfig) MarshalJSON() ([]byte, error) {
 	type Alias ManagerConfig
+
 	return json.Marshal(&struct {
 		RetryDelay string `json:"retry_delay"`
 		Timeout    string `json:"timeout"`
@@ -186,6 +189,7 @@ func (mc ManagerConfig) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON implements json.Unmarshaler for ManagerConfig
 func (mc *ManagerConfig) UnmarshalJSON(data []byte) error {
 	type Alias ManagerConfig
+
 	aux := &struct {
 		RetryDelay string `json:"retry_delay"`
 		Timeout    string `json:"timeout"`
@@ -204,6 +208,7 @@ func (mc *ManagerConfig) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return fmt.Errorf("invalid retry_delay: %w", err)
 		}
+
 		mc.RetryDelay = duration
 	}
 
@@ -212,6 +217,7 @@ func (mc *ManagerConfig) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return fmt.Errorf("invalid timeout: %w", err)
 		}
+
 		mc.Timeout = duration
 	}
 

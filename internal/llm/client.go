@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -32,26 +33,28 @@ func NewClient(config Config) *Client {
 // Configure updates the client configuration
 func (c *Client) Configure(config Config) error {
 	if config.Provider == "" {
-		return fmt.Errorf("provider is required")
+		return errors.New("provider is required")
 	}
 
 	if config.Model == "" {
-		return fmt.Errorf("model is required")
+		return errors.New("model is required")
 	}
 
 	// Validate provider-specific requirements
 	switch config.Provider {
 	case ProviderOpenAI:
 		if config.APIKey == "" {
-			return fmt.Errorf("API key is required for OpenAI provider")
+			return errors.New("API key is required for OpenAI provider")
 		}
+
 		if config.BaseURL == "" {
 			config.BaseURL = "https://api.openai.com/v1"
 		}
 	case ProviderAnthropic:
 		if config.APIKey == "" {
-			return fmt.Errorf("API key is required for Anthropic provider")
+			return errors.New("API key is required for Anthropic provider")
 		}
+
 		if config.BaseURL == "" {
 			config.BaseURL = "https://api.anthropic.com/v1"
 		}
@@ -64,13 +67,14 @@ func (c *Client) Configure(config Config) error {
 	}
 
 	c.config = config
+
 	return nil
 }
 
 // Summarize generates a summary of repository content using the configured LLM
 func (c *Client) Summarize(ctx context.Context, prompt string, content string) (*SummaryResponse, error) {
 	if c.config.Provider == "" {
-		return nil, fmt.Errorf("LLM client not configured")
+		return nil, errors.New("LLM client not configured")
 	}
 
 	// Build the summarization prompt
@@ -92,7 +96,7 @@ func (c *Client) Summarize(ctx context.Context, prompt string, content string) (
 // ParseQuery converts natural language to SQL using the configured LLM
 func (c *Client) ParseQuery(ctx context.Context, query string, schema types.Schema) (*QueryResponse, error) {
 	if c.config.Provider == "" {
-		return nil, fmt.Errorf("LLM client not configured")
+		return nil, errors.New("LLM client not configured")
 	}
 
 	// Build the query parsing prompt
@@ -160,6 +164,7 @@ Database Schema:
 User Query: %s`
 
 	schemaStr := c.formatSchema(schema)
+
 	return fmt.Sprintf(systemPrompt, schemaStr, query)
 }
 
@@ -170,19 +175,25 @@ func (c *Client) formatSchema(schema types.Schema) string {
 	for tableName, table := range schema.Tables {
 		sb.WriteString(fmt.Sprintf("Table: %s\n", tableName))
 		sb.WriteString("Columns:\n")
+
 		for _, column := range table.Columns {
 			sb.WriteString(fmt.Sprintf("  - %s (%s)", column.Name, column.Type))
+
 			if column.Description != "" {
-				sb.WriteString(fmt.Sprintf(" - %s", column.Description))
+				sb.WriteString(" - " + column.Description)
 			}
+
 			sb.WriteString("\n")
 		}
+
 		if len(table.Indexes) > 0 {
 			sb.WriteString("Indexes:\n")
+
 			for _, index := range table.Indexes {
 				sb.WriteString(fmt.Sprintf("  - %s on %s\n", index.Name, strings.Join(index.Columns, ", ")))
 			}
 		}
+
 		sb.WriteString("\n")
 	}
 
@@ -191,10 +202,10 @@ func (c *Client) formatSchema(schema types.Schema) string {
 
 // OpenAI API structures
 type openAIRequest struct {
-	Model       string              `json:"model"`
-	Messages    []openAIMessage     `json:"messages"`
-	Temperature float64             `json:"temperature,omitempty"`
-	MaxTokens   int                 `json:"max_tokens,omitempty"`
+	Model          string                `json:"model"`
+	Messages       []openAIMessage       `json:"messages"`
+	Temperature    float64               `json:"temperature,omitempty"`
+	MaxTokens      int                   `json:"max_tokens,omitempty"`
 	ResponseFormat *openAIResponseFormat `json:"response_format,omitempty"`
 }
 
@@ -229,8 +240,8 @@ func (c *Client) summarizeOpenAI(ctx context.Context, prompt string) (*SummaryRe
 		Messages: []openAIMessage{
 			{Role: "user", Content: prompt},
 		},
-		Temperature: 0.1,
-		MaxTokens:   2000,
+		Temperature:    0.1,
+		MaxTokens:      2000,
 		ResponseFormat: &openAIResponseFormat{Type: "json_object"},
 	}
 
@@ -249,7 +260,7 @@ func (c *Client) summarizeOpenAI(ctx context.Context, prompt string) (*SummaryRe
 	}
 
 	if len(response.Choices) == 0 {
-		return nil, fmt.Errorf("no response from OpenAI")
+		return nil, errors.New("no response from OpenAI")
 	}
 
 	// Parse the JSON response
@@ -268,8 +279,8 @@ func (c *Client) parseQueryOpenAI(ctx context.Context, prompt string) (*QueryRes
 		Messages: []openAIMessage{
 			{Role: "user", Content: prompt},
 		},
-		Temperature: 0.1,
-		MaxTokens:   1000,
+		Temperature:    0.1,
+		MaxTokens:      1000,
 		ResponseFormat: &openAIResponseFormat{Type: "json_object"},
 	}
 
@@ -288,7 +299,7 @@ func (c *Client) parseQueryOpenAI(ctx context.Context, prompt string) (*QueryRes
 	}
 
 	if len(response.Choices) == 0 {
-		return nil, fmt.Errorf("no response from OpenAI")
+		return nil, errors.New("no response from OpenAI")
 	}
 
 	// Parse the JSON response
@@ -335,10 +346,10 @@ func (c *Client) makeOpenAIRequest(ctx context.Context, endpoint string, reqBody
 
 // Anthropic API structures
 type anthropicRequest struct {
-	Model     string            `json:"model"`
+	Model     string             `json:"model"`
 	Messages  []anthropicMessage `json:"messages"`
-	MaxTokens int               `json:"max_tokens"`
-	System    string            `json:"system,omitempty"`
+	MaxTokens int                `json:"max_tokens"`
+	System    string             `json:"system,omitempty"`
 }
 
 type anthropicMessage struct {
@@ -386,7 +397,7 @@ func (c *Client) summarizeAnthropic(ctx context.Context, prompt string) (*Summar
 	}
 
 	if len(response.Content) == 0 {
-		return nil, fmt.Errorf("no response from Anthropic")
+		return nil, errors.New("no response from Anthropic")
 	}
 
 	// Parse the JSON response
@@ -423,7 +434,7 @@ func (c *Client) parseQueryAnthropic(ctx context.Context, prompt string) (*Query
 	}
 
 	if len(response.Content) == 0 {
-		return nil, fmt.Errorf("no response from Anthropic")
+		return nil, errors.New("no response from Anthropic")
 	}
 
 	// Parse the JSON response

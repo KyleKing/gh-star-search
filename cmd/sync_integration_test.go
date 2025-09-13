@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -160,6 +161,7 @@ func TestSyncIntegration(t *testing.T) {
 
 	// Step 1: Perform initial sync (all repositories should be new)
 	t.Log("Step 1: Initial sync")
+
 	err = syncService.performFullSync(ctx, 2, false)
 	if err != nil {
 		t.Fatalf("Initial sync failed: %v", err)
@@ -170,6 +172,7 @@ func TestSyncIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get stats: %v", err)
 	}
+
 	if stats.TotalRepositories != 3 {
 		t.Errorf("Expected 3 repositories after initial sync, got %d", stats.TotalRepositories)
 	}
@@ -179,9 +182,11 @@ func TestSyncIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get active-repo: %v", err)
 	}
+
 	if activeRepo.StargazersCount != 100 {
 		t.Errorf("Expected 100 stars for active-repo, got %d", activeRepo.StargazersCount)
 	}
+
 	if len(activeRepo.Chunks) == 0 {
 		t.Error("Expected content chunks for active-repo")
 	}
@@ -255,6 +260,7 @@ func TestSyncIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get stats after incremental sync: %v", err)
 	}
+
 	if stats.TotalRepositories != 3 {
 		t.Errorf("Expected 3 repositories after incremental sync, got %d", stats.TotalRepositories)
 	}
@@ -264,6 +270,7 @@ func TestSyncIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get updated-repo: %v", err)
 	}
+
 	if storedUpdatedRepo.StargazersCount != 250 {
 		t.Errorf("Expected 250 stars for updated-repo, got %d", storedUpdatedRepo.StargazersCount)
 	}
@@ -273,6 +280,7 @@ func TestSyncIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get brand-new-repo: %v", err)
 	}
+
 	if newRepo.Language != "Rust" {
 		t.Errorf("Expected Rust language for brand-new-repo, got %s", newRepo.Language)
 	}
@@ -285,6 +293,7 @@ func TestSyncIntegration(t *testing.T) {
 
 	// Step 3: Test force sync (should reprocess all repositories)
 	t.Log("Step 3: Force sync")
+
 	err = syncService.performFullSync(ctx, 2, true)
 	if err != nil {
 		t.Fatalf("Force sync failed: %v", err)
@@ -295,6 +304,7 @@ func TestSyncIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get stats after force sync: %v", err)
 	}
+
 	if stats.TotalRepositories != 3 {
 		t.Errorf("Expected 3 repositories after force sync, got %d", stats.TotalRepositories)
 	}
@@ -333,6 +343,7 @@ func TestSyncIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get active-repo before content update: %v", err)
 	}
+
 	oldContentHash := oldActiveRepo.ContentHash
 
 	// Perform sync to detect content changes
@@ -450,9 +461,11 @@ func TestSyncSpecificRepository(t *testing.T) {
 	if stored.FullName != "user/specific-repo" {
 		t.Errorf("Expected FullName 'user/specific-repo', got '%s'", stored.FullName)
 	}
+
 	if stored.StargazersCount != 42 {
 		t.Errorf("Expected StargazersCount 42, got %d", stored.StargazersCount)
 	}
+
 	if len(stored.Chunks) == 0 {
 		t.Error("Expected content chunks to be stored")
 	}
@@ -521,7 +534,7 @@ func TestSyncErrorHandling(t *testing.T) {
 			},
 		},
 		errors: map[string]error{
-			"user/error-repo": fmt.Errorf("simulated API error"),
+			"user/error-repo": errors.New("simulated API error"),
 		},
 	}
 
@@ -548,6 +561,7 @@ func TestSyncErrorHandling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Good repository should have been processed: %v", err)
 	}
+
 	if stored.FullName != "user/good-repo" {
 		t.Errorf("Expected good-repo to be stored")
 	}
@@ -645,6 +659,7 @@ func TestSyncIncrementalUpdates(t *testing.T) {
 
 	// Step 1: Initial sync
 	t.Log("Step 1: Initial sync")
+
 	err = syncService.performFullSync(ctx, 1, false)
 	if err != nil {
 		t.Fatalf("Initial sync failed: %v", err)
@@ -658,6 +673,7 @@ func TestSyncIncrementalUpdates(t *testing.T) {
 
 	// Step 2: Test metadata-only changes
 	t.Log("Step 2: Metadata-only changes")
+
 	mockGitHub.starredRepos[0].StargazersCount = 150
 	mockGitHub.starredRepos[0].ForksCount = 15
 	mockGitHub.starredRepos[0].Description = "Updated description"
@@ -677,9 +693,11 @@ func TestSyncIncrementalUpdates(t *testing.T) {
 	if metadataUpdatedRepo.StargazersCount != 150 {
 		t.Errorf("Expected 150 stars, got %d", metadataUpdatedRepo.StargazersCount)
 	}
+
 	if metadataUpdatedRepo.Description != "Updated description" {
 		t.Errorf("Expected updated description, got %s", metadataUpdatedRepo.Description)
 	}
+
 	if metadataUpdatedRepo.ContentHash != initialRepo.ContentHash {
 		t.Error("Content hash should not change for metadata-only updates")
 	}
@@ -718,6 +736,7 @@ func TestSyncIncrementalUpdates(t *testing.T) {
 
 	// Step 4: Test no changes (should skip)
 	t.Log("Step 4: No changes (should skip)")
+
 	err = syncService.performFullSync(ctx, 1, false)
 	if err != nil {
 		t.Fatalf("No-change sync failed: %v", err)
@@ -794,7 +813,7 @@ func TestSyncProgressTracking(t *testing.T) {
 	repos := make([]github.Repository, 7) // Test with 7 repos to test batching
 	content := make(map[string][]github.Content)
 
-	for i := 0; i < 7; i++ {
+	for i := range 7 {
 		repoName := fmt.Sprintf("user/repo%d", i+1)
 		repos[i] = github.Repository{
 			FullName:        repoName,
@@ -841,6 +860,7 @@ func TestSyncProgressTracking(t *testing.T) {
 
 	// Test batch processing with batch size of 3
 	t.Log("Testing batch processing with 7 repositories (batch size: 3)")
+
 	err = syncService.performFullSync(ctx, 3, false)
 	if err != nil {
 		t.Fatalf("Batch sync failed: %v", err)
@@ -857,9 +877,10 @@ func TestSyncProgressTracking(t *testing.T) {
 	}
 
 	// Verify each repository was stored correctly
-	for i := 0; i < 7; i++ {
+	for i := range 7 {
 		repoName := fmt.Sprintf("user/repo%d", i+1)
 		stored, err := repo.GetRepository(ctx, repoName)
+
 		if err != nil {
 			t.Errorf("Repository %s was not stored: %v", repoName, err)
 		} else if stored.StargazersCount != (i+1)*10 {

@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
-	"github.com/spf13/cobra"
 	"github.com/kyleking/gh-star-search/internal/config"
 	"github.com/kyleking/gh-star-search/internal/github"
 	"github.com/kyleking/gh-star-search/internal/llm"
 	"github.com/kyleking/gh-star-search/internal/processor"
 	"github.com/kyleking/gh-star-search/internal/storage"
+	"github.com/spf13/cobra"
 )
 
 var syncCmd = &cobra.Command{
@@ -49,19 +49,19 @@ type SyncService struct {
 
 // SyncStats tracks synchronization statistics
 type SyncStats struct {
-	TotalRepos       int
-	NewRepos         int
-	UpdatedRepos     int
-	RemovedRepos     int
-	SkippedRepos     int
-	ErrorRepos       int
-	ProcessedRepos   int
-	StartTime        time.Time
-	EndTime          time.Time
-	ProcessingTime   time.Duration
-	ContentChanges   int
-	MetadataChanges  int
-	mu               sync.Mutex // Protect concurrent access to stats
+	TotalRepos      int
+	NewRepos        int
+	UpdatedRepos    int
+	RemovedRepos    int
+	SkippedRepos    int
+	ErrorRepos      int
+	ProcessedRepos  int
+	StartTime       time.Time
+	EndTime         time.Time
+	ProcessingTime  time.Duration
+	ContentChanges  int
+	MetadataChanges int
+	mu              sync.Mutex // Protect concurrent access to stats
 }
 
 // ProgressTracker tracks progress during sync operations
@@ -76,6 +76,7 @@ type ProgressTracker struct {
 func NewProgressTracker(total int, message string) *ProgressTracker {
 	sp := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 	sp.Suffix = fmt.Sprintf(" %s (0/%d)", message, total)
+
 	return &ProgressTracker{
 		total:   total,
 		spinner: sp,
@@ -132,7 +133,7 @@ func (s *SyncStats) SafeIncrement(field string) {
 	}
 }
 
-func runSync(ctx context.Context, cmd *cobra.Command, args []string) error {
+func runSync(ctx context.Context, cmd *cobra.Command, _ []string) error {
 	// Parse flags
 	specificRepo, _ := cmd.Flags().GetString("repo")
 	verbose, _ := cmd.Flags().GetBool("verbose")
@@ -173,6 +174,7 @@ func initializeSyncService(cfg *config.Config, verbose bool) (*SyncService, erro
 
 	// Initialize storage
 	dbPath := expandPath(cfg.Database.Path)
+
 	repo, err := storage.NewDuckDBRepository(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create storage repository: %w", err)
@@ -180,6 +182,7 @@ func initializeSyncService(cfg *config.Config, verbose bool) (*SyncService, erro
 
 	// Initialize LLM service (optional)
 	var llmService processor.LLMService
+
 	if cfg.LLM.DefaultProvider != "" {
 		llmManager := llm.NewManager(llm.DefaultManagerConfig())
 
@@ -191,12 +194,14 @@ func initializeSyncService(cfg *config.Config, verbose bool) (*SyncService, erro
 
 		defaultConfig.Provider = llm.ProviderAnthropic
 		defaultConfig.Model = llm.ModelClaude3
+
 		if err := llmManager.RegisterProvider(llm.ProviderAnthropic, llm.NewClient(defaultConfig)); err != nil {
 			fmt.Printf("Warning: Failed to register Anthropic provider: %v\n", err)
 		}
 
 		defaultConfig.Provider = llm.ProviderLocal
 		defaultConfig.Model = llm.ModelLlama2
+
 		if err := llmManager.RegisterProvider(llm.ProviderLocal, llm.NewClient(defaultConfig)); err != nil {
 			fmt.Printf("Warning: Failed to register Local provider: %v\n", err)
 		}
@@ -247,6 +252,7 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 
 	// Get existing repositories from database for incremental sync
 	s.logVerbose("Loading existing repositories from database...")
+
 	existingRepos, err := s.getExistingRepositories(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get existing repositories: %w", err)
@@ -284,11 +290,12 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 	stats.ProcessingTime = stats.EndTime.Sub(stats.StartTime)
 
 	s.printSyncSummary(stats)
+
 	return nil
 }
 
 func (s *SyncService) syncSpecificRepository(ctx context.Context, repoName string, compareModels bool) error {
-	s.logVerbose(fmt.Sprintf("Syncing specific repository: %s", repoName))
+	s.logVerbose("Syncing specific repository: " + repoName)
 
 	// Fetch the specific repository
 	starredRepos, err := s.githubClient.GetStarredRepos(ctx, "")
@@ -297,6 +304,7 @@ func (s *SyncService) syncSpecificRepository(ctx context.Context, repoName strin
 	}
 
 	var targetRepo *github.Repository
+
 	for _, repo := range starredRepos {
 		if repo.FullName == repoName {
 			targetRepo = &repo
@@ -393,11 +401,11 @@ func (s *SyncService) determineSyncOperations(starredRepos []github.Repository, 
 		if !exists {
 			// New repository
 			ops.toAdd = append(ops.toAdd, repo)
-			s.logVerbose(fmt.Sprintf("  NEW: %s", repo.FullName))
+			s.logVerbose("  NEW: " + repo.FullName)
 		} else if force {
 			// Force update
 			ops.toUpdate = append(ops.toUpdate, repo)
-			s.logVerbose(fmt.Sprintf("  FORCE UPDATE: %s", repo.FullName))
+			s.logVerbose("  FORCE UPDATE: " + repo.FullName)
 		} else if s.needsUpdate(repo, existing) {
 			// Repository needs update
 			ops.toUpdate = append(ops.toUpdate, repo)
@@ -438,24 +446,31 @@ func (s *SyncService) getUpdateReason(repo github.Repository, existing *storage.
 	if repo.UpdatedAt.After(existing.LastSynced) {
 		reasons = append(reasons, "repository updated")
 	}
+
 	if repo.StargazersCount != existing.StargazersCount {
 		reasons = append(reasons, fmt.Sprintf("stars: %d → %d", existing.StargazersCount, repo.StargazersCount))
 	}
+
 	if repo.ForksCount != existing.ForksCount {
 		reasons = append(reasons, fmt.Sprintf("forks: %d → %d", existing.ForksCount, repo.ForksCount))
 	}
+
 	if repo.Size != existing.SizeKB {
 		reasons = append(reasons, "size changed")
 	}
+
 	if repo.Description != existing.Description {
 		reasons = append(reasons, "description changed")
 	}
+
 	if repo.Language != existing.Language {
 		reasons = append(reasons, "language changed")
 	}
+
 	if !s.topicsEqual(repo.Topics, existing.Topics) {
 		reasons = append(reasons, "topics changed")
 	}
+
 	if s.licenseChanged(repo.License, existing.LicenseName, existing.LicenseSPDXID) {
 		reasons = append(reasons, "license changed")
 	}
@@ -480,6 +495,7 @@ func (s *SyncService) topicsEqual(a, b []string) bool {
 	for _, topic := range a {
 		mapA[topic] = true
 	}
+
 	for _, topic := range b {
 		mapB[topic] = true
 	}
@@ -559,12 +575,13 @@ func (s *SyncService) removeRepositories(ctx context.Context, toRemove []string,
 			s.logVerbose(fmt.Sprintf("Failed to remove %s: %v", fullName, err))
 			stats.SafeIncrement("error")
 		} else {
-			s.logVerbose(fmt.Sprintf("Removed: %s", fullName))
+			s.logVerbose("Removed: " + fullName)
 			stats.SafeIncrement("removed")
 		}
 	}
 
 	progress.Finish("Removed unstarred repositories")
+
 	return nil
 }
 
@@ -654,6 +671,7 @@ func (s *SyncService) processBatch(ctx context.Context, batch []github.Repositor
 				if result.ContentChanged {
 					stats.SafeIncrement("content_changes")
 				}
+
 				if result.MetadataChanged {
 					stats.SafeIncrement("metadata_changes")
 				}
@@ -681,6 +699,7 @@ func (s *SyncService) processRepository(ctx context.Context, repo github.Reposit
 	}
 
 	_ = result // Ignore result for backward compatibility
+
 	return nil
 }
 
@@ -692,7 +711,7 @@ func (s *SyncService) processRepositoryWithChangeTrackingAndForce(ctx context.Co
 	if showDetails {
 		fmt.Printf("Processing repository: %s\n", repo.FullName)
 	} else {
-		s.logVerbose(fmt.Sprintf("Processing: %s", repo.FullName))
+		s.logVerbose("Processing: " + repo.FullName)
 	}
 
 	result := &ProcessResult{}
@@ -716,9 +735,11 @@ func (s *SyncService) processRepositoryWithChangeTrackingAndForce(ctx context.Co
 	if showDetails {
 		fmt.Printf("  Generated %d content chunks\n", len(processed.Chunks))
 		fmt.Printf("  Content hash: %s\n", processed.ContentHash)
+
 		if processed.Summary.Purpose != "" {
 			fmt.Printf("  Purpose: %s\n", processed.Summary.Purpose)
 		}
+
 		if len(processed.Summary.Technologies) > 0 {
 			fmt.Printf("  Technologies: %v\n", processed.Summary.Technologies)
 		}
@@ -737,6 +758,7 @@ func (s *SyncService) processRepositoryWithChangeTrackingAndForce(ctx context.Co
 		if err := s.storage.StoreRepository(ctx, *processed); err != nil {
 			return result, fmt.Errorf("failed to store repository: %w", err)
 		}
+
 		if showDetails {
 			fmt.Printf("  Stored new repository\n")
 		}
@@ -761,14 +783,17 @@ func (s *SyncService) processRepositoryWithChangeTrackingAndForce(ctx context.Co
 					if contentChanged {
 						changes = append(changes, "content")
 					}
+
 					if metadataChanged {
 						changes = append(changes, "metadata")
 					}
+
 					fmt.Printf("  Updated repository (%s changed)\n", strings.Join(changes, " and "))
 
 					if contentChanged {
 						fmt.Printf("    Content hash: %s → %s\n", existing.ContentHash[:8], processed.ContentHash[:8])
 					}
+
 					if metadataChanged {
 						s.logMetadataChanges(existing, processed)
 					}
@@ -776,6 +801,7 @@ func (s *SyncService) processRepositoryWithChangeTrackingAndForce(ctx context.Co
 			}
 		} else {
 			result.Skipped = true
+
 			if showDetails {
 				fmt.Printf("  Skipped (no changes detected)\n")
 			}
@@ -801,15 +827,19 @@ func (s *SyncService) logMetadataChanges(existing *storage.StoredRepo, processed
 	if existing.StargazersCount != processed.Repository.StargazersCount {
 		fmt.Printf("    Stars: %d → %d\n", existing.StargazersCount, processed.Repository.StargazersCount)
 	}
+
 	if existing.ForksCount != processed.Repository.ForksCount {
 		fmt.Printf("    Forks: %d → %d\n", existing.ForksCount, processed.Repository.ForksCount)
 	}
+
 	if existing.SizeKB != processed.Repository.Size {
 		fmt.Printf("    Size: %d KB → %d KB\n", existing.SizeKB, processed.Repository.Size)
 	}
+
 	if existing.Description != processed.Repository.Description {
 		fmt.Printf("    Description changed\n")
 	}
+
 	if existing.Language != processed.Repository.Language {
 		fmt.Printf("    Language: %s → %s\n", existing.Language, processed.Repository.Language)
 	}
@@ -835,6 +865,7 @@ func (s *SyncService) printSyncSummary(stats *SyncStats) {
 
 	fmt.Printf("\nTiming:\n")
 	fmt.Printf("  Total processing time: %v\n", stats.ProcessingTime)
+
 	if stats.ProcessedRepos > 0 {
 		avgTime := stats.ProcessingTime / time.Duration(stats.ProcessedRepos)
 		fmt.Printf("  Average time per repository: %v\n", avgTime)
@@ -869,8 +900,10 @@ func expandPath(path string) string {
 		if err != nil {
 			return path
 		}
+
 		return filepath.Join(home, path[2:])
 	}
+
 	return path
 }
 

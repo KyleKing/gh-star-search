@@ -52,9 +52,9 @@ const (
 
 // Model constants for common models
 const (
-	ModelGPT4         = "gpt-4"
-	ModelGPT35Turbo   = "gpt-3.5-turbo"
-	ModelClaude3      = "claude-3-sonnet-20240229"
-	ModelLlama2       = "llama2"
-	ModelCodeLlama    = "codellama"
+	ModelGPT4       = "gpt-4"
+	ModelGPT35Turbo = "gpt-3.5-turbo"
+	ModelClaude3    = "claude-3-sonnet-20240229"
+	ModelLlama2     = "llama2"
+	ModelCodeLlama  = "codellama"
 )

@@ -9,8 +9,6 @@ import (
 	"github.com/kyleking/gh-star-search/internal/github"
 )
 
-
-
 func BenchmarkProcessRepository(b *testing.B) {
 	// Create a realistic repository with multiple files
 	repo := github.Repository{
@@ -54,7 +52,8 @@ func BenchmarkProcessRepository(b *testing.B) {
 	ctx := context.Background()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		_, err := service.ProcessRepository(ctx, repo, content)
 		if err != nil {
 			b.Fatalf("ProcessRepository failed: %v", err)
@@ -69,7 +68,8 @@ func BenchmarkChunkContent(b *testing.B) {
 	content := strings.Repeat("This is a line of content that will be chunked for performance testing.\n", 1000)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		chunks := service.chunkContent(content, "test.md", ContentTypeReadme, PriorityHigh)
 		if len(chunks) == 0 {
 			b.Fatal("No chunks created")
@@ -92,7 +92,8 @@ func BenchmarkDetermineContentType(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		for _, path := range paths {
 			service.determineContentType(path)
 		}
@@ -115,7 +116,8 @@ func BenchmarkFilterContent(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		filtered := service.filterContent(content)
 		if len(filtered) == 0 {
 			b.Fatal("No content filtered")
@@ -137,7 +139,8 @@ func BenchmarkGenerateContentHash(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		hash := service.generateContentHash(chunks)
 		if hash == "" {
 			b.Fatal("Empty hash generated")
@@ -150,7 +153,7 @@ func BenchmarkSplitMarkdownContent(b *testing.B) {
 
 	// Create markdown content with multiple sections
 	content := ""
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		content += "# Section " + string(rune('A'+i%26)) + "\n\n"
 		content += strings.Repeat("This is paragraph content with details and explanations.\n\n", 10)
 		content += "## Subsection\n\n"
@@ -158,7 +161,8 @@ func BenchmarkSplitMarkdownContent(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		sections := service.splitMarkdownContent(content)
 		if len(sections) == 0 {
 			b.Fatal("No sections created")
@@ -179,11 +183,13 @@ func BenchmarkDecodeContent(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		decoded, err := service.decodeContent(file)
 		if err != nil {
 			b.Fatalf("decodeContent failed: %v", err)
 		}
+
 		if decoded != originalText {
 			b.Fatal("Decoded content doesn't match original")
 		}

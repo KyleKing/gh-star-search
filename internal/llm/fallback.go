@@ -17,7 +17,7 @@ func NewFallbackService() *FallbackService {
 }
 
 // Configure is a no-op for the fallback service
-func (f *FallbackService) Configure(config Config) error {
+func (f *FallbackService) Configure(_ Config) error {
 	return nil
 }
 
@@ -90,6 +90,7 @@ func (f *FallbackService) extractPurpose(content string) string {
 // extractTechnologies identifies technologies mentioned in the content
 func (f *FallbackService) extractTechnologies(content string) []string {
 	var technologies []string
+
 	contentLower := strings.ToLower(content)
 
 	// Common technology patterns
@@ -140,11 +141,12 @@ func (f *FallbackService) extractTechnologies(content string) []string {
 // extractUseCases identifies potential use cases from content
 func (f *FallbackService) extractUseCases(content string) []string {
 	var useCases []string
+
 	contentLower := strings.ToLower(content)
 
 	// Common use case patterns
 	useCasePatterns := map[string][]string{
-		"Web Development":     {"web", "website", "webapp", "http", "server", "api"},
+		"Web Development":    {"web", "website", "webapp", "http", "server", "api"},
 		"CLI Tool":           {"command line", "cli", "terminal", "console"},
 		"Library":            {"library", "package", "module", "framework"},
 		"Data Analysis":      {"data", "analysis", "analytics", "visualization", "chart"},
@@ -182,7 +184,6 @@ func (f *FallbackService) extractFeatures(content string) []string {
 		// Check for bullet points or numbered lists
 		if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") ||
 			regexp.MustCompile(`^\d+\.\s`).MatchString(line) {
-
 			// Clean up the feature text
 			feature := strings.TrimPrefix(line, "- ")
 			feature = strings.TrimPrefix(feature, "* ")
@@ -210,6 +211,7 @@ func (f *FallbackService) extractInstallation(content string) string {
 
 	// Look for installation sections
 	inInstallSection := false
+
 	var installLines []string
 
 	for _, line := range lines {
@@ -265,6 +267,7 @@ func (f *FallbackService) extractUsage(content string) string {
 
 	// Look for usage sections
 	inUsageSection := false
+
 	var usageLines []string
 
 	for _, line := range lines {
@@ -300,7 +303,7 @@ func (f *FallbackService) extractUsage(content string) string {
 }
 
 // parseBasicQuery provides simple query parsing without LLM
-func (f *FallbackService) parseBasicQuery(query string, schema types.Schema) (string, string) {
+func (f *FallbackService) parseBasicQuery(query string, _ types.Schema) (string, string) {
 	queryLower := strings.ToLower(query)
 
 	// Check for specific technologies first (more specific than generic list/show)
@@ -343,11 +346,13 @@ func (f *FallbackService) parseBasicQuery(query string, schema types.Schema) (st
 // removeDuplicates removes duplicate strings from a slice
 func (f *FallbackService) removeDuplicates(slice []string) []string {
 	keys := make(map[string]bool)
+
 	var result []string
 
 	for _, item := range slice {
 		if !keys[item] {
 			keys[item] = true
+
 			result = append(result, item)
 		}
 	}
