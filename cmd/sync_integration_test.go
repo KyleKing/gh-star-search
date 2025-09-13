@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,7 +15,7 @@ import (
 	"github.com/username/gh-star-search/internal/storage"
 )
 
-// TestSyncIntegration tests the complete sync workflow end-to-end
+// TestSyncIntegration tests the complete sync workflow end-to-end with enhanced change detection
 func TestSyncIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
@@ -298,6 +299,60 @@ func TestSyncIntegration(t *testing.T) {
 		t.Errorf("Expected 3 repositories after force sync, got %d", stats.TotalRepositories)
 	}
 
+	// Step 4: Test content change detection with hash comparison
+	t.Log("Step 4: Content change detection")
+	
+	// Update content for active-repo to test content change detection
+	mockGitHub.content["user/active-repo"] = []github.Content{
+		{
+			Path:     "README.md",
+			Type:     "file",
+			Content:  "IyBBY3RpdmUgUmVwb3NpdG9yeSAoVXBkYXRlZCkKClRoaXMgaXMgYW4gdXBkYXRlZCBHbyByZXBvc2l0b3J5IGZvciBDTEkgdG9vbHMu", // base64: "# Active Repository (Updated)\n\nThis is an updated Go repository for CLI tools."
+			Size:     60,
+			Encoding: "base64",
+		},
+		{
+			Path:     "main.go",
+			Type:     "file",
+			Content:  "cGFja2FnZSBtYWluCgpmdW5jIG1haW4oKSB7CiAgICBwcmludGxuKCJIZWxsbyBVcGRhdGVkIFdvcmxkIikKfQ==", // base64: "package main\n\nfunc main() {\n    println(\"Hello Updated World\")\n}"
+			Size:     50,
+			Encoding: "base64",
+		},
+	}
+	
+	// Update the repository's UpdatedAt timestamp to trigger processing
+	for i, repo := range mockGitHub.starredRepos {
+		if repo.FullName == "user/active-repo" {
+			mockGitHub.starredRepos[i].UpdatedAt = time.Now()
+			break
+		}
+	}
+	
+	// Get the current content hash
+	oldActiveRepo, err := repo.GetRepository(ctx, "user/active-repo")
+	if err != nil {
+		t.Fatalf("Failed to get active-repo before content update: %v", err)
+	}
+	oldContentHash := oldActiveRepo.ContentHash
+	
+	// Perform sync to detect content changes
+	err = syncService.performFullSync(ctx, 2, false)
+	if err != nil {
+		t.Fatalf("Content change sync failed: %v", err)
+	}
+	
+	// Verify content hash changed
+	updatedActiveRepo, err := repo.GetRepository(ctx, "user/active-repo")
+	if err != nil {
+		t.Fatalf("Failed to get active-repo after content update: %v", err)
+	}
+	
+	if updatedActiveRepo.ContentHash == oldContentHash {
+		t.Error("Expected content hash to change after content update")
+	}
+	
+	t.Logf("Content hash changed: %s → %s", oldContentHash[:8], updatedActiveRepo.ContentHash[:8])
+
 	t.Log("Integration test completed successfully")
 }
 
@@ -502,4 +557,315 @@ func TestSyncErrorHandling(t *testing.T) {
 	if err == nil {
 		t.Error("Error repository should not have been stored")
 	}
+}
+
+// TestSyncIncrementalUpdates tests incremental sync with various types of changes
+func TestSyncIncrementalUpdates(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	// Create temporary database
+	tempDir, err := os.MkdirTemp("", "sync_incremental_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	dbPath := filepath.Join(tempDir, "test.db")
+
+	// Initialize storage
+	repo, err := storage.NewDuckDBRepository(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer repo.Close()
+
+	ctx := context.Background()
+	if err := repo.Initialize(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create initial mock data
+	mockGitHub := &MockGitHubClient{
+		starredRepos: []github.Repository{
+			{
+				FullName:        "user/test-repo",
+				Description:     "Original description",
+				Language:        "Go",
+				StargazersCount: 100,
+				ForksCount:      10,
+				Size:            1024,
+				CreatedAt:       time.Now().Add(-365 * 24 * time.Hour),
+				UpdatedAt:       time.Now().Add(-2 * time.Hour),
+				Topics:          []string{"go", "test"},
+				License: &github.License{
+					Key:    "mit",
+					Name:   "MIT License",
+					SPDXID: "MIT",
+				},
+			},
+		},
+		content: map[string][]github.Content{
+			"user/test-repo": {
+				{
+					Path:     "README.md",
+					Type:     "file",
+					Content:  "IyBUZXN0IFJlcG9zaXRvcnkKCk9yaWdpbmFsIGNvbnRlbnQ=", // base64: "# Test Repository\n\nOriginal content"
+					Size:     30,
+					Encoding: "base64",
+				},
+			},
+		},
+	}
+
+	mockLLM := &MockLLMService{
+		responses: map[string]*processor.SummaryResponse{
+			"default": {
+				Purpose:      "Test repository for incremental updates",
+				Technologies: []string{"Go", "Testing"},
+				UseCases:     []string{"Testing incremental sync"},
+				Features:     []string{"Change detection", "Hash comparison"},
+				Installation: "go get github.com/user/test-repo",
+				Usage:        "test-repo [command]",
+				Confidence:   0.9,
+			},
+		},
+	}
+
+	processorService := processor.NewService(mockGitHub, mockLLM)
+
+	syncService := &SyncService{
+		githubClient: mockGitHub,
+		processor:    processorService,
+		storage:      repo,
+		config:       config.DefaultConfig(),
+		verbose:      true,
+	}
+
+	// Step 1: Initial sync
+	t.Log("Step 1: Initial sync")
+	err = syncService.performFullSync(ctx, 1, false)
+	if err != nil {
+		t.Fatalf("Initial sync failed: %v", err)
+	}
+
+	// Get initial state
+	initialRepo, err := repo.GetRepository(ctx, "user/test-repo")
+	if err != nil {
+		t.Fatalf("Failed to get initial repository: %v", err)
+	}
+
+	// Step 2: Test metadata-only changes
+	t.Log("Step 2: Metadata-only changes")
+	mockGitHub.starredRepos[0].StargazersCount = 150
+	mockGitHub.starredRepos[0].ForksCount = 15
+	mockGitHub.starredRepos[0].Description = "Updated description"
+	mockGitHub.starredRepos[0].Topics = []string{"go", "test", "updated"}
+
+	err = syncService.performFullSync(ctx, 1, false)
+	if err != nil {
+		t.Fatalf("Metadata update sync failed: %v", err)
+	}
+
+	// Verify metadata changes
+	metadataUpdatedRepo, err := repo.GetRepository(ctx, "user/test-repo")
+	if err != nil {
+		t.Fatalf("Failed to get metadata updated repository: %v", err)
+	}
+
+	if metadataUpdatedRepo.StargazersCount != 150 {
+		t.Errorf("Expected 150 stars, got %d", metadataUpdatedRepo.StargazersCount)
+	}
+	if metadataUpdatedRepo.Description != "Updated description" {
+		t.Errorf("Expected updated description, got %s", metadataUpdatedRepo.Description)
+	}
+	if metadataUpdatedRepo.ContentHash != initialRepo.ContentHash {
+		t.Error("Content hash should not change for metadata-only updates")
+	}
+
+	// Step 3: Test content-only changes (simulate GitHub repository update)
+	t.Log("Step 3: Content-only changes")
+	
+	// Update both content AND UpdatedAt to simulate a real GitHub repository update
+	mockGitHub.content["user/test-repo"] = []github.Content{
+		{
+			Path:     "README.md",
+			Type:     "file",
+			Content:  "IyBUZXN0IFJlcG9zaXRvcnkKClVwZGF0ZWQgY29udGVudA==", // base64: "# Test Repository\n\nUpdated content"
+			Size:     32,
+			Encoding: "base64",
+		},
+	}
+	
+	// Update the repository's UpdatedAt timestamp to trigger processing
+	mockGitHub.starredRepos[0].UpdatedAt = time.Now()
+
+	err = syncService.performFullSync(ctx, 1, false)
+	if err != nil {
+		t.Fatalf("Content update sync failed: %v", err)
+	}
+
+	// Verify content changes
+	contentUpdatedRepo, err := repo.GetRepository(ctx, "user/test-repo")
+	if err != nil {
+		t.Fatalf("Failed to get content updated repository: %v", err)
+	}
+
+	if contentUpdatedRepo.ContentHash == metadataUpdatedRepo.ContentHash {
+		t.Error("Content hash should change for content updates")
+	}
+
+	// Step 4: Test no changes (should skip)
+	t.Log("Step 4: No changes (should skip)")
+	err = syncService.performFullSync(ctx, 1, false)
+	if err != nil {
+		t.Fatalf("No-change sync failed: %v", err)
+	}
+
+	// Verify no changes
+	noChangeRepo, err := repo.GetRepository(ctx, "user/test-repo")
+	if err != nil {
+		t.Fatalf("Failed to get no-change repository: %v", err)
+	}
+
+	if noChangeRepo.ContentHash != contentUpdatedRepo.ContentHash {
+		t.Error("Content hash should not change when no updates are made")
+	}
+	// Note: LastSynced is only updated when repositories are actually processed
+	// Since no changes were detected, the repository wasn't processed, so LastSynced remains the same
+	// This is correct behavior - we only update LastSynced when we actually sync the repository
+
+	// Step 5: Test force sync
+	t.Log("Step 5: Force sync")
+	
+	// Add a small delay to ensure timestamp difference
+	time.Sleep(10 * time.Millisecond)
+	
+	err = syncService.performFullSync(ctx, 1, true)
+	if err != nil {
+		t.Fatalf("Force sync failed: %v", err)
+	}
+
+	// Verify force sync updated LastSynced
+	forceSyncRepo, err := repo.GetRepository(ctx, "user/test-repo")
+	if err != nil {
+		t.Fatalf("Failed to get force sync repository: %v", err)
+	}
+
+	t.Logf("Content updated LastSynced: %v", contentUpdatedRepo.LastSynced)
+	t.Logf("Force sync LastSynced: %v", forceSyncRepo.LastSynced)
+
+	if !forceSyncRepo.LastSynced.After(contentUpdatedRepo.LastSynced) {
+		t.Error("Force sync should update LastSynced timestamp")
+	}
+
+	t.Log("Incremental updates test completed successfully")
+}
+
+// TestSyncProgressTracking tests progress indicators and batch processing
+func TestSyncProgressTracking(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	// Create temporary database
+	tempDir, err := os.MkdirTemp("", "sync_progress_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	dbPath := filepath.Join(tempDir, "test.db")
+
+	// Initialize storage
+	repo, err := storage.NewDuckDBRepository(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer repo.Close()
+
+	ctx := context.Background()
+	if err := repo.Initialize(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create mock data with multiple repositories for batch testing
+	repos := make([]github.Repository, 7) // Test with 7 repos to test batching
+	content := make(map[string][]github.Content)
+
+	for i := 0; i < 7; i++ {
+		repoName := fmt.Sprintf("user/repo%d", i+1)
+		repos[i] = github.Repository{
+			FullName:        repoName,
+			Description:     fmt.Sprintf("Test repository %d", i+1),
+			Language:        "Go",
+			StargazersCount: (i + 1) * 10,
+			ForksCount:      i + 1,
+			Size:            (i + 1) * 100,
+			CreatedAt:       time.Now().Add(-time.Duration(i+1) * 24 * time.Hour),
+			UpdatedAt:       time.Now().Add(-time.Duration(i+1) * time.Hour),
+			Topics:          []string{"go", fmt.Sprintf("test%d", i+1)},
+		}
+
+		// Create base64 encoded content for each repo
+		readmeContent := fmt.Sprintf("# Repository %d\n\nTest content for repo %d", i+1, i+1)
+		encodedContent := base64.StdEncoding.EncodeToString([]byte(readmeContent))
+		
+		content[repoName] = []github.Content{
+			{
+				Path:     "README.md",
+				Type:     "file",
+				Content:  encodedContent,
+				Size:     20 + i,
+				Encoding: "base64",
+			},
+		}
+	}
+
+	mockGitHub := &MockGitHubClient{
+		starredRepos: repos,
+		content:      content,
+	}
+
+	mockLLM := &MockLLMService{}
+	processorService := processor.NewService(mockGitHub, mockLLM)
+
+	syncService := &SyncService{
+		githubClient: mockGitHub,
+		processor:    processorService,
+		storage:      repo,
+		config:       config.DefaultConfig(),
+		verbose:      false, // Disable verbose to test progress indicators
+	}
+
+	// Test batch processing with batch size of 3
+	t.Log("Testing batch processing with 7 repositories (batch size: 3)")
+	err = syncService.performFullSync(ctx, 3, false)
+	if err != nil {
+		t.Fatalf("Batch sync failed: %v", err)
+	}
+
+	// Verify all repositories were processed
+	stats, err := repo.GetStats(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get stats: %v", err)
+	}
+
+	if stats.TotalRepositories != 7 {
+		t.Errorf("Expected 7 repositories, got %d", stats.TotalRepositories)
+	}
+
+	// Verify each repository was stored correctly
+	for i := 0; i < 7; i++ {
+		repoName := fmt.Sprintf("user/repo%d", i+1)
+		stored, err := repo.GetRepository(ctx, repoName)
+		if err != nil {
+			t.Errorf("Repository %s was not stored: %v", repoName, err)
+		} else if stored.StargazersCount != (i+1)*10 {
+			t.Errorf("Repository %s has wrong star count: expected %d, got %d", repoName, (i+1)*10, stored.StargazersCount)
+		}
+	}
+
+	t.Log("Progress tracking test completed successfully")
 }

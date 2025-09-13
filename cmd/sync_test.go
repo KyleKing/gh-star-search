@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -385,9 +386,16 @@ func TestSyncService_ProcessRepositoriesInBatches(t *testing.T) {
 	}
 
 	stats := &SyncStats{}
+	
+	// Create operations for the new batch processing signature
+	operations := &syncOperations{
+		toAdd:    testRepos, // All repos are new
+		toUpdate: []github.Repository{},
+		toRemove: []string{},
+	}
 
 	// Process in batches of 2
-	err = syncService.processRepositoriesInBatches(ctx, testRepos, 2, stats)
+	err = syncService.processRepositoriesInBatches(ctx, testRepos, 2, stats, operations)
 	if err != nil {
 		t.Fatalf("Failed to process repositories in batches: %v", err)
 	}
@@ -400,6 +408,14 @@ func TestSyncService_ProcessRepositoriesInBatches(t *testing.T) {
 		} else if stored.FullName != testRepo.FullName {
 			t.Errorf("Expected %s, got %s", testRepo.FullName, stored.FullName)
 		}
+	}
+	
+	// Verify stats were updated correctly
+	if stats.NewRepos != 3 {
+		t.Errorf("Expected 3 new repos, got %d", stats.NewRepos)
+	}
+	if stats.ProcessedRepos != 3 {
+		t.Errorf("Expected 3 processed repos, got %d", stats.ProcessedRepos)
 	}
 }
 
@@ -438,5 +454,235 @@ func TestExpandPath(t *testing.T) {
 				t.Errorf("expandPath() = %s, expected %s", result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestSyncService_GetUpdateReason(t *testing.T) {
+	syncService := &SyncService{}
+	
+	baseTime := time.Now().Add(-2 * time.Hour)
+	
+	tests := []struct {
+		name     string
+		repo     github.Repository
+		existing *storage.StoredRepo
+		expected string
+	}{
+		{
+			name: "star count change",
+			repo: github.Repository{
+				FullName:        "user/repo",
+				UpdatedAt:       baseTime.Add(-1 * time.Hour),
+				StargazersCount: 150,
+				ForksCount:      10,
+				Size:            1000,
+				Description:     "Test repo",
+			},
+			existing: &storage.StoredRepo{
+				FullName:        "user/repo",
+				StargazersCount: 100,
+				ForksCount:      10,
+				SizeKB:          1000,
+				Description:     "Test repo",
+				LastSynced:      baseTime,
+			},
+			expected: "stars: 100 → 150",
+		},
+		{
+			name: "multiple changes",
+			repo: github.Repository{
+				FullName:        "user/repo",
+				UpdatedAt:       time.Now(),
+				StargazersCount: 150,
+				ForksCount:      15,
+				Size:            2000,
+				Description:     "Updated test repo",
+			},
+			existing: &storage.StoredRepo{
+				FullName:        "user/repo",
+				StargazersCount: 100,
+				ForksCount:      10,
+				SizeKB:          1000,
+				Description:     "Test repo",
+				LastSynced:      baseTime,
+			},
+			expected: "repository updated, stars: 100 → 150, forks: 10 → 15, size changed, description changed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := syncService.getUpdateReason(tt.repo, tt.existing)
+			if result != tt.expected {
+				t.Errorf("getUpdateReason() = %s, expected %s", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSyncService_TopicsEqual(t *testing.T) {
+	syncService := &SyncService{}
+	
+	tests := []struct {
+		name     string
+		a        []string
+		b        []string
+		expected bool
+	}{
+		{
+			name:     "identical topics",
+			a:        []string{"go", "cli", "tool"},
+			b:        []string{"go", "cli", "tool"},
+			expected: true,
+		},
+		{
+			name:     "different order same topics",
+			a:        []string{"go", "cli", "tool"},
+			b:        []string{"tool", "go", "cli"},
+			expected: true,
+		},
+		{
+			name:     "different topics",
+			a:        []string{"go", "cli"},
+			b:        []string{"python", "web"},
+			expected: false,
+		},
+		{
+			name:     "different lengths",
+			a:        []string{"go", "cli"},
+			b:        []string{"go", "cli", "tool"},
+			expected: false,
+		},
+		{
+			name:     "empty slices",
+			a:        []string{},
+			b:        []string{},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := syncService.topicsEqual(tt.a, tt.b)
+			if result != tt.expected {
+				t.Errorf("topicsEqual() = %v, expected %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSyncService_LicenseChanged(t *testing.T) {
+	syncService := &SyncService{}
+	
+	tests := []struct {
+		name         string
+		newLicense   *github.License
+		existingName string
+		existingSPDX string
+		expected     bool
+	}{
+		{
+			name: "no change",
+			newLicense: &github.License{
+				Name:   "MIT License",
+				SPDXID: "MIT",
+			},
+			existingName: "MIT License",
+			existingSPDX: "MIT",
+			expected:     false,
+		},
+		{
+			name: "name changed",
+			newLicense: &github.License{
+				Name:   "Apache License 2.0",
+				SPDXID: "Apache-2.0",
+			},
+			existingName: "MIT License",
+			existingSPDX: "Apache-2.0",
+			expected:     true,
+		},
+		{
+			name:         "license removed",
+			newLicense:   nil,
+			existingName: "MIT License",
+			existingSPDX: "MIT",
+			expected:     true,
+		},
+		{
+			name: "license added",
+			newLicense: &github.License{
+				Name:   "MIT License",
+				SPDXID: "MIT",
+			},
+			existingName: "",
+			existingSPDX: "",
+			expected:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := syncService.licenseChanged(tt.newLicense, tt.existingName, tt.existingSPDX)
+			if result != tt.expected {
+				t.Errorf("licenseChanged() = %v, expected %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestProgressTracker(t *testing.T) {
+	// Test progress tracker functionality
+	tracker := NewProgressTracker(5, "Testing progress")
+	
+	if tracker.total != 5 {
+		t.Errorf("Expected total 5, got %d", tracker.total)
+	}
+	
+	if tracker.processed != 0 {
+		t.Errorf("Expected processed 0, got %d", tracker.processed)
+	}
+	
+	// Test update
+	tracker.Update("test-repo")
+	if tracker.processed != 1 {
+		t.Errorf("Expected processed 1 after update, got %d", tracker.processed)
+	}
+	
+	// Test multiple updates
+	tracker.Update("test-repo-2")
+	tracker.Update("test-repo-3")
+	if tracker.processed != 3 {
+		t.Errorf("Expected processed 3 after multiple updates, got %d", tracker.processed)
+	}
+}
+
+func TestSyncStats_SafeIncrement(t *testing.T) {
+	stats := &SyncStats{}
+	
+	// Test concurrent increments
+	var wg sync.WaitGroup
+	
+	// Start multiple goroutines to test thread safety
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			stats.SafeIncrement("new")
+			stats.SafeIncrement("updated")
+			stats.SafeIncrement("processed")
+		}()
+	}
+	
+	wg.Wait()
+	
+	// Each field should be incremented 10 times
+	if stats.NewRepos != 10 {
+		t.Errorf("Expected NewRepos 10, got %d", stats.NewRepos)
+	}
+	if stats.UpdatedRepos != 10 {
+		t.Errorf("Expected UpdatedRepos 10, got %d", stats.UpdatedRepos)
+	}
+	if stats.ProcessedRepos != 10 {
+		t.Errorf("Expected ProcessedRepos 10, got %d", stats.ProcessedRepos)
 	}
 }
