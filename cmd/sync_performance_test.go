@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"runtime"
 	"sync"
@@ -9,7 +8,6 @@ import (
 	"time"
 
 	"github.com/kyleking/gh-star-search/internal/github"
-	"github.com/kyleking/gh-star-search/internal/monitor"
 )
 
 // Helper function to create test repositories for performance testing
@@ -48,21 +46,10 @@ func TestSyncService_ParallelProcessing(t *testing.T) {
 			// Create test data
 			repos := createPerformanceTestRepositories(tt.numRepos)
 
-			// Create sync service with memory monitoring
-			memoryMonitor := monitor.NewMemoryMonitor(500, 5*time.Minute)
-			memoryOptimizer := monitor.NewMemoryOptimizer(memoryMonitor)
-
+			// Create sync service
 			syncService := &SyncService{
-				memoryMonitor:   memoryMonitor,
-				memoryOptimizer: memoryOptimizer,
-				verbose:         false,
+				verbose: false,
 			}
-
-			ctx := context.Background()
-
-			// Start memory monitoring
-			memoryMonitor.Start(ctx, time.Second)
-			defer memoryMonitor.Stop()
 
 			// Measure performance of worker calculation
 			startTime := time.Now()
@@ -211,55 +198,6 @@ func BenchmarkSyncService_ProcessingComparison(b *testing.B) {
 			}
 		}
 	})
-}
-
-// Test memory optimization effectiveness
-func TestMemoryOptimization_Effectiveness(t *testing.T) {
-	memMonitor := monitor.NewMemoryMonitor(50, time.Minute)
-	optimizer := monitor.NewMemoryOptimizer(memMonitor)
-
-	ctx := context.Background()
-	memMonitor.Start(ctx, 100*time.Millisecond)
-
-	defer memMonitor.Stop()
-
-	// Get initial memory stats
-	memMonitor.OptimizeMemory()
-	time.Sleep(100 * time.Millisecond) // Let monitoring update
-
-	initialStats := memMonitor.GetStats()
-
-	// Allocate memory to simulate processing
-	data := make([][]byte, 1000)
-	for i := range data {
-		data[i] = make([]byte, 10240) // 10KB each = ~10MB total
-	}
-
-	time.Sleep(100 * time.Millisecond) // Let monitoring update
-
-	afterAllocStats := memMonitor.GetStats()
-
-	// Optimize memory
-	optimizer.OptimizeForBatch(100)
-
-	runtime.GC()
-
-	time.Sleep(100 * time.Millisecond) // Let monitoring update
-
-	afterOptimizeStats := memMonitor.GetStats()
-
-	t.Logf("Memory usage - Initial: %.2f MB, After alloc: %.2f MB, After optimize: %.2f MB",
-		initialStats.AllocMB, afterAllocStats.AllocMB, afterOptimizeStats.AllocMB)
-
-	// Memory should be reduced after optimization
-	if afterOptimizeStats.AllocMB >= afterAllocStats.AllocMB {
-		t.Logf("Memory optimization may not be immediately visible due to Go's memory management")
-	}
-
-	// GC should have run
-	if afterOptimizeStats.NumGC <= initialStats.NumGC {
-		t.Logf("GC count - Initial: %d, After optimize: %d", initialStats.NumGC, afterOptimizeStats.NumGC)
-	}
 }
 
 // Helper function to get current memory usage

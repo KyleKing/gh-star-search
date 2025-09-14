@@ -11,7 +11,6 @@ import (
 
 	"github.com/kyleking/gh-star-search/internal/config"
 	"github.com/kyleking/gh-star-search/internal/github"
-	"github.com/kyleking/gh-star-search/internal/monitor"
 	"github.com/kyleking/gh-star-search/internal/processor"
 	"github.com/kyleking/gh-star-search/internal/storage"
 )
@@ -323,18 +322,12 @@ func TestSyncService_ProcessRepository(t *testing.T) {
 
 	processorService := processor.NewService(mockGitHub)
 
-	// Initialize memory monitor
-	memoryMonitor := monitor.NewMemoryMonitor(500, 5*time.Minute)
-	memoryOptimizer := monitor.NewMemoryOptimizer(memoryMonitor)
-
 	syncService := &SyncService{
-		githubClient:    mockGitHub,
-		processor:       processorService,
-		storage:         repo,
-		config:          config.DefaultConfig(),
-		verbose:         true,
-		memoryMonitor:   memoryMonitor,
-		memoryOptimizer: memoryOptimizer,
+		githubClient: mockGitHub,
+		processor:    processorService,
+		storage:      repo,
+		config:       config.DefaultConfig(),
+		verbose:      true,
 	}
 
 	// Test repository
@@ -423,18 +416,12 @@ func TestSyncService_ProcessRepositoriesInBatches(t *testing.T) {
 
 	processorService := processor.NewService(mockGitHub)
 
-	// Initialize memory monitor
-	memoryMonitor := monitor.NewMemoryMonitor(500, 5*time.Minute)
-	memoryOptimizer := monitor.NewMemoryOptimizer(memoryMonitor)
-
 	syncService := &SyncService{
-		githubClient:    mockGitHub,
-		processor:       processorService,
-		storage:         repo,
-		config:          config.DefaultConfig(),
-		verbose:         false,
-		memoryMonitor:   memoryMonitor,
-		memoryOptimizer: memoryOptimizer,
+		githubClient: mockGitHub,
+		processor:    processorService,
+		storage:      repo,
+		config:       config.DefaultConfig(),
+		verbose:      false,
 	}
 
 	// Test repositories

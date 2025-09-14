@@ -14,7 +14,6 @@ import (
 	"github.com/kyleking/gh-star-search/internal/cache"
 	"github.com/kyleking/gh-star-search/internal/config"
 	"github.com/kyleking/gh-star-search/internal/github"
-	"github.com/kyleking/gh-star-search/internal/monitor"
 	"github.com/kyleking/gh-star-search/internal/processor"
 	"github.com/kyleking/gh-star-search/internal/storage"
 	"github.com/spf13/cobra"
@@ -41,13 +40,11 @@ func init() {
 
 // SyncService handles the synchronization of starred repositories
 type SyncService struct {
-	githubClient    github.Client
-	processor       processor.Service
-	storage         storage.Repository
-	config          *config.Config
-	verbose         bool
-	memoryMonitor   *monitor.MemoryMonitor
-	memoryOptimizer *monitor.MemoryOptimizer
+	githubClient github.Client
+	processor    processor.Service
+	storage      storage.Repository
+	config       *config.Config
+	verbose      bool
 }
 
 // SyncStats tracks synchronization statistics
@@ -207,18 +204,12 @@ func initializeSyncService(cfg *config.Config, verbose bool) (*SyncService, erro
 		processorService = processor.NewService(githubClient)
 	}
 
-	// Initialize memory monitoring
-	memoryMonitor := monitor.NewMemoryMonitor(500, 5*time.Minute) // 500MB threshold, 5min force interval
-	memoryOptimizer := monitor.NewMemoryOptimizer(memoryMonitor)
-
 	return &SyncService{
-		githubClient:    githubClient,
-		processor:       processorService,
-		storage:         repo,
-		config:          cfg,
-		verbose:         verbose,
-		memoryMonitor:   memoryMonitor,
-		memoryOptimizer: memoryOptimizer,
+		githubClient: githubClient,
+		processor:    processorService,
+		storage:      repo,
+		config:       cfg,
+		verbose:      verbose,
 	}, nil
 }
 
@@ -227,20 +218,7 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 		StartTime: time.Now(),
 	}
 
-	// Create a new memory monitor for this sync operation to avoid channel reuse issues
-	memMonitor := monitor.NewMemoryMonitor(500, 5*time.Minute)
-	memOptimizer := monitor.NewMemoryOptimizer(memMonitor)
-
-	// Start memory monitoring
-	memMonitor.Start(ctx, 30*time.Second)
-	defer memMonitor.Stop()
-
-	// Optimize memory for batch processing
-	memOptimizer.OptimizeForBatch(batchSize)
-	defer memOptimizer.RestoreDefaults()
-
 	s.logVerbose("Starting full sync of starred repositories...")
-	s.logVerbose("Initial memory stats:\n" + memMonitor.GetFormattedStats())
 
 	// Create progress tracker for fetching repositories
 	fetchProgress := NewProgressTracker(1, "Fetching starred repositories")
@@ -288,7 +266,7 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 	allToProcess = append(allToProcess, operations.toUpdate...)
 
 	if len(allToProcess) > 0 {
-		if err := s.processRepositoriesInBatchesWithForceAndMonitor(ctx, allToProcess, batchSize, stats, operations, force, memMonitor); err != nil {
+		if err := s.processRepositoriesInBatchesWithForceAndMonitor(ctx, allToProcess, batchSize, stats, operations, force, nil); err != nil {
 			return fmt.Errorf("failed to process repositories: %w", err)
 		}
 	} else {
@@ -298,11 +276,7 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 	stats.EndTime = time.Now()
 	stats.ProcessingTime = stats.EndTime.Sub(stats.StartTime)
 
-	// Final memory optimization
-	memMonitor.OptimizeMemory()
-
 	s.printSyncSummary(stats)
-	s.logVerbose("Final memory stats:\n" + memMonitor.GetFormattedStats())
 
 	return nil
 }
@@ -545,10 +519,10 @@ func (s *SyncService) removeRepositories(ctx context.Context, toRemove []string,
 }
 
 func (s *SyncService) processRepositoriesInBatches(ctx context.Context, repos []github.Repository, batchSize int, stats *SyncStats, operations *syncOperations) error {
-	return s.processRepositoriesInBatchesWithForce(ctx, repos, batchSize, stats, operations, false)
+	return s.processRepositoriesInBatchesWithForceAndMonitor(ctx, repos, batchSize, stats, operations, false, nil)
 }
 
-func (s *SyncService) processRepositoriesInBatchesWithForceAndMonitor(ctx context.Context, repos []github.Repository, batchSize int, stats *SyncStats, operations *syncOperations, forceUpdate bool, memMonitor *monitor.MemoryMonitor) error {
+func (s *SyncService) processRepositoriesInBatchesWithForceAndMonitor(ctx context.Context, repos []github.Repository, batchSize int, stats *SyncStats, operations *syncOperations, forceUpdate bool, memMonitor interface{}) error {
 	if len(repos) == 0 {
 		return nil
 	}
@@ -590,16 +564,9 @@ func (s *SyncService) processRepositoriesInBatchesWithForceAndMonitor(ctx contex
 
 		progress.Finish(fmt.Sprintf("Completed batch %d/%d", batchNum, totalBatches))
 
-		// Memory optimization between batches
-		if memMonitor.ShouldOptimize() {
-			s.logVerbose("Optimizing memory between batches...")
-			memMonitor.OptimizeMemory()
-		}
-
 		// Small delay between batches to be respectful to APIs
 		if batchNum < totalBatches {
 			s.logVerbose("Waiting between batches...")
-			s.logVerbose(fmt.Sprintf("Memory stats after batch %d:\n%s", batchNum, memMonitor.GetFormattedStats()))
 			time.Sleep(2 * time.Second)
 		}
 	}
@@ -686,11 +653,6 @@ func (s *SyncService) processBatch(ctx context.Context, batch []github.Repositor
 	}
 
 	return nil
-}
-
-func (s *SyncService) processRepositoriesInBatchesWithForce(ctx context.Context, repos []github.Repository, batchSize int, stats *SyncStats, operations *syncOperations, forceUpdate bool) error {
-	// Use the service's memory monitor for backward compatibility
-	return s.processRepositoriesInBatchesWithForceAndMonitor(ctx, repos, batchSize, stats, operations, forceUpdate, s.memoryMonitor)
 }
 
 // processWorker processes repositories in parallel

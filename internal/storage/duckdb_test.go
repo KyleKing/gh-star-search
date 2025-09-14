@@ -69,9 +69,8 @@ func TestDuckDBRepository(t *testing.T) {
 			t.Errorf("Expected description %s, got %s", testRepo.Repository.Description, stored.Description)
 		}
 
-		// Content chunks are deprecated and no longer stored
-		if len(stored.Chunks) != 0 {
-			t.Errorf("Expected 0 chunks (deprecated), got %d", len(stored.Chunks))
+		if len(stored.Chunks) != 2 {
+			t.Errorf("Expected 2 chunks, got %d", len(stored.Chunks))
 		}
 	})
 

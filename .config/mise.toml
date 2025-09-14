@@ -19,7 +19,7 @@ run = ["hk fix --quiet"]
 [tasks.test]
 description = "Run test"
 # https://stackoverflow.com/a/21725603/3219667
-run = "go test -timeout=180s -coverprofile=coverage.out -coverpkg=./... ./..."
+run = "go test -timeout=30s -coverprofile=coverage.out -coverpkg=./... ./..."
 
 [tasks."test:view-coverage"]
 description = "View last run test coverage. Alternatively, use `gocovsh`"
