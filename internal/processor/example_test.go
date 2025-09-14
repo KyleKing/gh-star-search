@@ -64,9 +64,9 @@ func ExampleService_ProcessRepository() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("Processed repository: %s\n", processed.Repository.FullName)
-	fmt.Printf("Number of chunks: %d\n", len(processed.Chunks))
-	fmt.Printf("Content hash length: %d\n", len(processed.ContentHash))
+	_, _ = fmt.Printf("Processed repository: %s\n", processed.Repository.FullName)
+	_, _ = fmt.Printf("Number of chunks: %d\n", len(processed.Chunks))
+	_, _ = fmt.Printf("Content hash length: %d\n", len(processed.ContentHash))
 
 	// Display chunk information
 	for i, chunk := range processed.Chunks {

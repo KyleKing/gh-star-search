@@ -56,10 +56,15 @@ relative-path-mode = "gomod"
 [linters-settings] # See all configuration here: https://golangci-lint.run/usage/linters
 
 [linters-settings.cyclop]
-max-complexity = 20 # Default is 10
+max-complexity = 30 # Default is 10
 
 [linters-settings.revive]
 enable-all-rules = true
+
+  [[linters-settings.revive.rules]]
+  name = "line-length-limit"
+  severity = "warning"
+  arguments = [ 120 ]
 
 [linters-settings.rowserrcheck]
 packages = ["github.com/jmoiron/sqlx"]

@@ -15,6 +15,25 @@ import (
 	"github.com/kyleking/gh-star-search/internal/config"
 )
 
+const (
+	testLogLevelUnknown = 999
+	testFormatText      = "text"
+	testFormatJSON      = "json"
+	testLevelInfo       = "info"
+	testLevelWarn       = "warn"
+	testLevelDebug      = "debug"
+	testOutputFile      = "file"
+	testMessage         = "test message"
+	testWarnMessage     = "warn message"
+	testErrorMessage    = "error message"
+	testOperation       = "test_operation"
+	testNewline         = "\n"
+	testLevelWarnUpper  = "WARN"
+	testLevelErrorUpper = "ERROR"
+	testLevelInfoUpper  = "INFO"
+	testLevelDebugUpper = "DEBUG"
+)
+
 func TestParseLogLevel(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -50,7 +69,7 @@ func TestLogLevelString(t *testing.T) {
 		{InfoLevel, "INFO"},
 		{WarnLevel, "WARN"},
 		{ErrorLevel, "ERROR"},
-		{LogLevel(999), "UNKNOWN"},
+		{LogLevel(999), "UNKNOWN"}, // 999 is an invalid log level for testing
 	}
 
 	for _, tt := range tests {
@@ -139,7 +158,7 @@ func TestNewLoggerInvalidOutput(t *testing.T) {
 	}
 
 	logger, err := NewLogger(cfg)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, logger)
 	assert.Contains(t, err.Error(), "invalid log output")
 }
@@ -151,7 +170,7 @@ func TestLoggerWithField(t *testing.T) {
 		level:  InfoLevel,
 		format: "json",
 		output: &buf,
-		fields: make(map[string]interface{}),
+		fields: make(map[string]any),
 	}
 
 	newLogger := logger.WithField("key", "value")
@@ -172,10 +191,10 @@ func TestLoggerWithFields(t *testing.T) {
 		level:  InfoLevel,
 		format: "json",
 		output: &buf,
-		fields: make(map[string]interface{}),
+		fields: make(map[string]any),
 	}
 
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"key1": "value1",
 		"key2": 42,
 		"key3": true,
@@ -190,7 +209,8 @@ func TestLoggerWithFields(t *testing.T) {
 
 	assert.Equal(t, "test message", entry.Message)
 	assert.Equal(t, "value1", entry.Fields["key1"])
-	assert.Equal(t, float64(42), entry.Fields["key2"]) // JSON unmarshals numbers as float64
+	assert.Equal(t, float64(42), entry.Fields["key2"])
+	// JSON unmarshals numbers as float64
 	assert.Equal(t, true, entry.Fields["key3"])
 }
 
@@ -201,7 +221,7 @@ func TestLoggerWithError(t *testing.T) {
 		level:  InfoLevel,
 		format: "json",
 		output: &buf,
-		fields: make(map[string]interface{}),
+		fields: make(map[string]any),
 	}
 
 	testErr := assert.AnError
@@ -223,11 +243,12 @@ func TestLoggerWithErrorNil(t *testing.T) {
 		level:  InfoLevel,
 		format: "json",
 		output: &buf,
-		fields: make(map[string]interface{}),
+		fields: make(map[string]any),
 	}
 
 	newLogger := logger.WithError(nil)
-	assert.Equal(t, logger, newLogger) // Should return same logger when error is nil
+	assert.Equal(t, logger, newLogger)
+	// Should return same logger when error is nil
 }
 
 func TestLoggerLevels(t *testing.T) {
@@ -237,7 +258,7 @@ func TestLoggerLevels(t *testing.T) {
 		level:  WarnLevel,
 		format: "json",
 		output: &buf,
-		fields: make(map[string]interface{}),
+		fields: make(map[string]any),
 	}
 
 	// These should not be logged (below threshold)
@@ -276,7 +297,7 @@ func TestLoggerFormattedMessages(t *testing.T) {
 		level:  InfoLevel,
 		format: "json",
 		output: &buf,
-		fields: make(map[string]interface{}),
+		fields: make(map[string]any),
 	}
 
 	logger.Infof("formatted message: %s %d", "test", 42)
@@ -295,7 +316,7 @@ func TestLoggerErrorWithErr(t *testing.T) {
 		level:  InfoLevel,
 		format: "json",
 		output: &buf,
-		fields: make(map[string]interface{}),
+		fields: make(map[string]any),
 	}
 
 	testErr := assert.AnError
@@ -335,7 +356,7 @@ func TestLoggerTextFormatWithCaller(t *testing.T) {
 		level:      InfoLevel,
 		format:     "text",
 		output:     &buf,
-		fields:     make(map[string]interface{}),
+		fields:     make(map[string]any),
 		showCaller: true,
 	}
 
@@ -364,7 +385,7 @@ func TestLoggerClose(t *testing.T) {
 	logger.Info("test message")
 
 	err = logger.Close()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify file was written
 	content, err := os.ReadFile(logFile)
@@ -388,7 +409,7 @@ func TestInitializeLogger(t *testing.T) {
 
 	// Clean up
 	if logger := GetLogger(); logger != nil {
-		logger.Close()
+		_ = logger.Close()
 	}
 }
 
@@ -400,7 +421,7 @@ func TestGlobalLoggingFunctions(t *testing.T) {
 		level:  InfoLevel,
 		format: "json",
 		output: &buf,
-		fields: make(map[string]interface{}),
+		fields: make(map[string]any),
 	}
 
 	Info("info message")
@@ -427,7 +448,7 @@ func TestLoggerMiddleware(t *testing.T) {
 		level:  DebugLevel,
 		format: "json",
 		output: &buf,
-		fields: make(map[string]interface{}),
+		fields: make(map[string]any),
 	}
 
 	// Test successful operation
@@ -436,7 +457,7 @@ func TestLoggerMiddleware(t *testing.T) {
 		return nil
 	})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	output := buf.String()
 	lines := strings.Split(strings.TrimSpace(output), "\n")
@@ -466,7 +487,7 @@ func TestLoggerMiddlewareWithError(t *testing.T) {
 		level:  DebugLevel,
 		format: "json",
 		output: &buf,
-		fields: make(map[string]interface{}),
+		fields: make(map[string]any),
 	}
 
 	testErr := assert.AnError

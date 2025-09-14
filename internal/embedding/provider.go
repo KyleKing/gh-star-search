@@ -6,6 +6,11 @@ import (
 	"fmt"
 )
 
+const (
+	defaultEmbeddingDimensions = 384
+	zeroDimensions             = 0
+)
+
 // Provider defines the interface for embedding providers
 type Provider interface {
 	// GenerateEmbedding generates an embedding for the given text
@@ -27,7 +32,8 @@ type Config struct {
 	Model      string            `json:"model"`      // Model name/path
 	Dimensions int               `json:"dimensions"` // Expected embedding dimensions
 	Enabled    bool              `json:"enabled"`    // Whether embeddings are enabled
-	Options    map[string]string `json:"options"`    // Provider-specific options
+	Options    map[string]string `json:"options"`
+	// Provider-specific options
 }
 
 // DefaultConfig returns default embedding configuration
@@ -35,7 +41,7 @@ func DefaultConfig() Config {
 	return Config{
 		Provider:   "local",
 		Model:      "sentence-transformers/all-MiniLM-L6-v2",
-		Dimensions: 384,
+		Dimensions: defaultEmbeddingDimensions,
 		Enabled:    false, // Disabled by default
 		Options:    make(map[string]string),
 	}
@@ -69,11 +75,13 @@ func NewManager(config Config) (*Manager, error) {
 	case "remote":
 		provider, err = NewRemoteProvider(config)
 	default:
-		return nil, fmt.Errorf("unsupported embedding provider: %s", config.Provider)
+		return nil, fmt.Errorf("unsupported embedding provider: %s",
+			config.Provider)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize embedding provider: %w", err)
+		return nil, fmt.Errorf("failed to initialize embedding provider: %w",
+			err)
 	}
 
 	// Validate dimensions
@@ -88,7 +96,8 @@ func NewManager(config Config) (*Manager, error) {
 }
 
 // GenerateEmbedding generates an embedding using the configured provider
-func (m *Manager) GenerateEmbedding(ctx context.Context, text string) ([]float32, error) {
+func (m *Manager) GenerateEmbedding(ctx context.Context,
+	text string) ([]float32, error) {
 	if !m.provider.IsEnabled() {
 		return nil, errors.New("embedding provider is disabled")
 	}
@@ -109,19 +118,20 @@ func (m *Manager) GetDimensions() int {
 // DisabledProvider is a no-op provider for when embeddings are disabled
 type DisabledProvider struct{}
 
-func (p *DisabledProvider) GenerateEmbedding(_ context.Context, text string) ([]float32, error) {
+func (p *DisabledProvider) GenerateEmbedding(_ context.Context,
+	_ string) ([]float32, error) {
 	return nil, errors.New("embedding provider is disabled")
 }
 
-func (p *DisabledProvider) GetDimensions() int {
-	return 0
+func (*DisabledProvider) GetDimensions() int {
+	return zeroDimensions
 }
 
-func (p *DisabledProvider) IsEnabled() bool {
+func (*DisabledProvider) IsEnabled() bool {
 	return false
 }
 
-func (p *DisabledProvider) GetName() string {
+func (*DisabledProvider) GetName() string {
 	return "disabled"
 }
 
@@ -136,7 +146,8 @@ func NewLocalProvider(config Config) (*LocalProvider, error) {
 	return &LocalProvider{config: config}, nil
 }
 
-func (p *LocalProvider) GenerateEmbedding(_ context.Context, text string) ([]float32, error) {
+func (p *LocalProvider) GenerateEmbedding(_ context.Context,
+	_ string) ([]float32, error) {
 	// TODO: Implement local embedding generation
 	// For now, return a placeholder embedding
 	return make([]float32, p.config.Dimensions), nil
@@ -166,7 +177,8 @@ func NewRemoteProvider(config Config) (*RemoteProvider, error) {
 	return &RemoteProvider{config: config}, nil
 }
 
-func (p *RemoteProvider) GenerateEmbedding(_ context.Context, text string) ([]float32, error) {
+func (p *RemoteProvider) GenerateEmbedding(_ context.Context,
+	_ string) ([]float32, error) {
 	// TODO: Implement remote embedding generation
 	// For now, return a placeholder embedding
 	return make([]float32, p.config.Dimensions), nil

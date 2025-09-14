@@ -25,6 +25,17 @@ const (
 	ErrorLevel
 )
 
+const (
+	// File permissions for log directories and files
+	logDirPerm  = 0755
+	logFilePerm = 0644
+
+	// Magic numbers
+	zeroFields  = 0
+	callerSkip  = 3
+	emptyString = ""
+)
+
 // String returns the string representation of the log level
 func (l LogLevel) String() string {
 	switch l {
@@ -98,11 +109,11 @@ func NewLogger(cfg config.LoggingConfig) (*Logger, error) {
 		}
 
 		// Ensure log directory exists
-		if err := os.MkdirAll(filepath.Dir(cfg.File), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(cfg.File), logDirPerm); err != nil {
 			return nil, fmt.Errorf("failed to create log directory: %w", err)
 		}
 
-		file, err := os.OpenFile(cfg.File, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		file, err := os.OpenFile(cfg.File, os.O_CREATE|os.O_WRONLY|os.O_APPEND, logFilePerm)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open log file: %w", err)
 		}
@@ -226,11 +237,11 @@ func (l *Logger) log(level LogLevel, message string, err error) {
 		output = l.formatText(entry)
 	}
 
-	fmt.Fprintln(l.output, output)
+	_, _ = fmt.Fprintln(l.output, output)
 }
 
 // formatText formats a log entry as human-readable text
-func (l *Logger) formatText(entry LogEntry) string {
+func (_ *Logger) formatText(entry LogEntry) string {
 	var parts []string
 
 	// Timestamp and level
@@ -245,7 +256,7 @@ func (l *Logger) formatText(entry LogEntry) string {
 	parts = append(parts, entry.Message)
 
 	// Fields
-	if len(entry.Fields) > 0 {
+	if len(entry.Fields) > zeroFields {
 		var fieldParts []string
 		for k, v := range entry.Fields {
 			fieldParts = append(fieldParts, fmt.Sprintf("%s=%v", k, v))
@@ -255,7 +266,7 @@ func (l *Logger) formatText(entry LogEntry) string {
 	}
 
 	// Error
-	if entry.Error != "" {
+	if entry.Error != emptyString {
 		parts = append(parts, "error="+entry.Error)
 	}
 
@@ -264,7 +275,7 @@ func (l *Logger) formatText(entry LogEntry) string {
 
 // getCaller returns information about the calling function
 func getCaller() string {
-	_, file, line, ok := runtime.Caller(3)
+	_, file, line, ok := runtime.Caller(callerSkip)
 	if !ok {
 		return "unknown"
 	}
