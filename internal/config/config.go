@@ -12,15 +12,15 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Database   DatabaseConfig   `json:"database"`
-	GitHub     GitHubConfig     `json:"github"`
-	Cache      CacheConfig      `json:"cache"`
-	Logging    LoggingConfig    `json:"logging"`
-	Debug      DebugConfig      `json:"debug"`
-	Search     SearchConfig     `json:"search"`
-	Embeddings EmbeddingConfig  `json:"embeddings"`
-	Summary    SummaryConfig    `json:"summary"`
-	Refresh    RefreshConfig    `json:"refresh"`
+	Database   DatabaseConfig  `json:"database"`
+	GitHub     GitHubConfig    `json:"github"`
+	Cache      CacheConfig     `json:"cache"`
+	Logging    LoggingConfig   `json:"logging"`
+	Debug      DebugConfig     `json:"debug"`
+	Search     SearchConfig    `json:"search"`
+	Embeddings EmbeddingConfig `json:"embeddings"`
+	Summary    SummaryConfig   `json:"summary"`
+	Refresh    RefreshConfig   `json:"refresh"`
 }
 
 // DatabaseConfig represents database configuration
@@ -39,12 +39,12 @@ type GitHubConfig struct {
 
 // CacheConfig represents caching configuration
 type CacheConfig struct {
-	Directory        string `json:"directory"`
-	MaxSizeMB        int    `json:"max_size_mb"`
-	TTLHours         int    `json:"ttl_hours"`
-	CleanupFreq      string `json:"cleanup_frequency"`
-	MetadataStaleDays int   `json:"metadata_stale_days"`
-	StatsStaleDays    int   `json:"stats_stale_days"`
+	Directory         string `json:"directory"`
+	MaxSizeMB         int    `json:"max_size_mb"`
+	TTLHours          int    `json:"ttl_hours"`
+	CleanupFreq       string `json:"cleanup_frequency"`
+	MetadataStaleDays int    `json:"metadata_stale_days"`
+	StatsStaleDays    int    `json:"stats_stale_days"`
 }
 
 // LoggingConfig represents logging configuration
@@ -84,9 +84,9 @@ type EmbeddingConfig struct {
 
 // SummaryConfig represents summarization configuration
 type SummaryConfig struct {
-	Version           int    `json:"version"`             // Summary format version
-	TransformersModel string `json:"transformers_model"`  // Python transformers model
-	Enabled           bool   `json:"enabled"`             // Whether summarization is enabled
+	Version           int    `json:"version"`            // Summary format version
+	TransformersModel string `json:"transformers_model"` // Python transformers model
+	Enabled           bool   `json:"enabled"`            // Whether summarization is enabled
 }
 
 // RefreshConfig represents refresh and caching configuration
@@ -220,11 +220,13 @@ func applyEnvironmentOverrides(config *Config) error {
 	if val := os.Getenv("GH_STAR_SEARCH_DB_PATH"); val != "" {
 		config.Database.Path = val
 	}
+
 	if val := os.Getenv("GH_STAR_SEARCH_DB_MAX_CONNECTIONS"); val != "" {
 		if intVal, err := strconv.Atoi(val); err == nil {
 			config.Database.MaxConnections = intVal
 		}
 	}
+
 	if val := os.Getenv("GH_STAR_SEARCH_DB_QUERY_TIMEOUT"); val != "" {
 		config.Database.QueryTimeout = val
 	}
@@ -235,11 +237,13 @@ func applyEnvironmentOverrides(config *Config) error {
 			config.GitHub.RateLimit = intVal
 		}
 	}
+
 	if val := os.Getenv("GH_STAR_SEARCH_GITHUB_RETRY_ATTEMPTS"); val != "" {
 		if intVal, err := strconv.Atoi(val); err == nil {
 			config.GitHub.RetryAttempts = intVal
 		}
 	}
+
 	if val := os.Getenv("GH_STAR_SEARCH_GITHUB_TIMEOUT"); val != "" {
 		config.GitHub.Timeout = val
 	}
@@ -248,21 +252,25 @@ func applyEnvironmentOverrides(config *Config) error {
 	if val := os.Getenv("GH_STAR_SEARCH_CACHE_DIR"); val != "" {
 		config.Cache.Directory = val
 	}
+
 	if val := os.Getenv("GH_STAR_SEARCH_CACHE_MAX_SIZE_MB"); val != "" {
 		if intVal, err := strconv.Atoi(val); err == nil {
 			config.Cache.MaxSizeMB = intVal
 		}
 	}
+
 	if val := os.Getenv("GH_STAR_SEARCH_CACHE_TTL_HOURS"); val != "" {
 		if intVal, err := strconv.Atoi(val); err == nil {
 			config.Cache.TTLHours = intVal
 		}
 	}
+
 	if val := os.Getenv("GH_STAR_SEARCH_CACHE_METADATA_STALE_DAYS"); val != "" {
 		if intVal, err := strconv.Atoi(val); err == nil {
 			config.Cache.MetadataStaleDays = intVal
 		}
 	}
+
 	if val := os.Getenv("GH_STAR_SEARCH_CACHE_STATS_STALE_DAYS"); val != "" {
 		if intVal, err := strconv.Atoi(val); err == nil {
 			config.Cache.StatsStaleDays = intVal
@@ -273,12 +281,15 @@ func applyEnvironmentOverrides(config *Config) error {
 	if val := os.Getenv("GH_STAR_SEARCH_LOG_LEVEL"); val != "" {
 		config.Logging.Level = val
 	}
+
 	if val := os.Getenv("GH_STAR_SEARCH_LOG_FORMAT"); val != "" {
 		config.Logging.Format = val
 	}
+
 	if val := os.Getenv("GH_STAR_SEARCH_LOG_OUTPUT"); val != "" {
 		config.Logging.Output = val
 	}
+
 	if val := os.Getenv("GH_STAR_SEARCH_LOG_FILE"); val != "" {
 		config.Logging.File = val
 	}
@@ -287,6 +298,7 @@ func applyEnvironmentOverrides(config *Config) error {
 	if val := os.Getenv("GH_STAR_SEARCH_DEBUG"); val != "" {
 		config.Debug.Enabled = strings.ToLower(val) == "true"
 	}
+
 	if val := os.Getenv("GH_STAR_SEARCH_VERBOSE"); val != "" {
 		config.Debug.Verbose = strings.ToLower(val) == "true"
 	}
@@ -330,9 +342,11 @@ func mergeConfigs(target, source *Config) {
 	if source.Database.Path != "" {
 		target.Database.Path = source.Database.Path
 	}
+
 	if source.Database.MaxConnections > 0 {
 		target.Database.MaxConnections = source.Database.MaxConnections
 	}
+
 	if source.Database.QueryTimeout != "" {
 		target.Database.QueryTimeout = source.Database.QueryTimeout
 	}
@@ -341,9 +355,11 @@ func mergeConfigs(target, source *Config) {
 	if source.GitHub.RateLimit > 0 {
 		target.GitHub.RateLimit = source.GitHub.RateLimit
 	}
+
 	if source.GitHub.RetryAttempts > 0 {
 		target.GitHub.RetryAttempts = source.GitHub.RetryAttempts
 	}
+
 	if source.GitHub.Timeout != "" {
 		target.GitHub.Timeout = source.GitHub.Timeout
 	}
@@ -352,18 +368,23 @@ func mergeConfigs(target, source *Config) {
 	if source.Cache.Directory != "" {
 		target.Cache.Directory = source.Cache.Directory
 	}
+
 	if source.Cache.MaxSizeMB > 0 {
 		target.Cache.MaxSizeMB = source.Cache.MaxSizeMB
 	}
+
 	if source.Cache.TTLHours > 0 {
 		target.Cache.TTLHours = source.Cache.TTLHours
 	}
+
 	if source.Cache.CleanupFreq != "" {
 		target.Cache.CleanupFreq = source.Cache.CleanupFreq
 	}
+
 	if source.Cache.MetadataStaleDays > 0 {
 		target.Cache.MetadataStaleDays = source.Cache.MetadataStaleDays
 	}
+
 	if source.Cache.StatsStaleDays > 0 {
 		target.Cache.StatsStaleDays = source.Cache.StatsStaleDays
 	}
@@ -372,21 +393,27 @@ func mergeConfigs(target, source *Config) {
 	if source.Logging.Level != "" {
 		target.Logging.Level = source.Logging.Level
 	}
+
 	if source.Logging.Format != "" {
 		target.Logging.Format = source.Logging.Format
 	}
+
 	if source.Logging.Output != "" {
 		target.Logging.Output = source.Logging.Output
 	}
+
 	if source.Logging.File != "" {
 		target.Logging.File = source.Logging.File
 	}
+
 	if source.Logging.MaxSizeMB > 0 {
 		target.Logging.MaxSizeMB = source.Logging.MaxSizeMB
 	}
+
 	if source.Logging.MaxBackups > 0 {
 		target.Logging.MaxBackups = source.Logging.MaxBackups
 	}
+
 	if source.Logging.MaxAgeDays > 0 {
 		target.Logging.MaxAgeDays = source.Logging.MaxAgeDays
 	}
@@ -395,9 +422,11 @@ func mergeConfigs(target, source *Config) {
 	target.Debug.Enabled = source.Debug.Enabled
 	target.Debug.Verbose = source.Debug.Verbose
 	target.Debug.TraceAPI = source.Debug.TraceAPI
+
 	if source.Debug.ProfilePort > 0 {
 		target.Debug.ProfilePort = source.Debug.ProfilePort
 	}
+
 	if source.Debug.MetricsPort > 0 {
 		target.Debug.MetricsPort = source.Debug.MetricsPort
 	}
@@ -406,6 +435,7 @@ func mergeConfigs(target, source *Config) {
 	if source.Search.DefaultMode != "" {
 		target.Search.DefaultMode = source.Search.DefaultMode
 	}
+
 	if source.Search.MinScore > 0 {
 		target.Search.MinScore = source.Search.MinScore
 	}
@@ -414,12 +444,15 @@ func mergeConfigs(target, source *Config) {
 	if source.Embeddings.Provider != "" {
 		target.Embeddings.Provider = source.Embeddings.Provider
 	}
+
 	if source.Embeddings.Model != "" {
 		target.Embeddings.Model = source.Embeddings.Model
 	}
+
 	if source.Embeddings.Dimensions > 0 {
 		target.Embeddings.Dimensions = source.Embeddings.Dimensions
 	}
+
 	target.Embeddings.Enabled = source.Embeddings.Enabled
 	if source.Embeddings.Options != nil {
 		target.Embeddings.Options = source.Embeddings.Options
@@ -429,18 +462,22 @@ func mergeConfigs(target, source *Config) {
 	if source.Summary.Version > 0 {
 		target.Summary.Version = source.Summary.Version
 	}
+
 	if source.Summary.TransformersModel != "" {
 		target.Summary.TransformersModel = source.Summary.TransformersModel
 	}
+
 	target.Summary.Enabled = source.Summary.Enabled
 
 	// Refresh
 	if source.Refresh.MetadataStaleDays > 0 {
 		target.Refresh.MetadataStaleDays = source.Refresh.MetadataStaleDays
 	}
+
 	if source.Refresh.StatsStaleDays > 0 {
 		target.Refresh.StatsStaleDays = source.Refresh.StatsStaleDays
 	}
+
 	target.Refresh.ForceSummary = source.Refresh.ForceSummary
 }
 
@@ -474,9 +511,11 @@ func validateConfig(config *Config) error {
 	if _, err := time.ParseDuration(config.Database.QueryTimeout); err != nil {
 		return fmt.Errorf("invalid database query timeout: %s", config.Database.QueryTimeout)
 	}
+
 	if _, err := time.ParseDuration(config.GitHub.Timeout); err != nil {
 		return fmt.Errorf("invalid GitHub timeout: %s", config.GitHub.Timeout)
 	}
+
 	if _, err := time.ParseDuration(config.Cache.CleanupFreq); err != nil {
 		return fmt.Errorf("invalid cache cleanup frequency: %s", config.Cache.CleanupFreq)
 	}
@@ -485,9 +524,11 @@ func validateConfig(config *Config) error {
 	if config.Database.MaxConnections <= 0 {
 		return fmt.Errorf("database max connections must be positive: %d", config.Database.MaxConnections)
 	}
+
 	if config.GitHub.RateLimit <= 0 {
 		return fmt.Errorf("GitHub rate limit must be positive: %d", config.GitHub.RateLimit)
 	}
+
 	if config.GitHub.RetryAttempts < 0 {
 		return fmt.Errorf("GitHub retry attempts must be non-negative: %d", config.GitHub.RetryAttempts)
 	}
@@ -529,6 +570,7 @@ func getConfigPath() string {
 	if err != nil {
 		return "./config.json"
 	}
+
 	return filepath.Join(homeDir, ".config", "gh-star-search", "config.json")
 }
 
@@ -567,6 +609,7 @@ func GetConfigDir() string {
 	if err != nil {
 		return ".config/gh-star-search"
 	}
+
 	return filepath.Join(homeDir, ".config", "gh-star-search")
 }
 
@@ -576,6 +619,7 @@ func GetCacheDir() string {
 	if err != nil {
 		return ".cache/gh-star-search"
 	}
+
 	return filepath.Join(homeDir, ".cache", "gh-star-search")
 }
 

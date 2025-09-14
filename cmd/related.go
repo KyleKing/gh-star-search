@@ -36,7 +36,7 @@ Examples:
 
 func init() {
 	relatedCmd.Flags().IntVar(&relatedLimit, "limit", 5, "Maximum number of related repositories to show (1-20)")
-	
+
 	// Add to root command
 	rootCmd.AddCommand(relatedCmd)
 }
@@ -77,7 +77,7 @@ func runRelated(cmd *cobra.Command, args []string) error {
 	// Verify the target repository exists
 	targetRepo, err := repo.GetRepository(ctx, repoFullName)
 	if err != nil {
-		return errors.Wrap(err, errors.ErrTypeValidation, 
+		return errors.Wrap(err, errors.ErrTypeValidation,
 			fmt.Sprintf("repository '%s' not found in your starred repositories", repoFullName))
 	}
 
@@ -104,6 +104,7 @@ func runRelated(cmd *cobra.Command, args []string) error {
 	// Display each related repository in short form with explanation
 	for i, rel := range relatedRepos {
 		displayRelatedRepository(i+1, rel, targetRepo)
+
 		if i < len(relatedRepos)-1 {
 			fmt.Println() // Add spacing between results
 		}
@@ -121,7 +122,7 @@ func validateRepositoryName(repoName string) error {
 	// Check for owner/name format
 	parts := strings.Split(repoName, "/")
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return errors.New(errors.ErrTypeValidation, 
+		return errors.New(errors.ErrTypeValidation,
 			"repository must be in 'owner/name' format (e.g., 'facebook/react')")
 	}
 
@@ -131,26 +132,28 @@ func validateRepositoryName(repoName string) error {
 // displayRelatedRepository displays a related repository result
 func displayRelatedRepository(rank int, rel related.RelatedRepository, targetRepo *storage.StoredRepo) {
 	repo := rel.Repository
-	
+
 	// First line: rank, name, stars, primary language, score
 	primaryLang := repo.Language
 	if primaryLang == "" {
 		primaryLang = "Unknown"
 	}
-	
+
 	fmt.Printf("%d. %s  ⭐ %d  %s  Score: %.2f\n",
 		rank, repo.FullName, repo.StargazersCount, primaryLang, rel.Score)
-	
+
 	// Second line: truncated description
 	description := repo.Description
 	if len(description) > 80 {
 		description = description[:77] + "..."
 	}
+
 	if description == "" {
 		description = "-"
 	}
+
 	fmt.Printf("   %s\n", description)
-	
+
 	// Third line: relationship explanation
 	fmt.Printf("   Related: %s\n", rel.Explanation)
 }

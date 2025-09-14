@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -36,7 +37,7 @@ type CacheEntry struct {
 
 // GetStarredRepos fetches starred repositories with caching
 func (c *CachedClient) GetStarredRepos(ctx context.Context, username string) ([]Repository, error) {
-	cacheKey := fmt.Sprintf("starred_repos:%s", username)
+	cacheKey := "starred_repos:" + username
 	ttl := time.Duration(c.config.Cache.MetadataStaleDays) * 24 * time.Hour
 
 	// Try to get from cache first
@@ -84,7 +85,7 @@ func (c *CachedClient) GetRepositoryContent(ctx context.Context, repo Repository
 
 // GetRepositoryMetadata fetches repository metadata with caching
 func (c *CachedClient) GetRepositoryMetadata(ctx context.Context, repo Repository) (*Metadata, error) {
-	cacheKey := fmt.Sprintf("metadata:%s", repo.FullName)
+	cacheKey := "metadata:" + repo.FullName
 	ttl := time.Duration(c.config.Cache.MetadataStaleDays) * 24 * time.Hour
 
 	// Try to get from cache first
@@ -120,24 +121,30 @@ func (c *CachedClient) GetContributors(ctx context.Context, fullName string, top
 		case []interface{}:
 			// Convert []interface{} to []Contributor
 			contributors := make([]Contributor, len(v))
+
 			for i, item := range v {
 				if itemMap, ok := item.(map[string]interface{}); ok {
 					contributor := Contributor{}
 					if login, ok := itemMap["login"].(string); ok {
 						contributor.Login = login
 					}
+
 					if contributions, ok := itemMap["contributions"].(float64); ok {
 						contributor.Contributions = int(contributions)
 					}
+
 					if contributorType, ok := itemMap["type"].(string); ok {
 						contributor.Type = contributorType
 					}
+
 					if avatarURL, ok := itemMap["avatar_url"].(string); ok {
 						contributor.AvatarURL = avatarURL
 					}
+
 					contributors[i] = contributor
 				}
 			}
+
 			return contributors, nil
 		}
 	}
@@ -156,7 +163,7 @@ func (c *CachedClient) GetContributors(ctx context.Context, fullName string, top
 
 // GetTopics fetches topics with metadata-level caching
 func (c *CachedClient) GetTopics(ctx context.Context, fullName string) ([]string, error) {
-	cacheKey := fmt.Sprintf("topics:%s", fullName)
+	cacheKey := "topics:" + fullName
 	ttl := time.Duration(c.config.Cache.MetadataStaleDays) * 24 * time.Hour
 
 	// Try to get from cache first
@@ -168,11 +175,13 @@ func (c *CachedClient) GetTopics(ctx context.Context, fullName string) ([]string
 		case []interface{}:
 			// Convert []interface{} to []string
 			topics := make([]string, len(v))
+
 			for i, item := range v {
 				if str, ok := item.(string); ok {
 					topics[i] = str
 				}
 			}
+
 			return topics, nil
 		}
 	}
@@ -191,7 +200,7 @@ func (c *CachedClient) GetTopics(ctx context.Context, fullName string) ([]string
 
 // GetLanguages fetches languages with metadata-level caching
 func (c *CachedClient) GetLanguages(ctx context.Context, fullName string) (map[string]int64, error) {
-	cacheKey := fmt.Sprintf("languages:%s", fullName)
+	cacheKey := "languages:" + fullName
 	ttl := time.Duration(c.config.Cache.MetadataStaleDays) * 24 * time.Hour
 
 	// Try to get from cache first
@@ -203,11 +212,13 @@ func (c *CachedClient) GetLanguages(ctx context.Context, fullName string) (map[s
 		case map[string]interface{}:
 			// Convert map[string]interface{} to map[string]int64
 			languages := make(map[string]int64)
+
 			for key, value := range v {
 				if floatVal, ok := value.(float64); ok {
 					languages[key] = int64(floatVal)
 				}
 			}
+
 			return languages, nil
 		}
 	}
@@ -226,7 +237,7 @@ func (c *CachedClient) GetLanguages(ctx context.Context, fullName string) (map[s
 
 // GetCommitActivity fetches commit activity with stats-level caching
 func (c *CachedClient) GetCommitActivity(ctx context.Context, fullName string) (*CommitActivity, error) {
-	cacheKey := fmt.Sprintf("commits:%s", fullName)
+	cacheKey := "commits:" + fullName
 	ttl := time.Duration(c.config.Cache.StatsStaleDays) * 24 * time.Hour
 
 	// Try to get from cache first
@@ -250,7 +261,7 @@ func (c *CachedClient) GetCommitActivity(ctx context.Context, fullName string) (
 
 // GetPullCounts fetches PR counts with stats-level caching
 func (c *CachedClient) GetPullCounts(ctx context.Context, fullName string) (open int, total int, err error) {
-	cacheKey := fmt.Sprintf("prs:%s", fullName)
+	cacheKey := "prs:" + fullName
 	ttl := time.Duration(c.config.Cache.StatsStaleDays) * 24 * time.Hour
 
 	// Try to get from cache first
@@ -265,9 +276,11 @@ func (c *CachedClient) GetPullCounts(ctx context.Context, fullName string) (open
 			if openFloat, ok := v["open"].(float64); ok {
 				openVal = int(openFloat)
 			}
+
 			if totalFloat, ok := v["total"].(float64); ok {
 				totalVal = int(totalFloat)
 			}
+
 			return openVal, totalVal, nil
 		}
 	}
@@ -287,7 +300,7 @@ func (c *CachedClient) GetPullCounts(ctx context.Context, fullName string) (open
 
 // GetIssueCounts fetches issue counts with stats-level caching
 func (c *CachedClient) GetIssueCounts(ctx context.Context, fullName string) (open int, total int, err error) {
-	cacheKey := fmt.Sprintf("issues:%s", fullName)
+	cacheKey := "issues:" + fullName
 	ttl := time.Duration(c.config.Cache.StatsStaleDays) * 24 * time.Hour
 
 	// Try to get from cache first
@@ -302,9 +315,11 @@ func (c *CachedClient) GetIssueCounts(ctx context.Context, fullName string) (ope
 			if openFloat, ok := v["open"].(float64); ok {
 				openVal = int(openFloat)
 			}
+
 			if totalFloat, ok := v["total"].(float64); ok {
 				totalVal = int(totalFloat)
 			}
+
 			return openVal, totalVal, nil
 		}
 	}
@@ -324,7 +339,7 @@ func (c *CachedClient) GetIssueCounts(ctx context.Context, fullName string) (ope
 
 // GetHomepageText fetches homepage text with metadata-level caching
 func (c *CachedClient) GetHomepageText(ctx context.Context, url string) (string, error) {
-	cacheKey := fmt.Sprintf("homepage:%s", url)
+	cacheKey := "homepage:" + url
 	ttl := time.Duration(c.config.Cache.MetadataStaleDays) * 24 * time.Hour
 
 	// Try to get from cache first
@@ -360,7 +375,7 @@ func (c *CachedClient) getCachedData(ctx context.Context, key string, maxAge tim
 
 	// Check if entry has expired based on maxAge
 	if time.Since(entry.CachedAt) > maxAge {
-		return nil, fmt.Errorf("cache entry expired")
+		return nil, errors.New("cache entry expired")
 	}
 
 	return entry.Data, nil
@@ -390,12 +405,12 @@ func (c *CachedClient) InvalidateCache(ctx context.Context, fullName string) err
 	// List of cache key patterns to invalidate
 	patterns := []string{
 		fmt.Sprintf("contributors:%s:", fullName),
-		fmt.Sprintf("topics:%s", fullName),
-		fmt.Sprintf("languages:%s", fullName),
-		fmt.Sprintf("commits:%s", fullName),
-		fmt.Sprintf("prs:%s", fullName),
-		fmt.Sprintf("issues:%s", fullName),
-		fmt.Sprintf("metadata:%s", fullName),
+		"topics:" + fullName,
+		"languages:" + fullName,
+		"commits:" + fullName,
+		"prs:" + fullName,
+		"issues:" + fullName,
+		"metadata:" + fullName,
 		fmt.Sprintf("content:%s:", fullName),
 	}
 

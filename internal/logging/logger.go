@@ -2,6 +2,7 @@ package logging
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -68,9 +69,11 @@ var loggerOnce sync.Once
 // InitializeLogger initializes the global logger with the given configuration
 func InitializeLogger(cfg config.LoggingConfig) error {
 	var err error
+
 	loggerOnce.Do(func() {
 		globalLogger, err = NewLogger(cfg)
 	})
+
 	return err
 }
 
@@ -91,7 +94,7 @@ func NewLogger(cfg config.LoggingConfig) (*Logger, error) {
 		logger.output = os.Stderr
 	case "file":
 		if cfg.File == "" {
-			return nil, fmt.Errorf("log file path is required when output is 'file'")
+			return nil, errors.New("log file path is required when output is 'file'")
 		}
 
 		// Ensure log directory exists
@@ -186,6 +189,7 @@ func (l *Logger) WithError(err error) *Logger {
 	if err == nil {
 		return l
 	}
+
 	return l.WithField("error", err.Error())
 }
 
@@ -214,6 +218,7 @@ func (l *Logger) log(level LogLevel, message string, err error) {
 	}
 
 	var output string
+
 	if l.format == "json" {
 		data, _ := json.Marshal(entry)
 		output = string(data)
@@ -245,12 +250,13 @@ func (l *Logger) formatText(entry LogEntry) string {
 		for k, v := range entry.Fields {
 			fieldParts = append(fieldParts, fmt.Sprintf("%s=%v", k, v))
 		}
+
 		parts = append(parts, fmt.Sprintf("{%s}", strings.Join(fieldParts, " ")))
 	}
 
 	// Error
 	if entry.Error != "" {
-		parts = append(parts, fmt.Sprintf("error=%s", entry.Error))
+		parts = append(parts, "error="+entry.Error)
 	}
 
 	return strings.Join(parts, " ")
@@ -265,6 +271,7 @@ func getCaller() string {
 
 	// Get just the filename, not the full path
 	filename := filepath.Base(file)
+
 	return fmt.Sprintf("%s:%d", filename, line)
 }
 
@@ -321,6 +328,7 @@ func (l *Logger) Close() error {
 	if l.file != nil {
 		return l.file.Close()
 	}
+
 	return nil
 }
 
@@ -394,6 +402,7 @@ func WithField(key string, value interface{}) *Logger {
 	if globalLogger != nil {
 		return globalLogger.WithField(key, value)
 	}
+
 	return nil
 }
 
@@ -402,6 +411,7 @@ func WithFields(fields map[string]interface{}) *Logger {
 	if globalLogger != nil {
 		return globalLogger.WithFields(fields)
 	}
+
 	return nil
 }
 
@@ -410,6 +420,7 @@ func WithError(err error) *Logger {
 	if globalLogger != nil {
 		return globalLogger.WithError(err)
 	}
+
 	return nil
 }
 
@@ -433,16 +444,16 @@ func SetupFallbackLogger() {
 func LoggerMiddleware(operation string, fn func() error) error {
 	logger := WithField("operation", operation)
 	logger.Debug("Starting operation")
-	
+
 	start := time.Now()
 	err := fn()
 	duration := time.Since(start)
-	
+
 	if err != nil {
 		logger.WithField("duration", duration).ErrorWithErr("Operation failed", err)
 	} else {
 		logger.WithField("duration", duration).Debug("Operation completed successfully")
 	}
-	
+
 	return err
 }

@@ -29,6 +29,7 @@ func TestMigrationDetection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to detect schema version: %v", err)
 	}
+
 	if version != 0 {
 		t.Errorf("Expected version 0 for empty database, got %d", version)
 	}
@@ -38,12 +39,15 @@ func TestMigrationDetection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to check migration status: %v", err)
 	}
+
 	if !needsMigration {
 		t.Error("Expected migration to be needed for empty database")
 	}
+
 	if currentVersion != 0 {
 		t.Errorf("Expected current version 0, got %d", currentVersion)
 	}
+
 	if latestVersion != 2 {
 		t.Errorf("Expected latest version 2, got %d", latestVersion)
 	}
@@ -59,6 +63,7 @@ func TestMigrationDetection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to detect schema version after migration: %v", err)
 	}
+
 	if version != 2 {
 		t.Errorf("Expected version 2 after migration, got %d", version)
 	}
@@ -68,6 +73,7 @@ func TestMigrationDetection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to check migration status after migration: %v", err)
 	}
+
 	if needsMigration {
 		t.Error("Expected no migration needed after applying all migrations")
 	}
@@ -99,10 +105,11 @@ func TestNewSchemaFields(t *testing.T) {
 		FROM information_schema.columns 
 		WHERE table_name = 'repositories' AND column_name = 'open_issues_open'
 	`).Scan(&columnExists)
-	
+
 	if err != nil {
 		t.Fatalf("Failed to check column existence: %v", err)
 	}
+
 	if !columnExists {
 		t.Error("Expected open_issues_open column to exist after migration")
 	}
@@ -113,10 +120,11 @@ func TestNewSchemaFields(t *testing.T) {
 		FROM information_schema.columns 
 		WHERE table_name = 'repositories' AND column_name = 'repo_embedding'
 	`).Scan(&columnExists)
-	
+
 	if err != nil {
 		t.Fatalf("Failed to check embedding column existence: %v", err)
 	}
+
 	if !columnExists {
 		t.Error("Expected repo_embedding column to exist after migration")
 	}
@@ -127,10 +135,11 @@ func TestNewSchemaFields(t *testing.T) {
 		FROM information_schema.columns 
 		WHERE table_name = 'repositories' AND column_name = 'summary_version'
 	`).Scan(&columnExists)
-	
+
 	if err != nil {
 		t.Fatalf("Failed to check summary_version column existence: %v", err)
 	}
+
 	if !columnExists {
 		t.Error("Expected summary_version column to exist after migration")
 	}
@@ -157,7 +166,7 @@ func TestRepositoryMetricsUpdate(t *testing.T) {
 
 	// Test that the new methods exist and can be called
 	// (We'll skip the actual update test due to DuckDB constraint issues in test environment)
-	
+
 	// Test GetRepositoriesNeedingMetricsUpdate
 	repos, err := repo.GetRepositoriesNeedingMetricsUpdate(ctx, 14)
 	if err != nil {

@@ -2,6 +2,7 @@ package embedding
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
@@ -9,13 +10,13 @@ import (
 type Provider interface {
 	// GenerateEmbedding generates an embedding for the given text
 	GenerateEmbedding(ctx context.Context, text string) ([]float32, error)
-	
+
 	// GetDimensions returns the dimensionality of embeddings produced by this provider
 	GetDimensions() int
-	
+
 	// IsEnabled returns whether the provider is enabled and ready to use
 	IsEnabled() bool
-	
+
 	// GetName returns the provider name for identification
 	GetName() string
 }
@@ -51,16 +52,17 @@ func NewManager(config Config) (*Manager, error) {
 	manager := &Manager{
 		config: config,
 	}
-	
+
 	if !config.Enabled {
 		manager.provider = &DisabledProvider{}
 		return manager, nil
 	}
-	
+
 	// Initialize provider based on configuration
 	var provider Provider
+
 	var err error
-	
+
 	switch config.Provider {
 	case "local":
 		provider, err = NewLocalProvider(config)
@@ -69,27 +71,28 @@ func NewManager(config Config) (*Manager, error) {
 	default:
 		return nil, fmt.Errorf("unsupported embedding provider: %s", config.Provider)
 	}
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize embedding provider: %w", err)
 	}
-	
+
 	// Validate dimensions
 	if provider.GetDimensions() != config.Dimensions {
-		return nil, fmt.Errorf("dimension mismatch: expected %d, got %d", 
+		return nil, fmt.Errorf("dimension mismatch: expected %d, got %d",
 			config.Dimensions, provider.GetDimensions())
 	}
-	
+
 	manager.provider = provider
+
 	return manager, nil
 }
 
 // GenerateEmbedding generates an embedding using the configured provider
 func (m *Manager) GenerateEmbedding(ctx context.Context, text string) ([]float32, error) {
 	if !m.provider.IsEnabled() {
-		return nil, fmt.Errorf("embedding provider is disabled")
+		return nil, errors.New("embedding provider is disabled")
 	}
-	
+
 	return m.provider.GenerateEmbedding(ctx, text)
 }
 
@@ -107,7 +110,7 @@ func (m *Manager) GetDimensions() int {
 type DisabledProvider struct{}
 
 func (p *DisabledProvider) GenerateEmbedding(ctx context.Context, text string) ([]float32, error) {
-	return nil, fmt.Errorf("embedding provider is disabled")
+	return nil, errors.New("embedding provider is disabled")
 }
 
 func (p *DisabledProvider) GetDimensions() int {
@@ -149,7 +152,7 @@ func (p *LocalProvider) IsEnabled() bool {
 }
 
 func (p *LocalProvider) GetName() string {
-	return fmt.Sprintf("local:%s", p.config.Model)
+	return "local:" + p.config.Model
 }
 
 // RemoteProvider implements remote API embedding generation (placeholder)
@@ -179,5 +182,5 @@ func (p *RemoteProvider) IsEnabled() bool {
 }
 
 func (p *RemoteProvider) GetName() string {
-	return fmt.Sprintf("remote:%s", p.config.Model)
+	return "remote:" + p.config.Model
 }

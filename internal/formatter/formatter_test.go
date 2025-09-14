@@ -13,29 +13,29 @@ import (
 
 func TestFormatter_FormatResult(t *testing.T) {
 	formatter := NewFormatter()
-	
+
 	// Create a test repository with complete data
 	repo := storage.StoredRepo{
-		ID:                       "test-repo-1",
-		FullName:                 "testorg/test-repo",
-		Description:              "A test repository for unit testing",
-		Homepage:                 "https://example.com",
-		Language:                 "Go",
-		StargazersCount:          1234,
-		ForksCount:               56,
-		SizeKB:                   789,
-		CreatedAt:                time.Date(2020, 1, 15, 10, 0, 0, 0, time.UTC),
-		UpdatedAt:                time.Date(2024, 9, 1, 15, 30, 0, 0, time.UTC),
-		LastSynced:               time.Date(2024, 9, 14, 12, 0, 0, 0, time.UTC),
-		OpenIssuesOpen:           5,
-		OpenIssuesTotal:          25,
-		OpenPRsOpen:              2,
-		OpenPRsTotal:             15,
-		Commits30d:               45,
-		Commits1y:                520,
-		CommitsTotal:             1200,
-		Topics:                   []string{"golang", "cli", "testing"},
-		Languages:                map[string]int64{"Go": 12000, "Shell": 600},
+		ID:              "test-repo-1",
+		FullName:        "testorg/test-repo",
+		Description:     "A test repository for unit testing",
+		Homepage:        "https://example.com",
+		Language:        "Go",
+		StargazersCount: 1234,
+		ForksCount:      56,
+		SizeKB:          789,
+		CreatedAt:       time.Date(2020, 1, 15, 10, 0, 0, 0, time.UTC),
+		UpdatedAt:       time.Date(2024, 9, 1, 15, 30, 0, 0, time.UTC),
+		LastSynced:      time.Date(2024, 9, 14, 12, 0, 0, 0, time.UTC),
+		OpenIssuesOpen:  5,
+		OpenIssuesTotal: 25,
+		OpenPRsOpen:     2,
+		OpenPRsTotal:    15,
+		Commits30d:      45,
+		Commits1y:       520,
+		CommitsTotal:    1200,
+		Topics:          []string{"golang", "cli", "testing"},
+		Languages:       map[string]int64{"Go": 12000, "Shell": 600},
 		Contributors: []storage.Contributor{
 			{Login: "alice", Contributions: 150},
 			{Login: "bob", Contributions: 75},
@@ -100,7 +100,7 @@ func TestFormatter_FormatResult(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output := formatter.FormatResult(result, tt.format)
-			
+
 			for _, expectedLine := range tt.expected {
 				if !strings.Contains(output, expectedLine) {
 					t.Errorf("Expected output to contain %q, but got:\n%s", expectedLine, output)
@@ -112,7 +112,7 @@ func TestFormatter_FormatResult(t *testing.T) {
 
 func TestFormatter_FormatRepository(t *testing.T) {
 	formatter := NewFormatter()
-	
+
 	// Test with minimal data (unknown values)
 	minimalRepo := storage.StoredRepo{
 		ID:       "minimal-repo",
@@ -128,7 +128,7 @@ func TestFormatter_FormatRepository(t *testing.T) {
 	}
 
 	output := formatter.FormatRepository(minimalRepo, FormatLong)
-	
+
 	// Test unknown value fallbacks
 	expectedFallbacks := []string{
 		"GitHub Description: -",
@@ -152,7 +152,7 @@ func TestFormatter_FormatRepository(t *testing.T) {
 func TestFormatter_humanizeAge(t *testing.T) {
 	formatter := NewFormatter()
 	now := time.Date(2024, 9, 14, 12, 0, 0, 0, time.UTC)
-	
+
 	tests := []struct {
 		name     string
 		input    time.Time
@@ -205,10 +205,10 @@ func TestFormatter_humanizeAge(t *testing.T) {
 			// Mock time.Now() for consistent testing
 			// Note: In a real implementation, you might want to make time.Now() injectable
 			result := formatter.humanizeAge(tt.input)
-			if tt.name == "same day" || tt.name == "one day ago" || 
-			   tt.name == "multiple days ago" || tt.name == "one month ago" ||
-			   tt.name == "multiple months ago" || tt.name == "one year ago" ||
-			   tt.name == "multiple years ago" {
+			if tt.name == "same day" || tt.name == "one day ago" ||
+				tt.name == "multiple days ago" || tt.name == "one month ago" ||
+				tt.name == "multiple months ago" || tt.name == "one year ago" ||
+				tt.name == "multiple years ago" {
 				// For time-dependent tests, just check the format is reasonable
 				if result == "?" && tt.expected != "?" {
 					t.Errorf("Expected non-? result for %s, got %s", tt.name, result)
@@ -224,7 +224,7 @@ func TestFormatter_humanizeAge(t *testing.T) {
 
 func TestFormatter_formatContributors(t *testing.T) {
 	formatter := NewFormatter()
-	
+
 	tests := []struct {
 		name     string
 		input    []storage.Contributor
@@ -255,7 +255,7 @@ func TestFormatter_formatContributors(t *testing.T) {
 			name: "more than 10 contributors",
 			input: func() []storage.Contributor {
 				var contributors []storage.Contributor
-				for i := 0; i < 15; i++ {
+				for i := range 15 {
 					contributors = append(contributors, storage.Contributor{
 						Login:         fmt.Sprintf("user%d", i),
 						Contributions: 100 - i,
@@ -279,7 +279,7 @@ func TestFormatter_formatContributors(t *testing.T) {
 
 func TestFormatter_formatLanguages(t *testing.T) {
 	formatter := NewFormatter()
-	
+
 	tests := []struct {
 		name     string
 		input    map[string]int64
@@ -316,7 +316,7 @@ func TestFormatter_formatLanguages(t *testing.T) {
 			for expectedSubstring, shouldContain := range tt.expected {
 				contains := strings.Contains(result, expectedSubstring)
 				if contains != shouldContain {
-					t.Errorf("Expected result to contain %q: %v, but got: %s", 
+					t.Errorf("Expected result to contain %q: %v, but got: %s",
 						expectedSubstring, shouldContain, result)
 				}
 			}
@@ -326,7 +326,7 @@ func TestFormatter_formatLanguages(t *testing.T) {
 
 func TestFormatter_getPrimaryLanguage(t *testing.T) {
 	formatter := NewFormatter()
-	
+
 	tests := []struct {
 		name     string
 		input    map[string]int64
@@ -376,7 +376,7 @@ func TestFormatter_getPrimaryLanguage(t *testing.T) {
 
 func TestFormatter_formatInt(t *testing.T) {
 	formatter := NewFormatter()
-	
+
 	tests := []struct {
 		name     string
 		input    int
@@ -416,15 +416,15 @@ func TestFormatter_formatInt(t *testing.T) {
 
 func TestFormatter_formatSummary(t *testing.T) {
 	formatter := NewFormatter()
-	
+
 	tests := []struct {
 		name     string
 		repo     storage.StoredRepo
 		expected string
 	}{
 		{
-			name: "empty summary fields",
-			repo: storage.StoredRepo{},
+			name:     "empty summary fields",
+			repo:     storage.StoredRepo{},
 			expected: "-",
 		},
 		{
@@ -472,7 +472,7 @@ func TestFormatter_formatSummary(t *testing.T) {
 // Golden test for complete long-form output
 func TestFormatter_GoldenLongForm(t *testing.T) {
 	formatter := NewFormatter()
-	
+
 	// Create a repository with all fields populated
 	repo := storage.StoredRepo{
 		ID:              "golden-test",
@@ -493,21 +493,21 @@ func TestFormatter_GoldenLongForm(t *testing.T) {
 		CommitsTotal:    15000,
 		Topics:          []string{"terraform", "infrastructure", "iac", "devops"},
 		Languages: map[string]int64{
-			"Go":   480000, // 8000 LOC
-			"HCL":  120000, // 2000 LOC
-			"Shell": 6000,  // 100 LOC
+			"Go":    480000, // 8000 LOC
+			"HCL":   120000, // 2000 LOC
+			"Shell": 6000,   // 100 LOC
 		},
 		Contributors: []storage.Contributor{
 			{Login: "mitchellh", Contributions: 2500},
 			{Login: "apparentlymart", Contributions: 1800},
 			{Login: "jbardin", Contributions: 1200},
 		},
-		LicenseSPDXID:            "MPL-2.0",
-		Purpose:                  "Infrastructure as Code tool for building, changing, and versioning infrastructure",
-		Technologies:             []string{"Go", "HCL", "Terraform"},
-		Features:                 []string{"declarative configuration", "execution plans", "resource graph"},
-		UsageInstructions:        "terraform init && terraform plan && terraform apply",
-		SummaryGenerator:         "transformers:distilbart-cnn-12-6",
+		LicenseSPDXID:     "MPL-2.0",
+		Purpose:           "Infrastructure as Code tool for building, changing, and versioning infrastructure",
+		Technologies:      []string{"Go", "HCL", "Terraform"},
+		Features:          []string{"declarative configuration", "execution plans", "resource graph"},
+		UsageInstructions: "terraform init && terraform plan && terraform apply",
+		SummaryGenerator:  "transformers:distilbart-cnn-12-6",
 	}
 
 	expected := `hashicorp/terraform  (link: https://github.com/hashicorp/terraform)
@@ -527,22 +527,22 @@ Summary: Infrastructure as Code tool for building, changing, and versioning infr
 (PLANNED: dependents count)`
 
 	result := formatter.FormatRepository(repo, FormatLong)
-	
+
 	// Compare line by line for better error reporting
 	expectedLines := strings.Split(expected, "\n")
 	resultLines := strings.Split(result, "\n")
-	
+
 	if len(expectedLines) != len(resultLines) {
-		t.Fatalf("Expected %d lines, got %d lines.\nExpected:\n%s\n\nGot:\n%s", 
+		t.Fatalf("Expected %d lines, got %d lines.\nExpected:\n%s\n\nGot:\n%s",
 			len(expectedLines), len(resultLines), expected, result)
 	}
-	
+
 	for i, expectedLine := range expectedLines {
 		// Skip time-dependent lines for this test
 		if strings.Contains(expectedLine, "Age:") || strings.Contains(expectedLine, "Last synced:") {
 			continue
 		}
-		
+
 		if resultLines[i] != expectedLine {
 			t.Errorf("Line %d mismatch:\nExpected: %q\nGot:      %q", i+1, expectedLine, resultLines[i])
 		}
@@ -552,7 +552,7 @@ Summary: Infrastructure as Code tool for building, changing, and versioning infr
 // TestFormatter_GoldenFiles tests against golden files for deterministic output
 func TestFormatter_GoldenFiles(t *testing.T) {
 	formatter := NewFormatter()
-	
+
 	tests := []struct {
 		name       string
 		repo       storage.StoredRepo
@@ -581,9 +581,9 @@ func TestFormatter_GoldenFiles(t *testing.T) {
 				CommitsTotal:    15000,
 				Topics:          []string{"terraform", "infrastructure", "iac", "devops"},
 				Languages: map[string]int64{
-					"Go":   480000, // 8000 LOC
-					"HCL":  120000, // 2000 LOC
-					"Shell": 6000,  // 100 LOC
+					"Go":    480000, // 8000 LOC
+					"HCL":   120000, // 2000 LOC
+					"Shell": 6000,   // 100 LOC
 				},
 				Contributors: []storage.Contributor{
 					{Login: "mitchellh", Contributions: 2500},
@@ -627,32 +627,32 @@ func TestFormatter_GoldenFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := formatter.FormatRepository(tt.repo, tt.format)
-			
+
 			// Read golden file
 			goldenContent, err := os.ReadFile(tt.goldenFile)
 			if err != nil {
 				t.Fatalf("Failed to read golden file %s: %v", tt.goldenFile, err)
 			}
-			
+
 			expectedLines := strings.Split(strings.TrimSpace(string(goldenContent)), "\n")
 			resultLines := strings.Split(result, "\n")
-			
+
 			if len(expectedLines) != len(resultLines) {
-				t.Fatalf("Expected %d lines, got %d lines.\nExpected:\n%s\n\nGot:\n%s", 
+				t.Fatalf("Expected %d lines, got %d lines.\nExpected:\n%s\n\nGot:\n%s",
 					len(expectedLines), len(resultLines), string(goldenContent), result)
 			}
-			
+
 			// Compare line by line, skipping time-dependent lines
 			skipMap := make(map[int]bool)
 			for _, lineNum := range tt.skipLines {
 				skipMap[lineNum] = true
 			}
-			
+
 			for i, expectedLine := range expectedLines {
 				if skipMap[i] {
 					continue // Skip time-dependent lines
 				}
-				
+
 				if resultLines[i] != expectedLine {
 					t.Errorf("Line %d mismatch:\nExpected: %q\nGot:      %q", i+1, expectedLine, resultLines[i])
 				}

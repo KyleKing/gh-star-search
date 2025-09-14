@@ -138,16 +138,16 @@ type CommitActivity struct {
 
 // WeeklyCommits represents commit counts for a specific week
 type WeeklyCommits struct {
-	Week    int64 `json:"w"`    // Unix timestamp for the start of the week
-	Commits int   `json:"c"`    // Number of commits
-	Adds    int   `json:"a"`    // Lines added
-	Deletes int   `json:"d"`    // Lines deleted
+	Week    int64 `json:"w"` // Unix timestamp for the start of the week
+	Commits int   `json:"c"` // Number of commits
+	Adds    int   `json:"a"` // Lines added
+	Deletes int   `json:"d"` // Lines deleted
 }
 
 // SearchResult represents a search result from GitHub API
 type SearchResult struct {
-	TotalCount        int                    `json:"total_count"`
-	IncompleteResults bool                   `json:"incomplete_results"`
+	TotalCount        int                      `json:"total_count"`
+	IncompleteResults bool                     `json:"incomplete_results"`
 	Items             []map[string]interface{} `json:"items"`
 }
 
@@ -443,6 +443,7 @@ func (c *clientImpl) GetCommitActivity(ctx context.Context, fullName string) (*C
 				Total: -1, // Indicates stats are being computed
 			}, nil
 		}
+
 		return nil, fmt.Errorf("failed to fetch commit activity for %s: %w", fullName, err)
 	}
 
@@ -468,18 +469,22 @@ func (c *clientImpl) GetPullCounts(ctx context.Context, fullName string) (open i
 
 	// Get open PRs
 	var openResult SearchResult
+
 	err = c.apiClient.Get(fmt.Sprintf("search/issues?q=repo:%s+type:pr+state:open&per_page=1", fullName), &openResult)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to fetch open PR count for %s: %w", fullName, err)
 	}
+
 	open = openResult.TotalCount
 
 	// Get total PRs (open + closed)
 	var totalResult SearchResult
+
 	err = c.apiClient.Get(fmt.Sprintf("search/issues?q=repo:%s+type:pr&per_page=1", fullName), &totalResult)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to fetch total PR count for %s: %w", fullName, err)
 	}
+
 	total = totalResult.TotalCount
 
 	return open, total, nil
@@ -495,18 +500,22 @@ func (c *clientImpl) GetIssueCounts(ctx context.Context, fullName string) (open 
 
 	// Get open issues (excluding PRs)
 	var openResult SearchResult
+
 	err = c.apiClient.Get(fmt.Sprintf("search/issues?q=repo:%s+type:issue+state:open&per_page=1", fullName), &openResult)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to fetch open issue count for %s: %w", fullName, err)
 	}
+
 	open = openResult.TotalCount
 
 	// Get total issues (open + closed, excluding PRs)
 	var totalResult SearchResult
+
 	err = c.apiClient.Get(fmt.Sprintf("search/issues?q=repo:%s+type:issue&per_page=1", fullName), &totalResult)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to fetch total issue count for %s: %w", fullName, err)
 	}
+
 	total = totalResult.TotalCount
 
 	return open, total, nil
@@ -567,10 +576,12 @@ func (c *clientImpl) GetHomepageText(ctx context.Context, urlStr string) (string
 	text := string(body)
 	text = strings.ReplaceAll(text, "<", " <")
 	text = strings.ReplaceAll(text, ">", "> ")
-	
+
 	// Simple HTML tag removal
 	var result strings.Builder
+
 	inTag := false
+
 	for _, char := range text {
 		if char == '<' {
 			inTag = true
@@ -583,5 +594,6 @@ func (c *clientImpl) GetHomepageText(ctx context.Context, urlStr string) (string
 
 	// Clean up whitespace
 	cleaned := strings.Fields(result.String())
+
 	return strings.Join(cleaned, " "), nil
 }

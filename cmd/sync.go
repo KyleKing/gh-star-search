@@ -184,8 +184,10 @@ func initializeSyncService(cfg *config.Config, verbose bool) (*SyncService, erro
 
 	// Initialize cache
 	var fileCache *cache.FileCache
+
 	if cfg.Cache.Directory != "" {
 		var err error
+
 		fileCache, err = cache.NewFileCache(
 			cfg.Cache.Directory,
 			cfg.Cache.MaxSizeMB,
@@ -238,7 +240,7 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 	defer memOptimizer.RestoreDefaults()
 
 	s.logVerbose("Starting full sync of starred repositories...")
-	s.logVerbose(fmt.Sprintf("Initial memory stats:\n%s", memMonitor.GetFormattedStats()))
+	s.logVerbose("Initial memory stats:\n" + memMonitor.GetFormattedStats())
 
 	// Create progress tracker for fetching repositories
 	fetchProgress := NewProgressTracker(1, "Fetching starred repositories")
@@ -297,7 +299,7 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 	memMonitor.OptimizeMemory()
 
 	s.printSyncSummary(stats)
-	s.logVerbose(fmt.Sprintf("Final memory stats:\n%s", memMonitor.GetFormattedStats()))
+	s.logVerbose("Final memory stats:\n" + memMonitor.GetFormattedStats())
 
 	return nil
 }
@@ -613,14 +615,16 @@ func (s *SyncService) processBatch(ctx context.Context, batch []github.Repositor
 
 	// Start workers
 	var wg sync.WaitGroup
-	for i := 0; i < maxWorkers; i++ {
+	for range maxWorkers {
 		wg.Add(1)
+
 		go s.processWorker(ctx, jobs, results, errors, &wg, progress, isNewRepo, forceUpdate)
 	}
 
 	// Send jobs to workers
 	go func() {
 		defer close(jobs)
+
 		for _, repo := range batch {
 			select {
 			case jobs <- repo:
@@ -662,6 +666,7 @@ func (s *SyncService) processBatch(ctx context.Context, batch []github.Repositor
 					}
 				}
 			}
+
 			processedCount++
 
 		case err := <-errors:
@@ -669,6 +674,7 @@ func (s *SyncService) processBatch(ctx context.Context, batch []github.Repositor
 				s.logVerbose(fmt.Sprintf("Worker error: %v", err))
 				stats.SafeIncrement("error")
 			}
+
 			errorCount++
 
 		case <-ctx.Done():
@@ -745,6 +751,7 @@ func min(a, b int) int {
 	if a < b {
 		return a
 	}
+
 	return b
 }
 

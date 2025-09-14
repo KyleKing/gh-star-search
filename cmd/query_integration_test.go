@@ -55,6 +55,7 @@ func TestQueryIntegration(t *testing.T) {
 
 		// Verify results contain Go repositories
 		foundGo := false
+
 		for _, result := range results {
 			if result.Repository.Language == "Go" {
 				foundGo = true
@@ -75,6 +76,7 @@ func TestQueryIntegration(t *testing.T) {
 
 		// Should find repositories with web framework in purpose
 		foundMatch := false
+
 		for _, result := range results {
 			if len(result.Matches) > 0 {
 				foundMatch = true

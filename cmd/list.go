@@ -43,10 +43,12 @@ func runListWithStorage(ctx context.Context, limit, offset int, format string, r
 	// Initialize storage if not provided (for testing)
 	if repo == nil {
 		var err error
+
 		repo, err = initializeStorage()
 		if err != nil {
 			return fmt.Errorf("failed to initialize storage: %w", err)
 		}
+
 		defer repo.Close()
 	}
 
@@ -110,6 +112,7 @@ func outputTable(repos []storage.StoredRepo) error {
 func outputJSON(repos []storage.StoredRepo) error {
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
+
 	return encoder.Encode(repos)
 }
 

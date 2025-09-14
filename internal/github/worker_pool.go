@@ -2,14 +2,13 @@ package github
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 )
 
 // WorkerPool manages parallel execution of GitHub API calls with rate limiting and backoff
 type WorkerPool struct {
-	workers    int
+	workers     int
 	rateLimiter chan struct{}
 	backoffBase time.Duration
 	maxBackoff  time.Duration
@@ -19,9 +18,9 @@ type WorkerPool struct {
 func NewWorkerPool(workers int, rateLimit int, backoffBase, maxBackoff time.Duration) *WorkerPool {
 	// Create rate limiter channel
 	rateLimiter := make(chan struct{}, rateLimit)
-	
+
 	// Fill the rate limiter initially
-	for i := 0; i < rateLimit; i++ {
+	for range rateLimit {
 		rateLimiter <- struct{}{}
 	}
 
@@ -57,14 +56,16 @@ func (wp *WorkerPool) Execute(ctx context.Context, tasks []Task) []Result {
 
 	// Start workers
 	var wg sync.WaitGroup
-	for i := 0; i < wp.workers; i++ {
+	for range wp.workers {
 		wg.Add(1)
+
 		go wp.worker(ctx, &wg, taskChan, resultChan)
 	}
 
 	// Send tasks
 	go func() {
 		defer close(taskChan)
+
 		for _, task := range tasks {
 			select {
 			case taskChan <- task:
@@ -76,6 +77,7 @@ func (wp *WorkerPool) Execute(ctx context.Context, tasks []Task) []Result {
 
 	// Collect results
 	results := make([]Result, 0, len(tasks))
+
 	go func() {
 		wg.Wait()
 		close(resultChan)
@@ -100,7 +102,7 @@ func (wp *WorkerPool) worker(ctx context.Context, wg *sync.WaitGroup, taskChan <
 			}
 
 			result := wp.executeTask(ctx, task)
-			
+
 			select {
 			case resultChan <- result:
 			case <-ctx.Done():
@@ -116,9 +118,10 @@ func (wp *WorkerPool) worker(ctx context.Context, wg *sync.WaitGroup, taskChan <
 // executeTask executes a single task with rate limiting and backoff
 func (wp *WorkerPool) executeTask(ctx context.Context, task Task) Result {
 	var lastErr error
+
 	backoff := wp.backoffBase
 
-	for attempt := 0; attempt < 3; attempt++ {
+	for attempt := range 3 {
 		// Wait for rate limit token
 		select {
 		case <-wp.rateLimiter:
@@ -128,7 +131,7 @@ func (wp *WorkerPool) executeTask(ctx context.Context, task Task) Result {
 
 		// Execute the task
 		data, err := task.Func(ctx)
-		
+
 		// Return rate limit token after a delay
 		go func() {
 			time.Sleep(100 * time.Millisecond) // Basic rate limiting delay
@@ -149,6 +152,7 @@ func (wp *WorkerPool) executeTask(ctx context.Context, task Task) Result {
 			case <-ctx.Done():
 				return Result{ID: task.ID, Error: ctx.Err()}
 			}
+
 			continue
 		}
 
@@ -165,6 +169,7 @@ func (wp *WorkerPool) nextBackoff(current time.Duration) time.Duration {
 	if next > wp.maxBackoff {
 		return wp.maxBackoff
 	}
+
 	return next
 }
 
@@ -173,22 +178,23 @@ func isRateLimitError(err error) bool {
 	if err == nil {
 		return false
 	}
-	
+
 	errStr := err.Error()
-	return contains(errStr, "rate limit") || 
-		   contains(errStr, "403") || 
-		   contains(errStr, "429") ||
-		   contains(errStr, "API rate limit exceeded")
+
+	return contains(errStr, "rate limit") ||
+		contains(errStr, "403") ||
+		contains(errStr, "429") ||
+		contains(errStr, "API rate limit exceeded")
 }
 
 // contains checks if a string contains a substring (case-insensitive)
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && 
-		   (s == substr || 
-		    (len(s) > len(substr) && 
-		     (s[:len(substr)] == substr || 
-		      s[len(s)-len(substr):] == substr ||
-		      containsSubstring(s, substr))))
+	return len(s) >= len(substr) &&
+		(s == substr ||
+			(len(s) > len(substr) &&
+				(s[:len(substr)] == substr ||
+					s[len(s)-len(substr):] == substr ||
+					containsSubstring(s, substr))))
 }
 
 // containsSubstring performs a simple substring search
@@ -198,6 +204,7 @@ func containsSubstring(s, substr string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -210,6 +217,7 @@ type BatchExecutor struct {
 // NewBatchExecutor creates a new batch executor
 func NewBatchExecutor(client Client, workers int, rateLimit int) *BatchExecutor {
 	pool := NewWorkerPool(workers, rateLimit, 1*time.Second, 30*time.Second)
+
 	return &BatchExecutor{
 		client: client,
 		pool:   pool,
@@ -226,7 +234,7 @@ func (be *BatchExecutor) FetchRepositoryMetrics(ctx context.Context, repos []Rep
 
 		// Contributors task
 		tasks = append(tasks, Task{
-			ID: fmt.Sprintf("%s:contributors", repoName),
+			ID: repoName + ":contributors",
 			Func: func(ctx context.Context) (interface{}, error) {
 				return be.client.GetContributors(ctx, repoName, 10)
 			},
@@ -234,7 +242,7 @@ func (be *BatchExecutor) FetchRepositoryMetrics(ctx context.Context, repos []Rep
 
 		// Topics task
 		tasks = append(tasks, Task{
-			ID: fmt.Sprintf("%s:topics", repoName),
+			ID: repoName + ":topics",
 			Func: func(ctx context.Context) (interface{}, error) {
 				return be.client.GetTopics(ctx, repoName)
 			},
@@ -242,7 +250,7 @@ func (be *BatchExecutor) FetchRepositoryMetrics(ctx context.Context, repos []Rep
 
 		// Languages task
 		tasks = append(tasks, Task{
-			ID: fmt.Sprintf("%s:languages", repoName),
+			ID: repoName + ":languages",
 			Func: func(ctx context.Context) (interface{}, error) {
 				return be.client.GetLanguages(ctx, repoName)
 			},
@@ -250,7 +258,7 @@ func (be *BatchExecutor) FetchRepositoryMetrics(ctx context.Context, repos []Rep
 
 		// Commit activity task
 		tasks = append(tasks, Task{
-			ID: fmt.Sprintf("%s:commits", repoName),
+			ID: repoName + ":commits",
 			Func: func(ctx context.Context) (interface{}, error) {
 				return be.client.GetCommitActivity(ctx, repoName)
 			},
@@ -258,7 +266,7 @@ func (be *BatchExecutor) FetchRepositoryMetrics(ctx context.Context, repos []Rep
 
 		// Pull request counts task
 		tasks = append(tasks, Task{
-			ID: fmt.Sprintf("%s:prs", repoName),
+			ID: repoName + ":prs",
 			Func: func(ctx context.Context) (interface{}, error) {
 				open, total, err := be.client.GetPullCounts(ctx, repoName)
 				if err != nil {
@@ -270,7 +278,7 @@ func (be *BatchExecutor) FetchRepositoryMetrics(ctx context.Context, repos []Rep
 
 		// Issue counts task
 		tasks = append(tasks, Task{
-			ID: fmt.Sprintf("%s:issues", repoName),
+			ID: repoName + ":issues",
 			Func: func(ctx context.Context) (interface{}, error) {
 				open, total, err := be.client.GetIssueCounts(ctx, repoName)
 				if err != nil {
@@ -362,6 +370,7 @@ func splitString(s, delimiter string) []string {
 	}
 
 	var parts []string
+
 	start := 0
 
 	for i := 0; i <= len(s)-len(delimiter); i++ {
@@ -374,5 +383,6 @@ func splitString(s, delimiter string) []string {
 
 	// Add the last part
 	parts = append(parts, s[start:])
+
 	return parts
 }

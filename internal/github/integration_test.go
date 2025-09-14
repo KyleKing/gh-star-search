@@ -17,10 +17,12 @@ func TestCachedClientIntegration(t *testing.T) {
 
 	// Create a file cache for testing
 	cacheDir := t.TempDir()
+
 	fileCache, err := cache.NewFileCache(cacheDir, 10, 1*time.Hour, 1*time.Minute)
 	if err != nil {
 		t.Fatalf("Failed to create cache: %v", err)
 	}
+
 	defer fileCache.Close()
 
 	// Create config
@@ -191,10 +193,12 @@ func TestCacheInvalidation(t *testing.T) {
 
 	// Create a file cache for testing
 	cacheDir := t.TempDir()
+
 	fileCache, err := cache.NewFileCache(cacheDir, 10, 1*time.Hour, 1*time.Minute)
 	if err != nil {
 		t.Fatalf("Failed to create cache: %v", err)
 	}
+
 	defer fileCache.Close()
 
 	// Create config

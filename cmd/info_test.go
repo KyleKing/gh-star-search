@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -109,9 +108,11 @@ func TestRunInfo(t *testing.T) {
 
 			// Restore stdout and get output
 			w.Close()
+
 			os.Stdout = oldStdout
 
 			var buf bytes.Buffer
+
 			buf.ReadFrom(r)
 			output := buf.String()
 
@@ -143,7 +144,7 @@ func TestGetStringOrNA(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(fmt.Sprintf("input_%s", tt.input), func(t *testing.T) {
+		t.Run("input_"+tt.input, func(t *testing.T) {
 			result := getStringOrNA(tt.input)
 			if result != tt.expected {
 				t.Errorf("getStringOrNA(%q) = %q, want %q", tt.input, result, tt.expected)

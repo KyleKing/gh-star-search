@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -56,10 +57,10 @@ func (f *Formatter) formatLong(repo storage.StoredRepo) string {
 	// Line 1: Header with link
 	orgName := strings.Split(repo.FullName, "/")
 	if len(orgName) == 2 {
-		lines = append(lines, fmt.Sprintf("%s/%s  (link: https://github.com/%s)", 
+		lines = append(lines, fmt.Sprintf("%s/%s  (link: https://github.com/%s)",
 			orgName[0], orgName[1], repo.FullName))
 	} else {
-		lines = append(lines, fmt.Sprintf("%s  (link: https://github.com/%s)", 
+		lines = append(lines, fmt.Sprintf("%s  (link: https://github.com/%s)",
 			repo.FullName, repo.FullName))
 	}
 
@@ -68,14 +69,16 @@ func (f *Formatter) formatLong(repo storage.StoredRepo) string {
 	if description == "" {
 		description = "-"
 	}
-	lines = append(lines, fmt.Sprintf("GitHub Description: %s", description))
+
+	lines = append(lines, "GitHub Description: "+description)
 
 	// Line 3: External link
 	homepage := repo.Homepage
 	if homepage == "" {
 		homepage = "-"
 	}
-	lines = append(lines, fmt.Sprintf("GitHub External Description Link: %s", homepage))
+
+	lines = append(lines, "GitHub External Description Link: "+homepage)
 
 	// Line 4: Numbers (issues, PRs, stars, forks)
 	openIssues := f.formatInt(repo.OpenIssuesOpen)
@@ -84,7 +87,7 @@ func (f *Formatter) formatLong(repo storage.StoredRepo) string {
 	totalPRs := f.formatInt(repo.OpenPRsTotal)
 	stars := f.formatInt(repo.StargazersCount)
 	forks := f.formatInt(repo.ForksCount)
-	
+
 	lines = append(lines, fmt.Sprintf("Numbers: %s/%s open issues, %s/%s open PRs, %s stars, %s forks",
 		openIssues, totalIssues, openPRs, totalPRs, stars, forks))
 
@@ -92,51 +95,54 @@ func (f *Formatter) formatLong(repo storage.StoredRepo) string {
 	commits30d := f.formatInt(repo.Commits30d)
 	commits1y := f.formatInt(repo.Commits1y)
 	commitsTotal := f.formatInt(repo.CommitsTotal)
-	
+
 	lines = append(lines, fmt.Sprintf("Commits: %s in last 30 days, %s in last year, %s total",
 		commits30d, commits1y, commitsTotal))
 
 	// Line 6: Age
 	age := f.humanizeAge(repo.CreatedAt)
-	lines = append(lines, fmt.Sprintf("Age: %s", age))
+	lines = append(lines, "Age: "+age)
 
 	// Line 7: License
 	license := repo.LicenseSPDXID
 	if license == "" {
 		license = repo.LicenseName
 	}
+
 	if license == "" {
 		license = "-"
 	}
-	lines = append(lines, fmt.Sprintf("License: %s", license))
+
+	lines = append(lines, "License: "+license)
 
 	// Line 8: Top 10 Contributors
 	contributors := f.formatContributors(repo.Contributors)
-	lines = append(lines, fmt.Sprintf("Top 10 Contributors: %s", contributors))
+	lines = append(lines, "Top 10 Contributors: "+contributors)
 
 	// Line 9: GitHub Topics
 	topics := strings.Join(repo.Topics, ", ")
 	if topics == "" {
 		topics = "-"
 	}
-	lines = append(lines, fmt.Sprintf("GitHub Topics: %s", topics))
+
+	lines = append(lines, "GitHub Topics: "+topics)
 
 	// Line 10: Languages
 	languages := f.formatLanguages(repo.Languages)
-	lines = append(lines, fmt.Sprintf("Languages: %s", languages))
+	lines = append(lines, "Languages: "+languages)
 
 	// Line 11: Related Stars
 	relatedStars := f.formatRelatedStars(repo)
-	lines = append(lines, fmt.Sprintf("Related Stars: %s", relatedStars))
+	lines = append(lines, "Related Stars: "+relatedStars)
 
 	// Line 12: Last synced
 	lastSynced := f.humanizeAge(repo.LastSynced)
-	lines = append(lines, fmt.Sprintf("Last synced: %s", lastSynced))
+	lines = append(lines, "Last synced: "+lastSynced)
 
 	// Line 13: Summary (optional)
 	if repo.Purpose != "" || len(repo.Features) > 0 || repo.UsageInstructions != "" {
 		summary := f.formatSummary(repo)
-		lines = append(lines, fmt.Sprintf("Summary: %s", summary))
+		lines = append(lines, "Summary: "+summary)
 	}
 
 	// Line 14-15: Planned placeholders
@@ -151,7 +157,7 @@ func (f *Formatter) formatShort(repo storage.StoredRepo, score float64, rank int
 	// First two lines of long-form
 	longForm := f.formatLong(repo)
 	longLines := strings.Split(longForm, "\n")
-	
+
 	var firstTwoLines []string
 	if len(longLines) >= 2 {
 		firstTwoLines = longLines[:2]
@@ -164,15 +170,16 @@ func (f *Formatter) formatShort(repo storage.StoredRepo, score float64, rank int
 	if len(description) > 80 {
 		description = description[:77] + "..."
 	}
+
 	if description == "" {
 		description = "-"
 	}
 
 	primaryLang := f.getPrimaryLanguage(repo.Languages)
-	
+
 	result := strings.Join(firstTwoLines, "\n")
 	result += fmt.Sprintf("\n%d. %s  ⭐ %d  %s  Updated %s  Score:%.2f",
-		rank, repo.FullName, repo.StargazersCount, primaryLang, 
+		rank, repo.FullName, repo.StargazersCount, primaryLang,
 		f.humanizeAge(repo.UpdatedAt), score)
 
 	return result
@@ -183,10 +190,11 @@ func (f *Formatter) formatShortBasic(repo storage.StoredRepo) string {
 	// First two lines of long-form
 	longForm := f.formatLong(repo)
 	longLines := strings.Split(longForm, "\n")
-	
+
 	if len(longLines) >= 2 {
 		return strings.Join(longLines[:2], "\n")
 	}
+
 	return strings.Join(longLines, "\n")
 }
 
@@ -195,7 +203,8 @@ func (f *Formatter) formatInt(value int) string {
 	if value < 0 {
 		return "?"
 	}
-	return fmt.Sprintf("%d", value)
+
+	return strconv.Itoa(value)
 }
 
 // humanizeAge converts a time to a human-readable age string
@@ -208,7 +217,7 @@ func (f *Formatter) humanizeAge(t time.Time) string {
 	duration := now.Sub(t)
 
 	days := int(duration.Hours() / 24)
-	
+
 	if days < 1 {
 		return "today"
 	} else if days == 1 {
@@ -220,12 +229,14 @@ func (f *Formatter) humanizeAge(t time.Time) string {
 		if months == 1 {
 			return "1 month ago"
 		}
+
 		return fmt.Sprintf("%d months ago", months)
 	} else {
 		years := days / 365
 		if years == 1 {
 			return "1 year ago"
 		}
+
 		return fmt.Sprintf("%d years ago", years)
 	}
 }
@@ -243,7 +254,7 @@ func (f *Formatter) formatContributors(contributors []storage.Contributor) strin
 		limit = 10
 	}
 
-	for i := 0; i < limit; i++ {
+	for i := range limit {
 		contrib := contributors[i]
 		parts = append(parts, fmt.Sprintf("%s (%d)", contrib.Login, contrib.Contributions))
 	}
@@ -262,14 +273,14 @@ func (f *Formatter) formatLanguages(languages map[string]int64) string {
 		name  string
 		bytes int64
 	}
-	
+
 	var entries []langEntry
 	for lang, bytes := range languages {
 		entries = append(entries, langEntry{name: lang, bytes: bytes})
 	}
-	
+
 	// Sort by bytes descending, then by name for deterministic output
-	for i := 0; i < len(entries)-1; i++ {
+	for i := range len(entries) - 1 {
 		for j := i + 1; j < len(entries); j++ {
 			if entries[i].bytes < entries[j].bytes ||
 				(entries[i].bytes == entries[j].bytes && entries[i].name > entries[j].name) {
@@ -295,6 +306,7 @@ func (f *Formatter) getPrimaryLanguage(languages map[string]int64) string {
 	}
 
 	var primaryLang string
+
 	var maxBytes int64
 
 	for lang, bytes := range languages {
@@ -325,11 +337,11 @@ func (f *Formatter) formatSummary(repo storage.StoredRepo) string {
 
 	if len(repo.Features) > 0 {
 		features := strings.Join(repo.Features, ", ")
-		parts = append(parts, fmt.Sprintf("Features: %s", features))
+		parts = append(parts, "Features: "+features)
 	}
 
 	if repo.UsageInstructions != "" {
-		parts = append(parts, fmt.Sprintf("Usage: %s", repo.UsageInstructions))
+		parts = append(parts, "Usage: "+repo.UsageInstructions)
 	}
 
 	if len(parts) == 0 {

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -64,6 +65,7 @@ func NewFileCache(directory string, maxSizeMB int, defaultTTL, cleanupFreq time.
 		if err != nil {
 			return nil, fmt.Errorf("failed to get user home directory: %w", err)
 		}
+
 		directory = filepath.Join(home, directory[2:])
 	}
 
@@ -103,7 +105,7 @@ func (c *FileCache) Get(ctx context.Context, key string) ([]byte, error) {
 	// Check if files exist
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		c.stats.Misses++
-		return nil, fmt.Errorf("cache miss: key not found")
+		return nil, errors.New("cache miss: key not found")
 	}
 
 	// Read metadata
@@ -125,7 +127,8 @@ func (c *FileCache) Get(ctx context.Context, key string) ([]byte, error) {
 		// Clean up expired entry
 		os.Remove(filePath)
 		os.Remove(metaPath)
-		return nil, fmt.Errorf("cache miss: entry expired")
+
+		return nil, errors.New("cache miss: entry expired")
 	}
 
 	// Read data
@@ -136,6 +139,7 @@ func (c *FileCache) Get(ctx context.Context, key string) ([]byte, error) {
 	}
 
 	c.stats.Hits++
+
 	return data, nil
 }
 
@@ -266,6 +270,7 @@ func (c *FileCache) Cleanup(ctx context.Context) error {
 	}
 
 	now := time.Now()
+
 	var removedCount int64
 
 	entries, err := os.ReadDir(c.directory)
@@ -279,6 +284,7 @@ func (c *FileCache) Cleanup(ctx context.Context) error {
 		}
 
 		metaPath := filepath.Join(c.directory, entry.Name())
+
 		metaData, err := os.ReadFile(metaPath)
 		if err != nil {
 			continue // Skip files we can't read
@@ -296,6 +302,7 @@ func (c *FileCache) Cleanup(ctx context.Context) error {
 
 			os.Remove(filePath)
 			os.Remove(metaPath)
+
 			removedCount++
 		}
 	}
@@ -316,6 +323,7 @@ func (c *FileCache) GetStats(ctx context.Context) (*Stats, error) {
 
 	// Count current entries and size
 	var totalEntries int64
+
 	totalSize, _ := c.Size(ctx)
 
 	entries, err := os.ReadDir(c.directory)
@@ -346,6 +354,7 @@ func (c *FileCache) Close() error {
 	c.cleanupOnce.Do(func() {
 		close(c.stopCleanup)
 	})
+
 	return nil
 }
 
@@ -365,6 +374,7 @@ func (c *FileCache) getMetaPath(key string) string {
 func (c *FileCache) hashKey(key string) string {
 	hasher := sha256.New()
 	hasher.Write([]byte(key))
+
 	return hex.EncodeToString(hasher.Sum(nil))[:16] // Use first 16 chars for shorter filenames
 }
 
@@ -407,6 +417,7 @@ func (c *FileCache) enforceSize(newEntrySize int64) error {
 
 		// Get corresponding data file size
 		dataName := strings.TrimSuffix(entry.Name(), ".meta") + ".data"
+
 		dataPath := filepath.Join(c.directory, dataName)
 		if dataInfo, err := os.Stat(dataPath); err == nil {
 			entryInfos = append(entryInfos, entryInfo{
@@ -418,7 +429,7 @@ func (c *FileCache) enforceSize(newEntrySize int64) error {
 	}
 
 	// Sort by modification time (oldest first)
-	for i := 0; i < len(entryInfos)-1; i++ {
+	for i := range len(entryInfos) - 1 {
 		for j := i + 1; j < len(entryInfos); j++ {
 			if entryInfos[i].modTime.After(entryInfos[j].modTime) {
 				entryInfos[i], entryInfos[j] = entryInfos[j], entryInfos[i]
@@ -428,6 +439,7 @@ func (c *FileCache) enforceSize(newEntrySize int64) error {
 
 	// Remove entries until we have enough space
 	spaceNeeded := (currentSize + newEntrySize) - c.maxSizeMB
+
 	var spaceFreed int64
 
 	for _, info := range entryInfos {
@@ -462,6 +474,7 @@ func (c *FileCache) calculateSize() (int64, error) {
 			if err != nil {
 				return err
 			}
+
 			totalSize += info.Size()
 		}
 

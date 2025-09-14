@@ -54,11 +54,11 @@ func TestSearchEngine_CalculateFuzzyScore(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			score := engine.calculateFuzzyScore(repo, tt.queryTerms)
-			
+
 			if tt.expectScore && score <= 0 {
 				t.Errorf("Expected score > 0, got %f", score)
 			}
-			
+
 			if !tt.expectScore && score > 0 {
 				t.Errorf("Expected score = 0, got %f", score)
 			}
@@ -104,11 +104,11 @@ func TestSearchEngine_ApplyRankingBoosts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			score := engine.applyRankingBoosts(tt.repo, tt.baseScore)
-			
+
 			if score < tt.expectMin {
 				t.Errorf("Expected score >= %f, got %f", tt.expectMin, score)
 			}
-			
+
 			// Score should never exceed 1.0 after clamping
 			if score > 1.0 {
 				t.Errorf("Score should be clamped to 1.0, got %f", score)
@@ -159,13 +159,13 @@ func TestSearchEngine_IdentifyMatchedFields(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fields := engine.identifyMatchedFields(repo, tt.queryTerms)
-			
+
 			// Check that all expected fields are present
 			fieldMap := make(map[string]bool)
 			for _, field := range fields {
 				fieldMap[field] = true
 			}
-			
+
 			for _, expected := range tt.expectedFields {
 				if !fieldMap[expected] {
 					t.Errorf("Expected field %s not found in results: %v", expected, fields)
@@ -211,12 +211,12 @@ func TestTokenizeQuery(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tokenizeQuery(tt.query)
-			
+
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d terms, got %d: %v", len(tt.expected), len(result), result)
 				return
 			}
-			
+
 			for i, term := range result {
 				if term != tt.expected[i] {
 					t.Errorf("Expected term %s at position %d, got %s", tt.expected[i], i, term)
@@ -255,12 +255,12 @@ func TestSortAndRankResults(t *testing.T) {
 
 	// Should be sorted by score desc, then by stars desc
 	expectedOrder := []string{"repo2", "repo3", "repo1"}
-	
+
 	for i, result := range sorted {
 		if result.Repository.FullName != expectedOrder[i] {
 			t.Errorf("Expected %s at position %d, got %s", expectedOrder[i], i, result.Repository.FullName)
 		}
-		
+
 		if result.Rank != i+1 {
 			t.Errorf("Expected rank %d, got %d", i+1, result.Rank)
 		}

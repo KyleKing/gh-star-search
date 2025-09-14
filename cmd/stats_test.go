@@ -26,12 +26,12 @@ func TestRunStats(t *testing.T) {
 			"Java":       10,
 		},
 		TopicBreakdown: map[string]int{
-			"cli":        40,
-			"web":        35,
-			"api":        30,
-			"tool":       25,
-			"framework":  20,
-			"library":    15,
+			"cli":       40,
+			"web":       35,
+			"api":       30,
+			"tool":      25,
+			"framework": 20,
+			"library":   15,
 		},
 	}
 
@@ -97,9 +97,11 @@ func TestRunStats(t *testing.T) {
 
 			// Restore stdout and get output
 			w.Close()
+
 			os.Stdout = oldStdout
 
 			var buf bytes.Buffer
+
 			buf.ReadFrom(r)
 			output := buf.String()
 

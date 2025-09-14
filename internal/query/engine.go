@@ -76,28 +76,29 @@ func (e *SearchEngine) searchFuzzy(ctx context.Context, query string, opts Searc
 
 	// Convert to enhanced results with improved scoring
 	var results []Result
+
 	queryTerms := tokenizeQuery(query)
 
 	for _, sr := range storageResults {
 		// Calculate enhanced BM25-like score
 		score := e.calculateFuzzyScore(sr.Repository, queryTerms)
-		
+
 		// Apply ranking boosts
 		score = e.applyRankingBoosts(sr.Repository, score)
-		
+
 		// Clamp score to 1.0
 		if score > 1.0 {
 			score = 1.0
 		}
-		
+
 		// Skip results below minimum score
 		if score < opts.MinScore {
 			continue
 		}
-		
+
 		// Identify matched fields
 		matchFields := e.identifyMatchedFields(sr.Repository, queryTerms)
-		
+
 		results = append(results, Result{
 			RepoID:      sr.Repository.ID,
 			Score:       score,
@@ -108,7 +109,7 @@ func (e *SearchEngine) searchFuzzy(ctx context.Context, query string, opts Searc
 
 	// Sort by score (descending) and assign ranks
 	results = sortAndRankResults(results)
-	
+
 	// Apply limit
 	if opts.Limit > 0 && len(results) > opts.Limit {
 		results = results[:opts.Limit]
@@ -122,7 +123,6 @@ func (e *SearchEngine) searchVector(ctx context.Context, query string, opts Sear
 	// TODO: Implement vector search with cosine similarity
 	// For now, fall back to fuzzy search
 	// This will be implemented when embedding functionality is added
-	
 	return e.searchFuzzy(ctx, query, opts)
 }
 
@@ -158,7 +158,7 @@ func (e *SearchEngine) calculateFuzzyScore(repo storage.StoredRepo, queryTerms [
 			}
 
 			fieldContentLower := strings.ToLower(fieldContent)
-			
+
 			// Simple term frequency calculation
 			tf := float64(strings.Count(fieldContentLower, termLower))
 			if tf > 0 {
@@ -180,6 +180,7 @@ func (e *SearchEngine) calculateFuzzyScore(repo storage.StoredRepo, queryTerms [
 	if matchedTerms > 0 {
 		avgScore := totalScore / float64(len(queryTerms))
 		coverageBonus := float64(matchedTerms) / float64(len(queryTerms))
+
 		return avgScore * (0.7 + 0.3*coverageBonus) // Base score + coverage bonus
 	}
 
@@ -204,13 +205,14 @@ func (e *SearchEngine) applyRankingBoosts(repo storage.StoredRepo, baseScore flo
 	recencyFactor := 1.0
 	// TODO: Implement proper recency calculation based on repo.UpdatedAt
 	// For now, use a placeholder that doesn't change the score
-	
+
 	return baseScore * starBoost * recencyFactor
 }
 
 // identifyMatchedFields identifies which logical fields matched the query
 func (e *SearchEngine) identifyMatchedFields(repo storage.StoredRepo, queryTerms []string) []string {
 	var matchedFields []string
+
 	fieldMap := map[string]string{
 		"name":         repo.FullName,
 		"description":  repo.Description,
@@ -224,7 +226,7 @@ func (e *SearchEngine) identifyMatchedFields(repo storage.StoredRepo, queryTerms
 		if content == "" {
 			continue
 		}
-		
+
 		contentLower := strings.ToLower(content)
 		for _, term := range queryTerms {
 			if strings.Contains(contentLower, strings.ToLower(term)) {
@@ -257,6 +259,7 @@ func (e *SearchEngine) getFieldContent(repo storage.StoredRepo, field string) st
 		for _, contrib := range repo.Contributors {
 			names = append(names, contrib.Login)
 		}
+
 		return strings.Join(names, " ")
 	default:
 		return ""
@@ -267,25 +270,26 @@ func (e *SearchEngine) getFieldContent(repo storage.StoredRepo, field string) st
 func tokenizeQuery(query string) []string {
 	// Simple tokenization: split by whitespace and remove empty strings
 	parts := strings.Fields(strings.TrimSpace(query))
+
 	var terms []string
-	
+
 	for _, part := range parts {
 		if len(part) > 0 {
 			terms = append(terms, part)
 		}
 	}
-	
+
 	return terms
 }
 
 // sortAndRankResults sorts results by score and assigns ranks
 func sortAndRankResults(results []Result) []Result {
 	// Sort by score descending, then by stars descending as tiebreaker
-	for i := 0; i < len(results)-1; i++ {
+	for i := range len(results) - 1 {
 		for j := i + 1; j < len(results); j++ {
 			if results[i].Score < results[j].Score ||
-				(results[i].Score == results[j].Score && 
-				 results[i].Repository.StargazersCount < results[j].Repository.StargazersCount) {
+				(results[i].Score == results[j].Score &&
+					results[i].Repository.StargazersCount < results[j].Repository.StargazersCount) {
 				results[i], results[j] = results[j], results[i]
 			}
 		}

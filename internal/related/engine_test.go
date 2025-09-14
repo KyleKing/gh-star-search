@@ -10,10 +10,10 @@ func TestRelatedEngine_CalculateSameOrgScore(t *testing.T) {
 	engine := &RelatedEngine{}
 
 	tests := []struct {
-		name           string
-		targetRepo     string
-		candidateRepo  string
-		expectedScore  float64
+		name          string
+		targetRepo    string
+		candidateRepo string
+		expectedScore float64
 	}{
 		{
 			name:          "same org",
@@ -39,9 +39,9 @@ func TestRelatedEngine_CalculateSameOrgScore(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			target := storage.StoredRepo{FullName: tt.targetRepo}
 			candidate := storage.StoredRepo{FullName: tt.candidateRepo}
-			
+
 			score := engine.calculateSameOrgScore(target, candidate)
-			
+
 			if score != tt.expectedScore {
 				t.Errorf("Expected score %f, got %f", tt.expectedScore, score)
 			}
@@ -53,39 +53,39 @@ func TestRelatedEngine_CalculateTopicOverlapScore(t *testing.T) {
 	engine := &RelatedEngine{}
 
 	tests := []struct {
-		name          string
-		targetTopics  []string
+		name            string
+		targetTopics    []string
 		candidateTopics []string
-		expectedMin   float64 // Minimum expected score
-		expectedMax   float64 // Maximum expected score
+		expectedMin     float64 // Minimum expected score
+		expectedMax     float64 // Maximum expected score
 	}{
 		{
-			name:          "identical topics",
-			targetTopics:  []string{"javascript", "react", "frontend"},
+			name:            "identical topics",
+			targetTopics:    []string{"javascript", "react", "frontend"},
 			candidateTopics: []string{"javascript", "react", "frontend"},
-			expectedMin:   1.0,
-			expectedMax:   1.0,
+			expectedMin:     1.0,
+			expectedMax:     1.0,
 		},
 		{
-			name:          "partial overlap",
-			targetTopics:  []string{"javascript", "react", "frontend"},
+			name:            "partial overlap",
+			targetTopics:    []string{"javascript", "react", "frontend"},
 			candidateTopics: []string{"javascript", "vue", "frontend"},
-			expectedMin:   0.4, // 2/5 = 0.4 (Jaccard)
-			expectedMax:   0.6,
+			expectedMin:     0.4, // 2/5 = 0.4 (Jaccard)
+			expectedMax:     0.6,
 		},
 		{
-			name:          "no overlap",
-			targetTopics:  []string{"javascript", "react"},
+			name:            "no overlap",
+			targetTopics:    []string{"javascript", "react"},
 			candidateTopics: []string{"python", "django"},
-			expectedMin:   0.0,
-			expectedMax:   0.0,
+			expectedMin:     0.0,
+			expectedMax:     0.0,
 		},
 		{
-			name:          "empty topics",
-			targetTopics:  []string{},
+			name:            "empty topics",
+			targetTopics:    []string{},
 			candidateTopics: []string{"javascript"},
-			expectedMin:   0.0,
-			expectedMax:   0.0,
+			expectedMin:     0.0,
+			expectedMax:     0.0,
 		},
 	}
 
@@ -93,9 +93,9 @@ func TestRelatedEngine_CalculateTopicOverlapScore(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			target := storage.StoredRepo{Topics: tt.targetTopics}
 			candidate := storage.StoredRepo{Topics: tt.candidateTopics}
-			
+
 			score := engine.calculateTopicOverlapScore(target, candidate)
-			
+
 			if score < tt.expectedMin || score > tt.expectedMax {
 				t.Errorf("Expected score between %f and %f, got %f", tt.expectedMin, tt.expectedMax, score)
 			}
@@ -107,11 +107,11 @@ func TestRelatedEngine_CalculateSharedContribScore(t *testing.T) {
 	engine := &RelatedEngine{}
 
 	tests := []struct {
-		name               string
-		targetContribs     []storage.Contributor
-		candidateContribs  []storage.Contributor
-		expectedMin        float64
-		expectedMax        float64
+		name              string
+		targetContribs    []storage.Contributor
+		candidateContribs []storage.Contributor
+		expectedMin       float64
+		expectedMax       float64
 	}{
 		{
 			name: "shared contributors",
@@ -138,11 +138,11 @@ func TestRelatedEngine_CalculateSharedContribScore(t *testing.T) {
 			expectedMax: 0.0,
 		},
 		{
-			name:               "empty contributors",
-			targetContribs:     []storage.Contributor{},
-			candidateContribs:  []storage.Contributor{{Login: "alice", Contributions: 100}},
-			expectedMin:        0.0,
-			expectedMax:        0.0,
+			name:              "empty contributors",
+			targetContribs:    []storage.Contributor{},
+			candidateContribs: []storage.Contributor{{Login: "alice", Contributions: 100}},
+			expectedMin:       0.0,
+			expectedMax:       0.0,
 		},
 	}
 
@@ -150,9 +150,9 @@ func TestRelatedEngine_CalculateSharedContribScore(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			target := storage.StoredRepo{Contributors: tt.targetContribs}
 			candidate := storage.StoredRepo{Contributors: tt.candidateContribs}
-			
+
 			score := engine.calculateSharedContribScore(target, candidate)
-			
+
 			if score < tt.expectedMin || score > tt.expectedMax {
 				t.Errorf("Expected score between %f and %f, got %f", tt.expectedMin, tt.expectedMax, score)
 			}
@@ -164,10 +164,10 @@ func TestRelatedEngine_GenerateExplanation(t *testing.T) {
 	engine := &RelatedEngine{}
 
 	tests := []struct {
-		name       string
-		components ScoreComponents
-		target     storage.StoredRepo
-		candidate  storage.StoredRepo
+		name           string
+		components     ScoreComponents
+		target         storage.StoredRepo
+		candidate      storage.StoredRepo
 		expectContains []string // Strings that should be in the explanation
 	}{
 		{
@@ -175,8 +175,8 @@ func TestRelatedEngine_GenerateExplanation(t *testing.T) {
 			components: ScoreComponents{
 				SameOrg: 1.0,
 			},
-			target: storage.StoredRepo{FullName: "facebook/react"},
-			candidate: storage.StoredRepo{FullName: "facebook/jest"},
+			target:         storage.StoredRepo{FullName: "facebook/react"},
+			candidate:      storage.StoredRepo{FullName: "facebook/jest"},
 			expectContains: []string{"shared org", "facebook"},
 		},
 		{
@@ -186,27 +186,27 @@ func TestRelatedEngine_GenerateExplanation(t *testing.T) {
 			},
 			target: storage.StoredRepo{
 				FullName: "facebook/react",
-				Topics: []string{"javascript", "react"},
+				Topics:   []string{"javascript", "react"},
 			},
 			candidate: storage.StoredRepo{
 				FullName: "vuejs/vue",
-				Topics: []string{"javascript", "vue"},
+				Topics:   []string{"javascript", "vue"},
 			},
 			expectContains: []string{"shared topic", "javascript"},
 		},
 		{
 			name: "multiple components",
 			components: ScoreComponents{
-				SameOrg: 1.0,
+				SameOrg:      1.0,
 				TopicOverlap: 0.5,
 			},
 			target: storage.StoredRepo{
 				FullName: "facebook/react",
-				Topics: []string{"javascript", "react"},
+				Topics:   []string{"javascript", "react"},
 			},
 			candidate: storage.StoredRepo{
 				FullName: "facebook/jest",
-				Topics: []string{"javascript", "testing"},
+				Topics:   []string{"javascript", "testing"},
 			},
 			expectContains: []string{"shared org", "facebook", "and", "shared topic"},
 		},
@@ -215,7 +215,7 @@ func TestRelatedEngine_GenerateExplanation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			explanation := engine.generateExplanation(tt.components, tt.target, tt.candidate)
-			
+
 			for _, expected := range tt.expectContains {
 				if !contains(explanation, expected) {
 					t.Errorf("Expected explanation to contain '%s', got: %s", expected, explanation)
@@ -288,18 +288,18 @@ func TestGetSharedTopics(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := getSharedTopics(tt.topics1, tt.topics2)
-			
+
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d shared topics, got %d: %v", len(tt.expected), len(result), result)
 				return
 			}
-			
+
 			// Convert to map for easier comparison
 			resultMap := make(map[string]bool)
 			for _, topic := range result {
 				resultMap[topic] = true
 			}
-			
+
 			for _, expected := range tt.expected {
 				if !resultMap[expected] {
 					t.Errorf("Expected shared topic %s not found in result: %v", expected, result)
@@ -311,10 +311,10 @@ func TestGetSharedTopics(t *testing.T) {
 
 func TestCosineSimilarity(t *testing.T) {
 	tests := []struct {
-		name     string
-		a        []float32
-		b        []float32
-		expected float64
+		name      string
+		a         []float32
+		b         []float32
+		expected  float64
 		tolerance float64
 	}{
 		{
@@ -357,7 +357,7 @@ func TestCosineSimilarity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := cosineSimilarity(tt.a, tt.b)
-			
+
 			if abs(result-tt.expected) > tt.tolerance {
 				t.Errorf("Expected %f, got %f", tt.expected, result)
 			}
@@ -368,11 +368,11 @@ func TestCosineSimilarity(t *testing.T) {
 // Helper functions
 
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || 
-		(len(s) > len(substr) && 
-		 (s[:len(substr)] == substr || 
-		  s[len(s)-len(substr):] == substr || 
-		  containsSubstring(s, substr))))
+	return len(s) >= len(substr) && (s == substr ||
+		(len(s) > len(substr) &&
+			(s[:len(substr)] == substr ||
+				s[len(s)-len(substr):] == substr ||
+				containsSubstring(s, substr))))
 }
 
 func containsSubstring(s, substr string) bool {
@@ -381,6 +381,7 @@ func containsSubstring(s, substr string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -388,5 +389,6 @@ func abs(x float64) float64 {
 	if x < 0 {
 		return -x
 	}
+
 	return x
 }

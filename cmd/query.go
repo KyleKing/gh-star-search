@@ -16,10 +16,10 @@ import (
 )
 
 var (
-	queryMode   string
-	queryLimit  int
-	queryLong   bool
-	queryShort  bool
+	queryMode    string
+	queryLimit   int
+	queryLong    bool
+	queryShort   bool
 	queryRelated bool
 )
 
@@ -122,7 +122,7 @@ func runQuery(cmd *cobra.Command, args []string) error {
 		} else {
 			displayShortFormResult(i+1, result)
 		}
-		
+
 		if i < len(results)-1 {
 			fmt.Println() // Add spacing between results
 		}
@@ -131,19 +131,21 @@ func runQuery(cmd *cobra.Command, args []string) error {
 	// Display related repositories if requested
 	if queryRelated && len(results) > 0 {
 		fmt.Println("\n--- Related Repositories ---")
-		
+
 		// Initialize related engine
 		relatedEngine := related.NewRelatedEngine(repo)
-		
+
 		// Show related repos for the top result
 		topRepo := results[0].Repository.FullName
+
 		relatedRepos, err := relatedEngine.FindRelated(ctx, topRepo, 3) // Limit to 3 for query output
 		if err != nil {
 			logger.Warnf("Failed to find related repositories: %v", err)
 		} else if len(relatedRepos) > 0 {
 			fmt.Printf("Repositories related to %s:\n", topRepo)
+
 			for i, rel := range relatedRepos {
-				fmt.Printf("  %d. %s (Score: %.2f) - %s\n", 
+				fmt.Printf("  %d. %s (Score: %.2f) - %s\n",
 					i+1, rel.Repository.FullName, rel.Score, rel.Explanation)
 			}
 		} else {
@@ -157,7 +159,7 @@ func runQuery(cmd *cobra.Command, args []string) error {
 // validateQuery validates the search query string
 func validateQuery(query string) error {
 	if len(query) < 2 {
-		return errors.New(errors.ErrTypeValidation, 
+		return errors.New(errors.ErrTypeValidation,
 			"query string must be at least 2 characters long")
 	}
 
@@ -170,7 +172,7 @@ func validateQuery(query string) error {
 	queryLower := strings.ToLower(query)
 	for _, pattern := range structuredPatterns {
 		if strings.Contains(queryLower, pattern) {
-			return errors.New(errors.ErrTypeValidation, 
+			return errors.New(errors.ErrTypeValidation,
 				fmt.Sprintf("structured filters like '%s' are not yet supported. Use simple search terms instead.", pattern))
 		}
 	}
@@ -183,108 +185,110 @@ func validateQueryFlags() error {
 	// Validate mode
 	validModes := map[string]bool{"fuzzy": true, "vector": true}
 	if !validModes[queryMode] {
-		return errors.New(errors.ErrTypeValidation, 
+		return errors.New(errors.ErrTypeValidation,
 			fmt.Sprintf("invalid mode '%s'. Must be 'fuzzy' or 'vector'", queryMode))
 	}
 
 	// Validate limit
 	if queryLimit < 1 || queryLimit > 50 {
-		return errors.New(errors.ErrTypeValidation, 
+		return errors.New(errors.ErrTypeValidation,
 			"limit must be between 1 and 50")
 	}
 
 	// Validate format flags (can't have both)
 	if queryLong && queryShort {
-		return errors.New(errors.ErrTypeValidation, 
+		return errors.New(errors.ErrTypeValidation,
 			"cannot specify both --long and --short flags")
 	}
 
 	return nil
 }
 
-
-
 // displayLongFormResult displays a search result in long format
 func displayLongFormResult(rank int, result query.Result, showRelated bool) {
 	repo := result.Repository
-	
+
 	// Header line with link
 	fmt.Printf("%d. %s  (https://github.com/%s)\n", rank, repo.FullName, repo.FullName)
-	
+
 	// GitHub Description
 	description := repo.Description
 	if description == "" {
 		description = "-"
 	}
+
 	fmt.Printf("GitHub Description: %s\n", description)
-	
+
 	// External link (homepage)
 	homepage := repo.Homepage
 	if homepage == "" {
 		homepage = "-"
 	}
+
 	fmt.Printf("GitHub External Description Link: %s\n", homepage)
-	
+
 	// Numbers: issues, PRs, stars, forks
 	fmt.Printf("Numbers: %d/%d open issues, %d/%d open PRs, %d stars, %d forks\n",
 		repo.OpenIssuesOpen, repo.OpenIssuesTotal,
 		repo.OpenPRsOpen, repo.OpenPRsTotal,
 		repo.StargazersCount, repo.ForksCount)
-	
+
 	// Commits
 	commits30d := repo.Commits30d
 	commits1y := repo.Commits1y
 	commitsTotal := repo.CommitsTotal
-	
+
 	commits30dStr := formatCommitCount(commits30d)
 	commits1yStr := formatCommitCount(commits1y)
 	commitsTotalStr := formatCommitCount(commitsTotal)
-	
+
 	fmt.Printf("Commits: %s in last 30 days, %s in last year, %s total\n",
 		commits30dStr, commits1yStr, commitsTotalStr)
-	
+
 	// Age
 	age := formatAge(repo.CreatedAt)
 	fmt.Printf("Age: %s\n", age)
-	
+
 	// License
 	license := repo.LicenseSPDXID
 	if license == "" {
 		license = repo.LicenseName
 	}
+
 	if license == "" {
 		license = "-"
 	}
+
 	fmt.Printf("License: %s\n", license)
-	
+
 	// Top 10 Contributors
 	contributors := formatContributors(repo.Contributors)
 	fmt.Printf("Top 10 Contributors: %s\n", contributors)
-	
+
 	// GitHub Topics
 	topics := formatTopics(repo.Topics)
 	fmt.Printf("GitHub Topics: %s\n", topics)
-	
+
 	// Languages
 	languages := formatLanguages(repo.Languages)
 	fmt.Printf("Languages: %s\n", languages)
-	
+
 	// Related Stars (computed counts)
 	relatedStars := formatRelatedStars(repo)
 	fmt.Printf("Related Stars: %s\n", relatedStars)
-	
+
 	// Last synced
 	lastSynced := formatAge(repo.LastSynced)
 	fmt.Printf("Last synced: %s\n", lastSynced)
-	
+
 	// Summary (if available)
 	if repo.Purpose != "" {
 		fmt.Printf("Summary: %s\n", repo.Purpose)
 	}
-	
+
 	// Score
 	fmt.Printf("Score: %.2f\n", result.Score)
-	
+
 	// Planned placeholders
 	fmt.Printf("(PLANNED: dependencies count)\n")
 	fmt.Printf("(PLANNED: dependents count)\n")
@@ -293,26 +297,28 @@ func displayLongFormResult(rank int, result query.Result, showRelated bool) {
 // displayShortFormResult displays a search result in short format
 func displayShortFormResult(rank int, result query.Result) {
 	repo := result.Repository
-	
+
 	// First line: rank, name, stars, primary language, updated, score
 	primaryLang := repo.Language
 	if primaryLang == "" {
 		primaryLang = "Unknown"
 	}
-	
+
 	updated := formatAge(repo.UpdatedAt)
-	
+
 	fmt.Printf("%d. %s  ⭐ %d  %s  Updated %s  Score: %.2f\n",
 		rank, repo.FullName, repo.StargazersCount, primaryLang, updated, result.Score)
-	
+
 	// Second line: truncated description
 	description := repo.Description
 	if len(description) > 80 {
 		description = description[:77] + "..."
 	}
+
 	if description == "" {
 		description = "-"
 	}
+
 	fmt.Printf("   %s\n", description)
 }
 
@@ -322,6 +328,7 @@ func formatCommitCount(count int) string {
 	if count < 0 {
 		return "?"
 	}
+
 	return strconv.Itoa(count)
 }
 
@@ -329,12 +336,12 @@ func formatAge(timestamp time.Time) string {
 	if timestamp.IsZero() {
 		return "unknown"
 	}
-	
+
 	now := time.Now()
 	duration := now.Sub(timestamp)
-	
+
 	days := int(duration.Hours() / 24)
-	
+
 	if days == 0 {
 		return "today"
 	} else if days == 1 {
@@ -346,18 +353,21 @@ func formatAge(timestamp time.Time) string {
 		if weeks == 1 {
 			return "1 week ago"
 		}
+
 		return fmt.Sprintf("%d weeks ago", weeks)
 	} else if days < 365 {
 		months := days / 30
 		if months == 1 {
 			return "1 month ago"
 		}
+
 		return fmt.Sprintf("%d months ago", months)
 	} else {
 		years := days / 365
 		if years == 1 {
 			return "1 year ago"
 		}
+
 		return fmt.Sprintf("%d years ago", years)
 	}
 }
@@ -366,15 +376,17 @@ func formatContributors(contributors []storage.Contributor) string {
 	if len(contributors) == 0 {
 		return "-"
 	}
-	
+
 	var parts []string
+
 	for i, contrib := range contributors {
 		if i >= 10 { // Limit to top 10
 			break
 		}
+
 		parts = append(parts, fmt.Sprintf("%s (%d)", contrib.Login, contrib.Contributions))
 	}
-	
+
 	return strings.Join(parts, ", ")
 }
 
@@ -382,6 +394,7 @@ func formatTopics(topics []string) string {
 	if len(topics) == 0 {
 		return "-"
 	}
+
 	return strings.Join(topics, ", ")
 }
 
@@ -389,14 +402,15 @@ func formatLanguages(languages map[string]int64) string {
 	if len(languages) == 0 {
 		return "-"
 	}
-	
+
 	var parts []string
+
 	for lang, bytes := range languages {
 		// Approximate LOC (bytes / 60 average bytes per line)
 		loc := bytes / 60
 		parts = append(parts, fmt.Sprintf("%s (%d LOC)", lang, loc))
 	}
-	
+
 	return strings.Join(parts, ", ")
 }
 

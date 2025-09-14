@@ -29,10 +29,12 @@ func runInfoWithStorage(ctx context.Context, repoName string, repo storage.Repos
 	// Initialize storage if not provided (for testing)
 	if repo == nil {
 		var err error
+
 		repo, err = initializeStorage()
 		if err != nil {
 			return fmt.Errorf("failed to initialize storage: %w", err)
 		}
+
 		defer repo.Close()
 	}
 
@@ -55,9 +57,11 @@ func runInfoWithStorage(ctx context.Context, repoName string, repo storage.Repos
 
 	if storedRepo.LicenseName != "" {
 		fmt.Printf("License: %s", storedRepo.LicenseName)
+
 		if storedRepo.LicenseSPDXID != "" {
 			fmt.Printf(" (%s)", storedRepo.LicenseSPDXID)
 		}
+
 		fmt.Println()
 	}
 
@@ -75,6 +79,7 @@ func runInfoWithStorage(ctx context.Context, repoName string, repo storage.Repos
 
 	if len(storedRepo.UseCases) > 0 {
 		fmt.Printf("\nUse Cases:\n")
+
 		for _, useCase := range storedRepo.UseCases {
 			fmt.Printf("  • %s\n", useCase)
 		}
@@ -82,6 +87,7 @@ func runInfoWithStorage(ctx context.Context, repoName string, repo storage.Repos
 
 	if len(storedRepo.Features) > 0 {
 		fmt.Printf("\nFeatures:\n")
+
 		for _, feature := range storedRepo.Features {
 			fmt.Printf("  • %s\n", feature)
 		}
@@ -116,5 +122,6 @@ func getStringOrNA(s string) string {
 	if s == "" {
 		return "N/A"
 	}
+
 	return s
 }

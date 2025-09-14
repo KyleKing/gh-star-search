@@ -246,6 +246,7 @@ func TestValidateConfig(t *testing.T) {
 			err := validateConfig(config)
 			if tt.expectError {
 				assert.Error(t, err)
+
 				if tt.errorContains != "" {
 					assert.Contains(t, err.Error(), tt.errorContains)
 				}
@@ -287,10 +288,12 @@ func TestExpandPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := expandPath(tt.input)
+
 			if tt.expected == os.Getenv("HOME") && tt.expected == "" {
 				// Skip test if HOME is not set
 				t.Skip("HOME environment variable not set")
 			}
+
 			assert.Equal(t, tt.expected, result)
 		})
 	}

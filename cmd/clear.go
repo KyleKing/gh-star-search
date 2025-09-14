@@ -34,10 +34,12 @@ func runClearWithStorage(ctx context.Context, force bool, repo storage.Repositor
 	// Initialize storage if not provided (for testing)
 	if repo == nil {
 		var err error
+
 		repo, err = initializeStorage()
 		if err != nil {
 			return fmt.Errorf("failed to initialize storage: %w", err)
 		}
+
 		defer repo.Close()
 	}
 
@@ -64,6 +66,7 @@ func runClearWithStorage(ctx context.Context, force bool, repo storage.Repositor
 		fmt.Printf("Type 'yes' to confirm: ")
 
 		reader := bufio.NewReader(os.Stdin)
+
 		response, err := reader.ReadString('\n')
 		if err != nil {
 			return fmt.Errorf("failed to read input: %w", err)
@@ -82,5 +85,6 @@ func runClearWithStorage(ctx context.Context, force bool, repo storage.Repositor
 	}
 
 	fmt.Println("Database cleared successfully.")
+
 	return nil
 }

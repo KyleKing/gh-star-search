@@ -42,6 +42,7 @@ func (m *MockRepository) GetRepository(ctx context.Context, fullName string) (*s
 			return &repo, nil
 		}
 	}
+
 	return nil, fmt.Errorf("repository not found: %s", fullName)
 }
 

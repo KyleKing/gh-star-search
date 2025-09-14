@@ -1,6 +1,6 @@
 module github.com/kyleking/gh-star-search
 
-go 1.25.1
+go 1.24.0
 
 require (
 	github.com/briandowns/spinner v1.23.2

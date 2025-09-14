@@ -1,7 +1,7 @@
 package errors
 
 import (
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,7 +13,7 @@ func TestNew(t *testing.T) {
 	assert.Equal(t, ErrTypeValidation, err.Type)
 	assert.Equal(t, "test error message", err.Message)
 	assert.NotEmpty(t, err.Stack)
-	assert.Nil(t, err.Cause)
+	assert.NoError(t, err.Cause)
 }
 
 func TestNewf(t *testing.T) {
@@ -25,7 +25,7 @@ func TestNewf(t *testing.T) {
 }
 
 func TestWrap(t *testing.T) {
-	originalErr := fmt.Errorf("original error")
+	originalErr := errors.New("original error")
 	wrappedErr := Wrap(originalErr, ErrTypeNetwork, "network operation failed")
 
 	assert.Equal(t, ErrTypeNetwork, wrappedErr.Type)
@@ -35,7 +35,7 @@ func TestWrap(t *testing.T) {
 }
 
 func TestWrapf(t *testing.T) {
-	originalErr := fmt.Errorf("connection refused")
+	originalErr := errors.New("connection refused")
 	wrappedErr := Wrapf(originalErr, ErrTypeNetwork, "failed to connect to %s:%d", "localhost", 8080)
 
 	assert.Equal(t, ErrTypeNetwork, wrappedErr.Type)
@@ -62,7 +62,7 @@ func TestErrorString(t *testing.T) {
 			err: &Error{
 				Type:    ErrTypeDatabase,
 				Message: "query failed",
-				Cause:   fmt.Errorf("connection timeout"),
+				Cause:   errors.New("connection timeout"),
 			},
 			expected: "database: query failed (caused by: connection timeout)",
 		},
@@ -76,7 +76,7 @@ func TestErrorString(t *testing.T) {
 }
 
 func TestUnwrap(t *testing.T) {
-	originalErr := fmt.Errorf("original error")
+	originalErr := errors.New("original error")
 	wrappedErr := Wrap(originalErr, ErrTypeNetwork, "wrapped error")
 
 	assert.Equal(t, originalErr, wrappedErr.Unwrap())
@@ -111,7 +111,7 @@ func TestWithStack(t *testing.T) {
 
 func TestIsType(t *testing.T) {
 	structErr := New(ErrTypeValidation, "validation error")
-	regularErr := fmt.Errorf("regular error")
+	regularErr := errors.New("regular error")
 
 	assert.True(t, IsType(structErr, ErrTypeValidation))
 	assert.False(t, IsType(structErr, ErrTypeDatabase))
@@ -120,7 +120,7 @@ func TestIsType(t *testing.T) {
 
 func TestGetType(t *testing.T) {
 	structErr := New(ErrTypeGitHubAPI, "API error")
-	regularErr := fmt.Errorf("regular error")
+	regularErr := errors.New("regular error")
 
 	assert.Equal(t, ErrTypeGitHubAPI, GetType(structErr))
 	assert.Equal(t, ErrTypeInternal, GetType(regularErr))

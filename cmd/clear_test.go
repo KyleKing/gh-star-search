@@ -76,9 +76,11 @@ func TestRunClear(t *testing.T) {
 
 			// Restore stdout and get output
 			w.Close()
+
 			os.Stdout = oldStdout
 
 			var buf bytes.Buffer
+
 			buf.ReadFrom(r)
 			output := buf.String()
 

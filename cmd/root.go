@@ -50,6 +50,7 @@ func Execute() error {
 		} else {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}
+
 		return err
 	}
 
@@ -81,15 +82,19 @@ func initializeGlobalConfig(cmd *cobra.Command) error {
 	if logLevel != "" {
 		flagOverrides["log-level"] = logLevel
 	}
+
 	if verbose {
 		flagOverrides["verbose"] = verbose
 	}
+
 	if debug {
 		flagOverrides["debug"] = debug
 	}
+
 	if dbPath != "" {
 		flagOverrides["db-path"] = dbPath
 	}
+
 	if cacheDir != "" {
 		flagOverrides["cache-dir"] = cacheDir
 	}
@@ -107,6 +112,7 @@ func initializeGlobalConfig(cmd *cobra.Command) error {
 
 	// Expand paths and ensure directories exist
 	cfg.ExpandAllPaths()
+
 	if err := cfg.EnsureDirectories(); err != nil {
 		return errors.Wrap(err, errors.ErrTypeFileSystem, "failed to create required directories")
 	}
@@ -146,6 +152,7 @@ func printStructuredError(err *errors.Error) {
 
 	if len(err.Context) > 0 {
 		fmt.Fprintf(os.Stderr, "Context:\n")
+
 		for k, v := range err.Context {
 			fmt.Fprintf(os.Stderr, "  %s: %v\n", k, v)
 		}
@@ -153,6 +160,7 @@ func printStructuredError(err *errors.Error) {
 
 	if len(err.Suggestions) > 0 {
 		fmt.Fprintf(os.Stderr, "\nSuggestions:\n")
+
 		for _, suggestion := range err.Suggestions {
 			fmt.Fprintf(os.Stderr, "  • %s\n", suggestion)
 		}
@@ -179,5 +187,6 @@ func GetConfigFromContext(cmd *cobra.Command) (*config.Config, error) {
 	if !ok {
 		return nil, errors.New(errors.ErrTypeInternal, "configuration not found in context")
 	}
+
 	return cfg, nil
 }

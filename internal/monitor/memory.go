@@ -70,7 +70,7 @@ func (m *MemoryMonitor) Stop() {
 	default:
 		close(m.stopMonitoring)
 	}
-	
+
 	m.monitoringStarted = false
 }
 
@@ -88,7 +88,7 @@ func (m *MemoryMonitor) ForceGC() {
 	defer m.mu.Unlock()
 
 	now := time.Now()
-	
+
 	// Check if we should force GC based on memory usage or time
 	shouldForceGC := m.stats.AllocMB > float64(m.gcThresholdMB) ||
 		now.Sub(m.lastGC) > m.gcForceInterval
@@ -96,8 +96,9 @@ func (m *MemoryMonitor) ForceGC() {
 	if shouldForceGC {
 		runtime.GC()
 		debug.FreeOSMemory()
+
 		m.lastGC = now
-		
+
 		// Update stats after GC
 		m.updateStats()
 	}
@@ -110,13 +111,13 @@ func (m *MemoryMonitor) OptimizeMemory() {
 
 	// Force garbage collection
 	runtime.GC()
-	
+
 	// Return memory to OS
 	debug.FreeOSMemory()
-	
+
 	// Set GC target percentage for more aggressive collection
 	debug.SetGCPercent(50) // More aggressive than default 100%
-	
+
 	m.lastGC = time.Now()
 	m.updateStats()
 }
@@ -167,7 +168,7 @@ func (m *MemoryMonitor) ShouldOptimize() bool {
 // GetFormattedStats returns human-readable memory statistics
 func (m *MemoryMonitor) GetFormattedStats() string {
 	stats := m.GetStats()
-	
+
 	return fmt.Sprintf(`Memory Statistics:
   Allocated: %.2f MB
   Total Allocated: %.2f MB  
@@ -202,17 +203,17 @@ func (m *MemoryMonitor) monitorLoop(ctx context.Context, interval time.Duration)
 		case <-ticker.C:
 			m.mu.Lock()
 			m.updateStats()
-			
+
 			// Check if we should force GC (avoid calling ShouldOptimize to prevent deadlock)
 			shouldOptimize := m.stats.AllocMB > float64(m.gcThresholdMB) ||
 				time.Since(m.lastGC) > m.gcForceInterval
-			
+
 			if shouldOptimize {
 				m.ForceGC()
 			}
-			
+
 			m.mu.Unlock()
-			
+
 		case <-m.stopMonitoring:
 			return
 		case <-ctx.Done():
@@ -224,6 +225,7 @@ func (m *MemoryMonitor) monitorLoop(ctx context.Context, interval time.Duration)
 // updateStats updates the current memory statistics
 func (m *MemoryMonitor) updateStats() {
 	var memStats runtime.MemStats
+
 	runtime.ReadMemStats(&memStats)
 
 	m.stats = MemoryStats{
@@ -261,7 +263,7 @@ func (o *MemoryOptimizer) OptimizeForBatch(batchSize int) {
 	} else {
 		debug.SetGCPercent(75) // Slightly aggressive
 	}
-	
+
 	// Force initial cleanup
 	o.monitor.OptimizeMemory()
 }
@@ -270,7 +272,7 @@ func (o *MemoryOptimizer) OptimizeForBatch(batchSize int) {
 func (o *MemoryOptimizer) OptimizeForQuery() {
 	// Set balanced GC for query processing
 	debug.SetGCPercent(100) // Default setting
-	
+
 	// Clean up if memory pressure is high
 	if o.monitor.GetMemoryPressure() > 0.7 {
 		o.monitor.OptimizeMemory()

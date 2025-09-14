@@ -27,10 +27,12 @@ func runStatsWithStorage(ctx context.Context, repo storage.Repository) error {
 	// Initialize storage if not provided (for testing)
 	if repo == nil {
 		var err error
+
 		repo, err = initializeStorage()
 		if err != nil {
 			return fmt.Errorf("failed to initialize storage: %w", err)
 		}
+
 		defer repo.Close()
 	}
 
@@ -79,7 +81,7 @@ func runStatsWithStorage(ctx context.Context, repo storage.Repository) error {
 			maxShow = len(languages)
 		}
 
-		for i := 0; i < maxShow; i++ {
+		for i := range maxShow {
 			lang := languages[i]
 			percentage := float64(lang.count) / float64(stats.TotalRepositories) * 100
 			fmt.Printf("  %-15s %3d repos (%.1f%%)\n", lang.language, lang.count, percentage)
@@ -115,7 +117,7 @@ func runStatsWithStorage(ctx context.Context, repo storage.Repository) error {
 			maxShow = len(topics)
 		}
 
-		for i := 0; i < maxShow; i++ {
+		for i := range maxShow {
 			topic := topics[i]
 			percentage := float64(topic.count) / float64(stats.TotalRepositories) * 100
 			fmt.Printf("  %-20s %3d repos (%.1f%%)\n", topic.topic, topic.count, percentage)

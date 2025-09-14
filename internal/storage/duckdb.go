@@ -35,8 +35,8 @@ func NewDuckDBRepository(dbPath string) (*DuckDBRepository, error) {
 	}
 
 	// Configure connection pool for optimal performance
-	db.SetMaxOpenConns(10)                 // Maximum number of open connections
-	db.SetMaxIdleConns(5)                  // Maximum number of idle connections
+	db.SetMaxOpenConns(10)                  // Maximum number of open connections
+	db.SetMaxIdleConns(5)                   // Maximum number of idle connections
 	db.SetConnMaxLifetime(30 * time.Minute) // Maximum lifetime of a connection
 	db.SetConnMaxIdleTime(5 * time.Minute)  // Maximum idle time for a connection
 
@@ -56,21 +56,21 @@ func NewDuckDBRepository(dbPath string) (*DuckDBRepository, error) {
 // Initialize creates the database schema using migrations
 func (r *DuckDBRepository) Initialize(ctx context.Context) error {
 	migrationManager := NewMigrationManager(r.db)
-	
+
 	// Check if migration is needed
 	needsMigration, currentVersion, latestVersion, err := migrationManager.NeedsMigration(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to check migration status: %w", err)
 	}
-	
+
 	if needsMigration {
 		fmt.Printf("Database schema update required (v%d -> v%d)\n", currentVersion, latestVersion)
-		
+
 		// For now, auto-migrate without prompting in Initialize
 		// The CLI commands can handle user prompting if needed
 		return migrationManager.MigrateUp(ctx)
 	}
-	
+
 	return migrationManager.MigrateUp(ctx)
 }
 
@@ -140,7 +140,7 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 		repo.Repository.UpdatedAt,
 		repo.ProcessedAt,
 		0, 0, 0, 0, // Default activity metrics, will be populated by sync
-		0, 0, 0,    // Default commit metrics, will be populated by sync
+		0, 0, 0, // Default commit metrics, will be populated by sync
 		string(topicsJSON),
 		string(languagesJSON),
 		string(contributorsJSON),
@@ -170,7 +170,7 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 			FROM information_schema.tables 
 			WHERE table_name = 'content_chunks'
 		`).Scan(&tableExists)
-		
+
 		if err == nil && tableExists {
 			insertChunkSQL := `
 			INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
@@ -217,7 +217,7 @@ func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.
 		FROM information_schema.tables 
 		WHERE table_name = 'content_chunks'
 	`).Scan(&tableExists)
-	
+
 	if err == nil && tableExists {
 		_, err = r.db.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", repoID)
 		if err != nil {
@@ -277,7 +277,7 @@ func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.
 		repo.Repository.UpdatedAt,
 		repo.ProcessedAt,
 		0, 0, 0, 0, // Default activity metrics, will be populated by sync
-		0, 0, 0,    // Default commit metrics, will be populated by sync
+		0, 0, 0, // Default commit metrics, will be populated by sync
 		string(topicsJSON),
 		string(languagesJSON),
 		string(contributorsJSON),
@@ -384,8 +384,11 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 	row := r.db.QueryRowContext(ctx, query, fullName)
 
 	var repo StoredRepo
+
 	var technologiesJSON, useCasesJSON, featuresJSON string
+
 	var languagesJSON, contributorsJSON string
+
 	var topicsData interface{} // Can be array or string
 
 	err := row.Scan(
@@ -405,6 +408,7 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("repository not found: %s", fullName)
 		}
+
 		return nil, fmt.Errorf("failed to scan repository: %w", err)
 	}
 
@@ -424,15 +428,19 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 	if technologiesJSON != "" {
 		json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
 	}
+
 	if useCasesJSON != "" {
 		json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
 	}
+
 	if featuresJSON != "" {
 		json.Unmarshal([]byte(featuresJSON), &repo.Features)
 	}
+
 	if languagesJSON != "" {
 		json.Unmarshal([]byte(languagesJSON), &repo.Languages)
 	}
+
 	if contributorsJSON != "" {
 		json.Unmarshal([]byte(contributorsJSON), &repo.Contributors)
 	}
@@ -458,7 +466,7 @@ func (r *DuckDBRepository) getRepositoryChunks(ctx context.Context, repoID strin
 		FROM information_schema.tables 
 		WHERE table_name = 'content_chunks'
 	`).Scan(&tableExists)
-	
+
 	if err != nil || !tableExists {
 		return []processor.ContentChunk{}, nil
 	}
@@ -528,8 +536,11 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 
 	for rows.Next() {
 		var repo StoredRepo
+
 		var technologiesJSON, useCasesJSON, featuresJSON string
+
 		var languagesJSON, contributorsJSON string
+
 		var topicsData interface{} // Can be array or string
 
 		err := rows.Scan(
@@ -565,15 +576,19 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 		if technologiesJSON != "" {
 			json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
 		}
+
 		if useCasesJSON != "" {
 			json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
 		}
+
 		if featuresJSON != "" {
 			json.Unmarshal([]byte(featuresJSON), &repo.Features)
 		}
+
 		if languagesJSON != "" {
 			json.Unmarshal([]byte(languagesJSON), &repo.Languages)
 		}
+
 		if contributorsJSON != "" {
 			json.Unmarshal([]byte(contributorsJSON), &repo.Contributors)
 		}
@@ -617,6 +632,7 @@ func (r *DuckDBRepository) executeCustomSQL(ctx context.Context, sqlQuery string
 		// Create a slice to hold the values
 		values := make([]interface{}, len(columns))
 		valuePtrs := make([]interface{}, len(columns))
+
 		for i := range values {
 			valuePtrs[i] = &values[i]
 		}
@@ -673,7 +689,9 @@ func (r *DuckDBRepository) executeTextSearch(ctx context.Context, query string) 
 
 	for rows.Next() {
 		var repo StoredRepo
+
 		var score float64
+
 		var topicsJSON, technologiesJSON, useCasesJSON, featuresJSON string
 
 		err := rows.Scan(
@@ -724,7 +742,9 @@ func (r *DuckDBRepository) executeTextSearch(ctx context.Context, query string) 
 // mapRowToRepository attempts to map query results to a repository structure
 func (r *DuckDBRepository) mapRowToRepository(columns []string, values []interface{}) (*StoredRepo, float64, []Match) {
 	repo := &StoredRepo{}
-	var score float64 = 1.0
+
+	var score = 1.0
+
 	var matches []Match
 
 	// Create a map for easier lookup
@@ -798,6 +818,7 @@ func (r *DuckDBRepository) mapRowToRepository(columns []string, values []interfa
 // findMatches identifies which fields matched the search query
 func (r *DuckDBRepository) findMatches(repo StoredRepo, query string) []Match {
 	var matches []Match
+
 	queryLower := strings.ToLower(query)
 
 	// Check various fields for matches
@@ -869,6 +890,7 @@ func truncateForMatch(text, query string) string {
 		if len(text) > 100 {
 			return text[:100] + "..."
 		}
+
 		return text
 	}
 
@@ -887,6 +909,7 @@ func truncateForMatch(text, query string) string {
 	if start > 0 {
 		result = "..." + result
 	}
+
 	if end < len(text) {
 		result = result + "..."
 	}
@@ -974,18 +997,19 @@ func (r *DuckDBRepository) UpdateRepositoryMetrics(ctx context.Context, fullName
 	if err != nil {
 		return fmt.Errorf("failed to marshal languages: %w", err)
 	}
-	
+
 	contributorsJSON, err := json.Marshal(metrics.Contributors)
 	if err != nil {
 		return fmt.Errorf("failed to marshal contributors: %w", err)
 	}
-	
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
+
 	defer func() { _ = tx.Rollback() }()
-	
+
 	updateSQL := `
 	UPDATE repositories SET 
 		homepage = ?,
@@ -995,7 +1019,7 @@ func (r *DuckDBRepository) UpdateRepositoryMetrics(ctx context.Context, fullName
 		languages = ?, contributors = ?,
 		last_synced = CURRENT_TIMESTAMP
 	WHERE full_name = ?`
-	
+
 	result, err := tx.ExecContext(ctx, updateSQL,
 		metrics.Homepage,
 		metrics.OpenIssuesOpen, metrics.OpenIssuesTotal,
@@ -1004,20 +1028,20 @@ func (r *DuckDBRepository) UpdateRepositoryMetrics(ctx context.Context, fullName
 		string(languagesJSON), string(contributorsJSON),
 		fullName,
 	)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to update repository metrics: %w", err)
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
-	
+
 	if rowsAffected == 0 {
 		return fmt.Errorf("no repository found with full_name: %s", fullName)
 	}
-	
+
 	return tx.Commit()
 }
 
@@ -1025,14 +1049,14 @@ func (r *DuckDBRepository) UpdateRepositoryMetrics(ctx context.Context, fullName
 func (r *DuckDBRepository) UpdateRepositoryEmbedding(ctx context.Context, fullName string, embedding []float32) error {
 	// Convert []float32 to the format DuckDB expects for FLOAT arrays
 	embeddingJSON, _ := json.Marshal(embedding)
-	
+
 	updateSQL := `UPDATE repositories SET repo_embedding = ? WHERE full_name = ?`
-	
+
 	_, err := r.db.ExecContext(ctx, updateSQL, string(embeddingJSON), fullName)
 	if err != nil {
 		return fmt.Errorf("failed to update repository embedding: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -1040,29 +1064,31 @@ func (r *DuckDBRepository) UpdateRepositoryEmbedding(ctx context.Context, fullNa
 func (r *DuckDBRepository) GetRepositoriesNeedingMetricsUpdate(ctx context.Context, staleDays int) ([]string, error) {
 	// Use date arithmetic that DuckDB supports
 	cutoffTime := time.Now().AddDate(0, 0, -staleDays)
-	
+
 	query := `
 	SELECT full_name 
 	FROM repositories 
 	WHERE last_synced IS NULL 
 		OR last_synced < ?
 	ORDER BY last_synced ASC NULLS FIRST`
-	
+
 	rows, err := r.db.QueryContext(ctx, query, cutoffTime)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query repositories needing metrics update: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var fullNames []string
+
 	for rows.Next() {
 		var fullName string
 		if err := rows.Scan(&fullName); err != nil {
 			return nil, err
 		}
+
 		fullNames = append(fullNames, fullName)
 	}
-	
+
 	return fullNames, rows.Err()
 }
 
@@ -1080,22 +1106,24 @@ func (r *DuckDBRepository) GetRepositoriesNeedingSummaryUpdate(ctx context.Conte
 			OR summary_version < 1
 		ORDER BY full_name`
 	}
-	
+
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query repositories needing summary update: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var fullNames []string
+
 	for rows.Next() {
 		var fullName string
 		if err := rows.Scan(&fullName); err != nil {
 			return nil, err
 		}
+
 		fullNames = append(fullNames, fullName)
 	}
-	
+
 	return fullNames, rows.Err()
 }
 

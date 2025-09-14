@@ -39,6 +39,7 @@ func (e *Error) Error() string {
 	if e.Cause != nil {
 		return fmt.Sprintf("%s: %s (caused by: %v)", e.Type, e.Message, e.Cause)
 	}
+
 	return fmt.Sprintf("%s: %s", e.Type, e.Message)
 }
 
@@ -52,7 +53,9 @@ func (e *Error) WithContext(key string, value interface{}) *Error {
 	if e.Context == nil {
 		e.Context = make(map[string]interface{})
 	}
+
 	e.Context[key] = value
+
 	return e
 }
 
@@ -109,10 +112,12 @@ func Wrapf(err error, errType ErrorType, format string, args ...interface{}) *Er
 // captureStack captures the current stack trace
 func captureStack() string {
 	const depth = 32
+
 	var pcs [depth]uintptr
 	n := runtime.Callers(3, pcs[:])
 
 	var sb strings.Builder
+
 	frames := runtime.CallersFrames(pcs[:n])
 
 	for {
@@ -121,6 +126,7 @@ func captureStack() string {
 			if !more {
 				break
 			}
+
 			continue
 		}
 
@@ -139,6 +145,7 @@ func IsType(err error, errType ErrorType) bool {
 	if structErr, ok := err.(*Error); ok {
 		return structErr.Type == errType
 	}
+
 	return false
 }
 
@@ -147,6 +154,7 @@ func GetType(err error) ErrorType {
 	if structErr, ok := err.(*Error); ok {
 		return structErr.Type
 	}
+
 	return ErrTypeInternal
 }
 

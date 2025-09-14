@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -396,11 +397,11 @@ func (m *MigrationManager) DetectSchemaVersion(ctx context.Context) (int, error)
 		FROM information_schema.tables 
 		WHERE table_name = 'schema_migrations'
 	`).Scan(&tableExists)
-	
+
 	if err != nil {
 		return 0, fmt.Errorf("failed to check migration table existence: %w", err)
 	}
-	
+
 	if !tableExists {
 		// Check if repositories table exists with old schema
 		var repoTableExists bool
@@ -409,11 +410,11 @@ func (m *MigrationManager) DetectSchemaVersion(ctx context.Context) (int, error)
 			FROM information_schema.tables 
 			WHERE table_name = 'repositories'
 		`).Scan(&repoTableExists)
-		
+
 		if err != nil {
 			return 0, fmt.Errorf("failed to check repositories table existence: %w", err)
 		}
-		
+
 		if repoTableExists {
 			// Check if new columns exist to determine if it's v1 or v2
 			var hasNewColumns bool
@@ -422,29 +423,31 @@ func (m *MigrationManager) DetectSchemaVersion(ctx context.Context) (int, error)
 				FROM information_schema.columns 
 				WHERE table_name = 'repositories' AND column_name = 'open_issues_open'
 			`).Scan(&hasNewColumns)
-			
+
 			if err != nil {
 				return 0, fmt.Errorf("failed to check column existence: %w", err)
 			}
-			
+
 			if hasNewColumns {
 				return 2, nil // Has new schema but no migration tracking
 			}
+
 			return 1, nil // Has old schema
 		}
+
 		return 0, nil // No tables exist
 	}
-	
+
 	// Migration table exists, get the latest version
 	appliedVersions, err := m.GetAppliedMigrations(ctx)
 	if err != nil {
 		return 0, err
 	}
-	
+
 	if len(appliedVersions) == 0 {
 		return 0, nil
 	}
-	
+
 	// Return the highest applied version
 	maxVersion := 0
 	for _, version := range appliedVersions {
@@ -452,7 +455,7 @@ func (m *MigrationManager) DetectSchemaVersion(ctx context.Context) (int, error)
 			maxVersion = version
 		}
 	}
-	
+
 	return maxVersion, nil
 }
 
@@ -462,15 +465,16 @@ func (m *MigrationManager) NeedsMigration(ctx context.Context) (bool, int, int, 
 	if err != nil {
 		return false, 0, 0, err
 	}
-	
+
 	migrations := m.GetMigrations()
 	latestVersion := 0
+
 	for _, migration := range migrations {
 		if migration.Version > latestVersion {
 			latestVersion = migration.Version
 		}
 	}
-	
+
 	return currentVersion < latestVersion, currentVersion, latestVersion, nil
 }
 
@@ -480,24 +484,27 @@ func (m *MigrationManager) MigrateToLatest(ctx context.Context, autoConfirm bool
 	if err != nil {
 		return err
 	}
-	
+
 	if !needsMigration {
 		fmt.Printf("Database is already at the latest version (%d)\n", currentVersion)
 		return nil
 	}
-	
+
 	fmt.Printf("Database schema migration required:\n")
 	fmt.Printf("  Current version: %d\n", currentVersion)
 	fmt.Printf("  Latest version: %d\n", latestVersion)
-	
+
 	if !autoConfirm {
 		fmt.Printf("\nThis will update your database schema. Continue? (y/N): ")
+
 		var response string
+
 		fmt.Scanln(&response)
+
 		if response != "y" && response != "Y" && response != "yes" {
-			return fmt.Errorf("migration cancelled by user")
+			return errors.New("migration cancelled by user")
 		}
 	}
-	
+
 	return m.MigrateUp(ctx)
 }
