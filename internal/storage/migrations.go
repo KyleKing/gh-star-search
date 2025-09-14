@@ -43,7 +43,7 @@ func (m *SchemaManager) CreateLatestSchema(ctx context.Context) error {
 			commits_total INTEGER DEFAULT 0,
 
 			-- Metadata arrays and objects
-			topics_array VARCHAR[] DEFAULT [],
+			topics_array JSON DEFAULT '[]',
 			languages JSON DEFAULT '{}',
 			contributors JSON DEFAULT '[]',
 

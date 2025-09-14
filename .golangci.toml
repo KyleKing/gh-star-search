@@ -53,25 +53,25 @@ enable = [
 ]
 relative-path-mode = "gomod"
 
-[linters.settings] # See all configuration here: https://golangci-lint.run/usage/linters
+[linters-settings] # See all configuration here: https://golangci-lint.run/usage/linters
 
-[linters.settings.cyclop]
+[linters-settings.cyclop]
 max-complexity = 20 # Default is 10
 
-[linters.settings.revive]
+[linters-settings.revive]
 enable-all-rules = true
 
-[linters.settings.rowserrcheck]
+[linters-settings.rowserrcheck]
 packages = ["github.com/jmoiron/sqlx"]
 
-[linters.settings.staticcheck]
+[linters-settings.staticcheck]
 checks = ["all"]
 
-[linters.settings.testifylint]
-	enable-all = true
+[linters-settings.testifylint]
+enable-all = true
 
-[linters.settings.testpackage]
-	skip-regex = "internal/.*_test.go"
+[linters-settings.testpackage]
+skip-regex = "internal/.*_test.go"
 
 [run]
 timeout = "1m" # Default is 1 min

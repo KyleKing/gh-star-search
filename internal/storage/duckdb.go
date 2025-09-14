@@ -368,8 +368,11 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 	row := r.db.QueryRowContext(ctx, query, fullName)
 
 	var repo StoredRepo
+
 	var technologiesJSON, useCasesJSON, featuresJSON string
+
 	var languagesData, contributorsData interface{}
+
 	var topicsData interface{}
 
 	err := row.Scan(
@@ -389,6 +392,7 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("repository not found: %s", fullName)
 		}
+
 		return nil, fmt.Errorf("failed to scan repository: %w", err)
 	}
 
@@ -455,6 +459,14 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 			_ = json.Unmarshal(contributorsBytes, &repo.Contributors)
 		}
 	}
+
+	// Populate content chunks
+	chunks, err := r.getRepositoryChunks(ctx, repo.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repository chunks: %w", err)
+	}
+
+	repo.Chunks = chunks
 
 	return &repo, nil
 }
@@ -538,8 +550,11 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 
 	for rows.Next() {
 		var repo StoredRepo
+
 		var technologiesJSON, useCasesJSON, featuresJSON string
+
 		var languagesData, contributorsData interface{}
+
 		var topicsData interface{}
 
 		err := rows.Scan(
@@ -706,8 +721,11 @@ func (r *DuckDBRepository) executeTextSearch(ctx context.Context, query string) 
 
 	for rows.Next() {
 		var repo StoredRepo
+
 		var score float64
+
 		var topicsData interface{}
+
 		var technologiesJSON, useCasesJSON, featuresJSON string
 
 		err := rows.Scan(

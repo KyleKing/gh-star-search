@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 
 // mockRESTClient implements RESTClientInterface for testing
 type mockRESTClient struct {
+	mu        sync.RWMutex
 	responses map[string]interface{}
 	errors    map[string]error
 	callCount map[string]int
@@ -28,13 +30,20 @@ func newMockRESTClient() *mockRESTClient {
 }
 
 func (m *mockRESTClient) Get(path string, response interface{}) error {
+	m.mu.Lock()
 	m.callCount[path]++
+	m.mu.Unlock()
 
-	if err, exists := m.errors[path]; exists {
+	m.mu.RLock()
+	err, exists := m.errors[path]
+	resp, respExists := m.responses[path]
+	m.mu.RUnlock()
+
+	if exists {
 		return err
 	}
 
-	if resp, exists := m.responses[path]; exists {
+	if respExists {
 		// Convert response to JSON and back to properly populate the interface
 		jsonData, err := json.Marshal(resp)
 		if err != nil {
@@ -48,15 +57,23 @@ func (m *mockRESTClient) Get(path string, response interface{}) error {
 }
 
 func (m *mockRESTClient) setResponse(path string, response interface{}) {
+	m.mu.Lock()
 	m.responses[path] = response
+	m.mu.Unlock()
 }
 
 func (m *mockRESTClient) setError(path string, err error) {
+	m.mu.Lock()
 	m.errors[path] = err
+	m.mu.Unlock()
 }
 
 func (m *mockRESTClient) getCallCount(path string) int {
-	return m.callCount[path]
+	m.mu.RLock()
+	count := m.callCount[path]
+	m.mu.RUnlock()
+
+	return count
 }
 
 // Test data

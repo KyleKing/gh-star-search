@@ -32,6 +32,7 @@ func TestSchemaCreation(t *testing.T) {
 
 	// Verify repositories table exists
 	var count int
+
 	err = db.QueryRow("SELECT COUNT(*) FROM repositories").Scan(&count)
 	if err != nil {
 		t.Fatalf("Repositories table not created: %v", err)
@@ -45,6 +46,7 @@ func TestSchemaCreation(t *testing.T) {
 
 	// Verify key columns exist
 	var columnCount int
+
 	err = db.QueryRow(`
 		SELECT COUNT(*) FROM information_schema.columns
 		WHERE table_name = 'repositories' AND column_name IN ('topics_array', 'languages', 'contributors')

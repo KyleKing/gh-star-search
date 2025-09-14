@@ -540,6 +540,7 @@ func stripHTMLTags(html string) string {
 	if err != nil {
 		return html
 	}
+
 	return text
 }
 

@@ -91,8 +91,7 @@ func TestFormatter_FormatResult(t *testing.T) {
 			expected: []string{
 				"testorg/test-repo  (link: https://github.com/testorg/test-repo)",
 				"GitHub Description: A test repository for unit testing",
-				"1. testorg/test-repo  ⭐ 1234  Go  Updated",
-				"Score:0.85",
+				"1. testorg/test-repo (A test repository for unit testing)  ⭐ 1234  Go  Updated 1 year ago  Score:0.85",
 			},
 		},
 	}

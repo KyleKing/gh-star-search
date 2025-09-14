@@ -256,6 +256,7 @@ func TestMigrations(t *testing.T) {
 
 		// Verify repositories table exists
 		var count int
+
 		err = repo.db.QueryRow("SELECT COUNT(*) FROM repositories").Scan(&count)
 		if err != nil {
 			t.Fatalf("Failed to query repositories table: %v", err)
@@ -278,6 +279,7 @@ func TestMigrations(t *testing.T) {
 
 		// Verify key columns exist
 		var columnCount int
+
 		err = repo.db.QueryRow(`
 			SELECT COUNT(*) FROM information_schema.columns
 			WHERE table_name = 'repositories' AND column_name IN ('topics_array', 'languages', 'contributors')
@@ -290,7 +292,6 @@ func TestMigrations(t *testing.T) {
 			t.Errorf("Expected 3 key columns, got %d", columnCount)
 		}
 	})
-
 }
 
 func TestDuckDBRepositoryErrors(t *testing.T) {
