@@ -10,9 +10,9 @@ import (
 	_ "github.com/marcboeker/go-duckdb"
 )
 
-func TestMigrationDetection(t *testing.T) {
+func TestSchemaCreation(t *testing.T) {
 	// Create a temporary database
-	tmpFile := "/tmp/test_migration.db"
+	tmpFile := "/tmp/test_schema.db"
 	defer os.Remove(tmpFile)
 
 	db, err := sql.Open("duckdb", tmpFile)
@@ -21,61 +21,40 @@ func TestMigrationDetection(t *testing.T) {
 	}
 	defer db.Close()
 
-	migrationManager := NewMigrationManager(db)
+	schemaManager := NewSchemaManager(db)
 	ctx := context.Background()
 
-	// Test initial state (no tables)
-	version, err := migrationManager.DetectSchemaVersion(ctx)
+	// Test schema creation
+	err = schemaManager.CreateLatestSchema(ctx)
 	if err != nil {
-		t.Fatalf("Failed to detect schema version: %v", err)
+		t.Fatalf("Failed to create schema: %v", err)
 	}
 
-	if version != 0 {
-		t.Errorf("Expected version 0 for empty database, got %d", version)
-	}
-
-	// Test migration needed
-	needsMigration, currentVersion, latestVersion, err := migrationManager.NeedsMigration(ctx)
+	// Verify repositories table exists
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM repositories").Scan(&count)
 	if err != nil {
-		t.Fatalf("Failed to check migration status: %v", err)
+		t.Fatalf("Repositories table not created: %v", err)
 	}
 
-	if !needsMigration {
-		t.Error("Expected migration to be needed for empty database")
-	}
-
-	if currentVersion != 0 {
-		t.Errorf("Expected current version 0, got %d", currentVersion)
-	}
-
-	if latestVersion != 2 {
-		t.Errorf("Expected latest version 2, got %d", latestVersion)
-	}
-
-	// Apply migrations
-	err = migrationManager.MigrateUp(ctx)
+	// Verify content_chunks table exists
+	err = db.QueryRow("SELECT COUNT(*) FROM content_chunks").Scan(&count)
 	if err != nil {
-		t.Fatalf("Failed to apply migrations: %v", err)
+		t.Fatalf("Content chunks table not created: %v", err)
 	}
 
-	// Test after migration
-	version, err = migrationManager.DetectSchemaVersion(ctx)
+	// Verify key columns exist
+	var columnCount int
+	err = db.QueryRow(`
+		SELECT COUNT(*) FROM information_schema.columns
+		WHERE table_name = 'repositories' AND column_name IN ('topics_array', 'languages', 'contributors')
+	`).Scan(&columnCount)
 	if err != nil {
-		t.Fatalf("Failed to detect schema version after migration: %v", err)
+		t.Fatalf("Failed to check schema columns: %v", err)
 	}
 
-	if version != 2 {
-		t.Errorf("Expected version 2 after migration, got %d", version)
-	}
-
-	// Test no migration needed
-	needsMigration, _, _, err = migrationManager.NeedsMigration(ctx)
-	if err != nil {
-		t.Fatalf("Failed to check migration status after migration: %v", err)
-	}
-
-	if needsMigration {
-		t.Error("Expected no migration needed after applying all migrations")
+	if columnCount != 3 {
+		t.Errorf("Expected 3 key columns, got %d", columnCount)
 	}
 }
 

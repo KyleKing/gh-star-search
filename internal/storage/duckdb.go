@@ -54,31 +54,15 @@ func NewDuckDBRepository(dbPath string) (*DuckDBRepository, error) {
 	return repo, nil
 }
 
-// Initialize creates the database schema using migrations
+// Initialize creates the database schema
 func (r *DuckDBRepository) Initialize(ctx context.Context) error {
-	migrationManager := NewMigrationManager(r.db)
-
-	// Check if migration is needed
-	needsMigration, currentVersion, latestVersion, err := migrationManager.NeedsMigration(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to check migration status: %w", err)
-	}
-
-	if needsMigration {
-		fmt.Printf("Database schema update required (v%d -> v%d)\n", currentVersion, latestVersion)
-
-		// For now, auto-migrate without prompting in Initialize
-		// The CLI commands can handle user prompting if needed
-		return migrationManager.MigrateUp(ctx)
-	}
-
-	return migrationManager.MigrateUp(ctx)
+	schemaManager := NewSchemaManager(r.db)
+	return schemaManager.CreateLatestSchema(ctx)
 }
 
-// InitializeWithPrompt creates the database schema with user confirmation for migrations
+// InitializeWithPrompt creates the database schema (simplified, no migration needed)
 func (r *DuckDBRepository) InitializeWithPrompt(ctx context.Context, autoConfirm bool) error {
-	migrationManager := NewMigrationManager(r.db)
-	return migrationManager.MigrateToLatest(ctx, autoConfirm)
+	return r.Initialize(ctx)
 }
 
 // StoreRepository stores a new repository in the database
@@ -357,9 +341,8 @@ func (r *DuckDBRepository) DeleteRepository(ctx context.Context, fullName string
 
 // GetRepository retrieves a specific repository by full name
 func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (*StoredRepo, error) {
-	// Try new schema first, fall back to old schema for backward compatibility
 	query := `
-	SELECT id, full_name, description, 
+	SELECT id, full_name, description,
 		   COALESCE(homepage, '') as homepage,
 		   language, stargazers_count, forks_count, size_kb,
 		   created_at, updated_at, last_synced,
@@ -374,9 +357,9 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 		   COALESCE(languages, '{}') as languages,
 		   COALESCE(contributors, '[]') as contributors,
 		   license_name, license_spdx_id,
-		   purpose, technologies, use_cases, features, 
+		   purpose, technologies, use_cases, features,
 		   installation_instructions, usage_instructions,
-		   summary_generated_at, 
+		   summary_generated_at,
 		   COALESCE(summary_version, 1) as summary_version,
 		   COALESCE(summary_generator, 'heuristic') as summary_generator,
 		   content_hash
@@ -385,12 +368,9 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 	row := r.db.QueryRowContext(ctx, query, fullName)
 
 	var repo StoredRepo
-
 	var technologiesJSON, useCasesJSON, featuresJSON string
-
-	var languagesJSON, contributorsJSON string
-
-	var topicsData interface{} // Can be array or string
+	var languagesData, contributorsData interface{}
+	var topicsData interface{}
 
 	err := row.Scan(
 		&repo.ID, &repo.FullName, &repo.Description, &repo.Homepage,
@@ -398,7 +378,7 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 		&repo.CreatedAt, &repo.UpdatedAt, &repo.LastSynced,
 		&repo.OpenIssuesOpen, &repo.OpenIssuesTotal, &repo.OpenPRsOpen, &repo.OpenPRsTotal,
 		&repo.Commits30d, &repo.Commits1y, &repo.CommitsTotal,
-		&topicsData, &languagesJSON, &contributorsJSON,
+		&topicsData, &languagesData, &contributorsData,
 		&repo.LicenseName, &repo.LicenseSPDXID,
 		&repo.Purpose, &technologiesJSON, &useCasesJSON, &featuresJSON,
 		&repo.InstallationInstructions, &repo.UsageInstructions,
@@ -409,19 +389,13 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("repository not found: %s", fullName)
 		}
-
 		return nil, fmt.Errorf("failed to scan repository: %w", err)
 	}
 
-	// Parse topics (now always JSON string format)
+	// Parse topics array
 	if topicsData != nil {
-		if topicsStr, ok := topicsData.(string); ok && topicsStr != "" && topicsStr != "[]" {
-			if err := json.Unmarshal([]byte(topicsStr), &repo.Topics); err != nil {
-				// Fallback: try to parse as comma-separated string
-				if topicsStr != "[]" {
-					repo.Topics = strings.Split(topicsStr, ",")
-				}
-			}
+		if topicsBytes, err := json.Marshal(topicsData); err == nil {
+			_ = json.Unmarshal(topicsBytes, &repo.Topics)
 		}
 	}
 
@@ -438,21 +412,48 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 		_ = json.Unmarshal([]byte(featuresJSON), &repo.Features)
 	}
 
-	if languagesJSON != "" {
-		_ = json.Unmarshal([]byte(languagesJSON), &repo.Languages)
+	if languagesData != nil {
+		if languagesBytes, err := json.Marshal(languagesData); err == nil {
+			_ = json.Unmarshal(languagesBytes, &repo.Languages)
+		}
 	}
 
-	if contributorsJSON != "" {
-		_ = json.Unmarshal([]byte(contributorsJSON), &repo.Contributors)
+	if contributorsData != nil {
+		if contributorsBytes, err := json.Marshal(contributorsData); err == nil {
+			_ = json.Unmarshal(contributorsBytes, &repo.Contributors)
+		}
 	}
 
-	// Load chunks (deprecated but still supported)
-	chunks, err := r.getRepositoryChunks(ctx, repo.ID)
-	if err != nil {
-		// Don't fail if chunks table doesn't exist
-		repo.Chunks = []processor.ContentChunk{}
-	} else {
-		repo.Chunks = chunks
+	// Parse topics array
+	if topicsData != nil {
+		if topicsBytes, err := json.Marshal(topicsData); err == nil {
+			_ = json.Unmarshal(topicsBytes, &repo.Topics)
+		}
+	}
+
+	// Parse JSON fields
+	if technologiesJSON != "" {
+		_ = json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
+	}
+
+	if useCasesJSON != "" {
+		_ = json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
+	}
+
+	if featuresJSON != "" {
+		_ = json.Unmarshal([]byte(featuresJSON), &repo.Features)
+	}
+
+	if languagesData != nil {
+		if languagesBytes, err := json.Marshal(languagesData); err == nil {
+			_ = json.Unmarshal(languagesBytes, &repo.Languages)
+		}
+	}
+
+	if contributorsData != nil {
+		if contributorsBytes, err := json.Marshal(contributorsData); err == nil {
+			_ = json.Unmarshal(contributorsBytes, &repo.Contributors)
+		}
 	}
 
 	return &repo, nil
@@ -502,7 +503,7 @@ func (r *DuckDBRepository) getRepositoryChunks(ctx context.Context, repoID strin
 // ListRepositories retrieves a paginated list of repositories
 func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset int) ([]StoredRepo, error) {
 	query := `
-	SELECT id, full_name, description, 
+	SELECT id, full_name, description,
 		   COALESCE(homepage, '') as homepage,
 		   language, stargazers_count, forks_count, size_kb,
 		   created_at, updated_at, last_synced,
@@ -517,9 +518,9 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 		   COALESCE(languages, '{}') as languages,
 		   COALESCE(contributors, '[]') as contributors,
 		   license_name, license_spdx_id,
-		   purpose, technologies, use_cases, features, 
+		   purpose, technologies, use_cases, features,
 		   installation_instructions, usage_instructions,
-		   summary_generated_at, 
+		   summary_generated_at,
 		   COALESCE(summary_version, 1) as summary_version,
 		   COALESCE(summary_generator, 'heuristic') as summary_generator,
 		   content_hash
@@ -537,12 +538,9 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 
 	for rows.Next() {
 		var repo StoredRepo
-
 		var technologiesJSON, useCasesJSON, featuresJSON string
-
-		var languagesJSON, contributorsJSON string
-
-		var topicsData interface{} // Can be array or string
+		var languagesData, contributorsData interface{}
+		var topicsData interface{}
 
 		err := rows.Scan(
 			&repo.ID, &repo.FullName, &repo.Description, &repo.Homepage,
@@ -550,7 +548,7 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 			&repo.CreatedAt, &repo.UpdatedAt, &repo.LastSynced,
 			&repo.OpenIssuesOpen, &repo.OpenIssuesTotal, &repo.OpenPRsOpen, &repo.OpenPRsTotal,
 			&repo.Commits30d, &repo.Commits1y, &repo.CommitsTotal,
-			&topicsData, &languagesJSON, &contributorsJSON,
+			&topicsData, &languagesData, &contributorsData,
 			&repo.LicenseName, &repo.LicenseSPDXID,
 			&repo.Purpose, &technologiesJSON, &useCasesJSON, &featuresJSON,
 			&repo.InstallationInstructions, &repo.UsageInstructions,
@@ -561,15 +559,10 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 			return nil, fmt.Errorf("failed to scan repository: %w", err)
 		}
 
-		// Parse topics (now always JSON string format)
+		// Parse topics array
 		if topicsData != nil {
-			if topicsStr, ok := topicsData.(string); ok && topicsStr != "" && topicsStr != "[]" {
-				if err := json.Unmarshal([]byte(topicsStr), &repo.Topics); err != nil {
-					// Fallback: try to parse as comma-separated string
-					if topicsStr != "[]" {
-						repo.Topics = strings.Split(topicsStr, ",")
-					}
-				}
+			if topicsBytes, err := json.Marshal(topicsData); err == nil {
+				_ = json.Unmarshal(topicsBytes, &repo.Topics)
 			}
 		}
 
@@ -586,12 +579,35 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 			_ = json.Unmarshal([]byte(featuresJSON), &repo.Features)
 		}
 
-		if languagesJSON != "" {
-			_ = json.Unmarshal([]byte(languagesJSON), &repo.Languages)
+		if languagesData != nil {
+			if languagesBytes, err := json.Marshal(languagesData); err == nil {
+				_ = json.Unmarshal(languagesBytes, &repo.Languages)
+			}
 		}
 
-		if contributorsJSON != "" {
-			_ = json.Unmarshal([]byte(contributorsJSON), &repo.Contributors)
+		if contributorsData != nil {
+			if contributorsBytes, err := json.Marshal(contributorsData); err == nil {
+				_ = json.Unmarshal(contributorsBytes, &repo.Contributors)
+			}
+		}
+
+		// Parse topics array
+		if topicsData != nil {
+			if topicsBytes, err := json.Marshal(topicsData); err == nil {
+				_ = json.Unmarshal(topicsBytes, &repo.Topics)
+			}
+		}
+
+		if technologiesJSON != "" {
+			_ = json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
+		}
+
+		if useCasesJSON != "" {
+			_ = json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
+		}
+
+		if featuresJSON != "" {
+			_ = json.Unmarshal([]byte(featuresJSON), &repo.Features)
 		}
 
 		repos = append(repos, repo)
@@ -660,7 +676,7 @@ func (r *DuckDBRepository) executeCustomSQL(ctx context.Context, sqlQuery string
 func (r *DuckDBRepository) executeTextSearch(ctx context.Context, query string) ([]SearchResult, error) {
 	searchQuery := `
 	SELECT r.id, r.full_name, r.description, r.language, r.stargazers_count, r.forks_count, r.size_kb,
-		   r.created_at, r.updated_at, r.last_synced, r.topics, r.license_name, r.license_spdx_id,
+		   r.created_at, r.updated_at, r.last_synced, r.topics_array, r.license_name, r.license_spdx_id,
 		   r.purpose, r.technologies, r.use_cases, r.features, r.installation_instructions,
 		   r.usage_instructions, r.content_hash,
 		   CAST(1.0 AS DOUBLE) as score
@@ -690,16 +706,15 @@ func (r *DuckDBRepository) executeTextSearch(ctx context.Context, query string) 
 
 	for rows.Next() {
 		var repo StoredRepo
-
 		var score float64
-
-		var topicsJSON, technologiesJSON, useCasesJSON, featuresJSON string
+		var topicsData interface{}
+		var technologiesJSON, useCasesJSON, featuresJSON string
 
 		err := rows.Scan(
 			&repo.ID, &repo.FullName, &repo.Description, &repo.Language,
 			&repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,
 			&repo.CreatedAt, &repo.UpdatedAt, &repo.LastSynced,
-			&topicsJSON, &repo.LicenseName, &repo.LicenseSPDXID,
+			&topicsData, &repo.LicenseName, &repo.LicenseSPDXID,
 			&repo.Purpose, &technologiesJSON, &useCasesJSON, &featuresJSON,
 			&repo.InstallationInstructions, &repo.UsageInstructions, &repo.ContentHash,
 			&score,
@@ -708,21 +723,23 @@ func (r *DuckDBRepository) executeTextSearch(ctx context.Context, query string) 
 			return nil, fmt.Errorf("failed to scan search result: %w", err)
 		}
 
-		// Parse JSON arrays
-		if topicsJSON != "" {
-			_ = json.Unmarshal([]byte(topicsJSON), &repo.Topics)
+		// Parse topics array
+		if topicsData != nil {
+			if topicsBytes, err := json.Marshal(topicsData); err == nil {
+				_ = json.Unmarshal(topicsBytes, &repo.Topics)
+			}
 		}
 
 		if technologiesJSON != "" {
-			json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
+			_ = json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
 		}
 
 		if useCasesJSON != "" {
-			json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
+			_ = json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
 		}
 
 		if featuresJSON != "" {
-			json.Unmarshal([]byte(featuresJSON), &repo.Features)
+			_ = json.Unmarshal([]byte(featuresJSON), &repo.Features)
 		}
 
 		// Create matches based on which fields matched

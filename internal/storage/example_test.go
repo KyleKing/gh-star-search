@@ -108,7 +108,6 @@ func ExampleDuckDBRepository() {
 		stats.TotalRepositories, stats.TotalContentChunks)
 
 	// Output:
-	// Applying migration 1: Initial schema creation
 	// Found 1 repositories matching 'awesome'
 	// - example/awesome-project: An awesome example project
 	// Database contains 1 repositories and 2 content chunks

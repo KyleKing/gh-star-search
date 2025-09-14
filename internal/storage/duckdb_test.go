@@ -69,8 +69,9 @@ func TestDuckDBRepository(t *testing.T) {
 			t.Errorf("Expected description %s, got %s", testRepo.Repository.Description, stored.Description)
 		}
 
-		if len(stored.Chunks) != len(testRepo.Chunks) {
-			t.Errorf("Expected %d chunks, got %d", len(testRepo.Chunks), len(stored.Chunks))
+		// Content chunks are deprecated and no longer stored
+		if len(stored.Chunks) != 0 {
+			t.Errorf("Expected 0 chunks (deprecated), got %d", len(stored.Chunks))
 		}
 	})
 
@@ -245,43 +246,27 @@ func TestMigrations(t *testing.T) {
 	defer repo.Close()
 
 	ctx := context.Background()
-	migrationManager := NewMigrationManager(repo.db)
+	schemaManager := NewSchemaManager(repo.db)
 
-	t.Run("InitializeMigrationTable", func(t *testing.T) {
-		err := migrationManager.InitializeMigrationTable(ctx)
+	t.Run("CreateLatestSchema", func(t *testing.T) {
+		err := schemaManager.CreateLatestSchema(ctx)
 		if err != nil {
-			t.Fatalf("Failed to initialize migration table: %v", err)
+			t.Fatalf("Failed to create schema: %v", err)
 		}
 
-		// Verify migration table exists
+		// Verify repositories table exists
 		var count int
-
-		err = repo.db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count)
+		err = repo.db.QueryRow("SELECT COUNT(*) FROM repositories").Scan(&count)
 		if err != nil {
-			t.Fatalf("Migration table not created: %v", err)
+			t.Fatalf("Failed to query repositories table: %v", err)
 		}
 	})
 
-	t.Run("MigrateUp", func(t *testing.T) {
-		err := migrationManager.MigrateUp(ctx)
-		if err != nil {
-			t.Fatalf("Failed to migrate up: %v", err)
-		}
-
-		// Verify migrations were applied
-		appliedVersions, err := migrationManager.GetAppliedMigrations(ctx)
-		if err != nil {
-			t.Fatalf("Failed to get applied migrations: %v", err)
-		}
-
-		if len(appliedVersions) == 0 {
-			t.Errorf("Expected applied migrations, got none")
-		}
-
-		// Verify tables exist
+	t.Run("VerifySchema", func(t *testing.T) {
+		// Verify tables exist after schema creation
 		var count int
 
-		err = repo.db.QueryRow("SELECT COUNT(*) FROM repositories").Scan(&count)
+		err := repo.db.QueryRow("SELECT COUNT(*) FROM repositories").Scan(&count)
 		if err != nil {
 			t.Fatalf("Repositories table not created: %v", err)
 		}
@@ -290,24 +275,22 @@ func TestMigrations(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Content chunks table not created: %v", err)
 		}
-	})
 
-	t.Run("GetMigrationStatus", func(t *testing.T) {
-		status, err := migrationManager.GetMigrationStatus(ctx)
+		// Verify key columns exist
+		var columnCount int
+		err = repo.db.QueryRow(`
+			SELECT COUNT(*) FROM information_schema.columns
+			WHERE table_name = 'repositories' AND column_name IN ('topics_array', 'languages', 'contributors')
+		`).Scan(&columnCount)
 		if err != nil {
-			t.Fatalf("Failed to get migration status: %v", err)
+			t.Fatalf("Failed to check schema columns: %v", err)
 		}
 
-		if len(status) == 0 {
-			t.Errorf("Expected migration status, got none")
-		}
-
-		for version, migrationStatus := range status {
-			if !migrationStatus.Applied {
-				t.Errorf("Migration %d should be applied", version)
-			}
+		if columnCount != 3 {
+			t.Errorf("Expected 3 key columns, got %d", columnCount)
 		}
 	})
+
 }
 
 func TestDuckDBRepositoryErrors(t *testing.T) {
