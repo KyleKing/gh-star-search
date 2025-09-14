@@ -20,7 +20,7 @@ LLM, NL query parser, and wide content extraction pieces are now deprecated (see
    - Strip interactive SQL editing & confidence scoring paths.
    - Ensure build passes after removal; add deprecation note in CHANGELOG (if present).
 
-- [ ] 2. Storage Schema Update
+- [x] 2. Storage Schema Update
    - Add activity & metrics fields (issues/prs counts, commit activity, contributor/topic arrays, languages JSON, summary & embedding columns, related counts as derivable not stored).
    - Remove / do not recreate `content_chunks` table (unless future re-enabled).
    - Add `repo_embedding FLOAT[384]`, summary fields, `content_hash`.

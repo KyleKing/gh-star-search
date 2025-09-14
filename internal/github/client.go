@@ -39,6 +39,7 @@ type RESTClientInterface interface {
 type Repository struct {
 	FullName        string    `json:"full_name"`
 	Description     string    `json:"description"`
+	Homepage        string    `json:"homepage"`
 	Language        string    `json:"language"`
 	StargazersCount int       `json:"stargazers_count"`
 	ForksCount      int       `json:"forks_count"`

@@ -56,7 +56,28 @@ func NewDuckDBRepository(dbPath string) (*DuckDBRepository, error) {
 // Initialize creates the database schema using migrations
 func (r *DuckDBRepository) Initialize(ctx context.Context) error {
 	migrationManager := NewMigrationManager(r.db)
+	
+	// Check if migration is needed
+	needsMigration, currentVersion, latestVersion, err := migrationManager.NeedsMigration(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to check migration status: %w", err)
+	}
+	
+	if needsMigration {
+		fmt.Printf("Database schema update required (v%d -> v%d)\n", currentVersion, latestVersion)
+		
+		// For now, auto-migrate without prompting in Initialize
+		// The CLI commands can handle user prompting if needed
+		return migrationManager.MigrateUp(ctx)
+	}
+	
 	return migrationManager.MigrateUp(ctx)
+}
+
+// InitializeWithPrompt creates the database schema with user confirmation for migrations
+func (r *DuckDBRepository) InitializeWithPrompt(ctx context.Context, autoConfirm bool) error {
+	migrationManager := NewMigrationManager(r.db)
+	return migrationManager.MigrateToLatest(ctx, autoConfirm)
 }
 
 // StoreRepository stores a new repository in the database
@@ -68,23 +89,32 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 
 	defer func() { _ = tx.Rollback() }()
 
-	// Convert arrays to JSON
-	topicsJSON, _ := json.Marshal(repo.Repository.Topics)
+	// Convert arrays and objects to JSON
 	technologiesJSON, _ := json.Marshal(repo.Summary.Technologies)
 	useCasesJSON, _ := json.Marshal(repo.Summary.UseCases)
 	featuresJSON, _ := json.Marshal(repo.Summary.Features)
+	languagesJSON, _ := json.Marshal(map[string]int64{}) // Default empty, will be populated by sync
+	contributorsJSON, _ := json.Marshal([]Contributor{}) // Default empty, will be populated by sync
 
 	// Generate a new UUID for the repository
 	repoID := uuid.New().String()
 
-	// Insert repository
+	// Convert topics to JSON for storage (DuckDB doesn't handle []string directly)
+	topicsJSON, _ := json.Marshal(repo.Repository.Topics)
+
+	// Insert repository with new schema
 	insertRepoSQL := `
 	INSERT INTO repositories (
-		id, full_name, description, language, stargazers_count, forks_count, size_kb,
-		created_at, updated_at, last_synced, topics, license_name, license_spdx_id,
+		id, full_name, description, homepage, language, stargazers_count, forks_count, size_kb,
+		created_at, updated_at, last_synced, 
+		open_issues_open, open_issues_total, open_prs_open, open_prs_total,
+		commits_30d, commits_1y, commits_total,
+		topics_array, languages, contributors,
+		license_name, license_spdx_id,
 		purpose, technologies, use_cases, features, installation_instructions,
-		usage_instructions, content_hash
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		usage_instructions, summary_generated_at, summary_version, summary_generator,
+		content_hash
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	var licenseName, licenseSPDXID string
 	if repo.Repository.License != nil {
@@ -92,10 +122,16 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 		licenseSPDXID = repo.Repository.License.SPDXID
 	}
 
+	var summaryGeneratedAt *time.Time
+	if repo.Summary.GeneratedAt != nil && !repo.Summary.GeneratedAt.IsZero() {
+		summaryGeneratedAt = repo.Summary.GeneratedAt
+	}
+
 	_, err = tx.ExecContext(ctx, insertRepoSQL,
 		repoID,
 		repo.Repository.FullName,
 		repo.Repository.Description,
+		repo.Repository.Homepage,
 		repo.Repository.Language,
 		repo.Repository.StargazersCount,
 		repo.Repository.ForksCount,
@@ -103,7 +139,11 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 		repo.Repository.CreatedAt,
 		repo.Repository.UpdatedAt,
 		repo.ProcessedAt,
+		0, 0, 0, 0, // Default activity metrics, will be populated by sync
+		0, 0, 0,    // Default commit metrics, will be populated by sync
 		string(topicsJSON),
+		string(languagesJSON),
+		string(contributorsJSON),
 		licenseName,
 		licenseSPDXID,
 		repo.Summary.Purpose,
@@ -112,32 +152,45 @@ func (r *DuckDBRepository) StoreRepository(ctx context.Context, repo processor.P
 		string(featuresJSON),
 		repo.Summary.Installation,
 		repo.Summary.Usage,
+		summaryGeneratedAt,
+		repo.Summary.Version,
+		repo.Summary.Generator,
 		repo.ContentHash,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert repository: %w", err)
 	}
 
-	// Insert content chunks
+	// Insert content chunks (deprecated but still supported for backward compatibility)
 	if len(repo.Chunks) > 0 {
-		insertChunkSQL := `
-		INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`
+		// Check if content_chunks table exists
+		var tableExists bool
+		err = tx.QueryRowContext(ctx, `
+			SELECT COUNT(*) > 0 
+			FROM information_schema.tables 
+			WHERE table_name = 'content_chunks'
+		`).Scan(&tableExists)
+		
+		if err == nil && tableExists {
+			insertChunkSQL := `
+			INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`
 
-		for _, chunk := range repo.Chunks {
-			chunkID := uuid.New().String()
+			for _, chunk := range repo.Chunks {
+				chunkID := uuid.New().String()
 
-			_, err := tx.ExecContext(ctx, insertChunkSQL,
-				chunkID,
-				repoID,
-				chunk.Source,
-				chunk.Type,
-				chunk.Content,
-				chunk.Tokens,
-				chunk.Priority,
-			)
-			if err != nil {
-				return fmt.Errorf("failed to insert content chunk: %w", err)
+				_, err := tx.ExecContext(ctx, insertChunkSQL,
+					chunkID,
+					repoID,
+					chunk.Source,
+					chunk.Type,
+					chunk.Content,
+					chunk.Tokens,
+					chunk.Priority,
+				)
+				if err != nil {
+					return fmt.Errorf("failed to insert content chunk: %w", err)
+				}
 			}
 		}
 	}
@@ -157,10 +210,19 @@ func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.
 		return fmt.Errorf("failed to get repository ID: %w", err)
 	}
 
-	// Delete existing chunks
-	_, err = r.db.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", repoID)
-	if err != nil {
-		return fmt.Errorf("failed to delete existing chunks: %w", err)
+	// Delete existing chunks (if table exists)
+	var tableExists bool
+	err = r.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) > 0 
+		FROM information_schema.tables 
+		WHERE table_name = 'content_chunks'
+	`).Scan(&tableExists)
+	
+	if err == nil && tableExists {
+		_, err = r.db.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", repoID)
+		if err != nil {
+			return fmt.Errorf("failed to delete existing chunks: %w", err)
+		}
 	}
 
 	// Delete the repository
@@ -169,20 +231,27 @@ func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.
 		return fmt.Errorf("failed to delete repository: %w", err)
 	}
 
-	// Convert arrays to JSON
+	// Convert arrays and objects to JSON
 	topicsJSON, _ := json.Marshal(repo.Repository.Topics)
 	technologiesJSON, _ := json.Marshal(repo.Summary.Technologies)
 	useCasesJSON, _ := json.Marshal(repo.Summary.UseCases)
 	featuresJSON, _ := json.Marshal(repo.Summary.Features)
+	languagesJSON, _ := json.Marshal(map[string]int64{}) // Default empty, will be populated by sync
+	contributorsJSON, _ := json.Marshal([]Contributor{}) // Default empty, will be populated by sync
 
-	// Insert the repository with the same ID
+	// Insert the repository with the same ID using new schema
 	insertRepoSQL := `
 	INSERT INTO repositories (
-		id, full_name, description, language, stargazers_count, forks_count, size_kb,
-		created_at, updated_at, last_synced, topics, license_name, license_spdx_id,
+		id, full_name, description, homepage, language, stargazers_count, forks_count, size_kb,
+		created_at, updated_at, last_synced, 
+		open_issues_open, open_issues_total, open_prs_open, open_prs_total,
+		commits_30d, commits_1y, commits_total,
+		topics_array, languages, contributors,
+		license_name, license_spdx_id,
 		purpose, technologies, use_cases, features, installation_instructions,
-		usage_instructions, content_hash
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		usage_instructions, summary_generated_at, summary_version, summary_generator,
+		content_hash
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	var licenseName, licenseSPDXID string
 	if repo.Repository.License != nil {
@@ -190,10 +259,16 @@ func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.
 		licenseSPDXID = repo.Repository.License.SPDXID
 	}
 
+	var summaryGeneratedAt *time.Time
+	if repo.Summary.GeneratedAt != nil && !repo.Summary.GeneratedAt.IsZero() {
+		summaryGeneratedAt = repo.Summary.GeneratedAt
+	}
+
 	_, err = r.db.ExecContext(ctx, insertRepoSQL,
 		repoID, // Use the same ID
 		repo.Repository.FullName,
 		repo.Repository.Description,
+		repo.Repository.Homepage,
 		repo.Repository.Language,
 		repo.Repository.StargazersCount,
 		repo.Repository.ForksCount,
@@ -201,7 +276,11 @@ func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.
 		repo.Repository.CreatedAt,
 		repo.Repository.UpdatedAt,
 		repo.ProcessedAt,
+		0, 0, 0, 0, // Default activity metrics, will be populated by sync
+		0, 0, 0,    // Default commit metrics, will be populated by sync
 		string(topicsJSON),
+		string(languagesJSON),
+		string(contributorsJSON),
 		licenseName,
 		licenseSPDXID,
 		repo.Summary.Purpose,
@@ -210,14 +289,17 @@ func (r *DuckDBRepository) UpdateRepository(ctx context.Context, repo processor.
 		string(featuresJSON),
 		repo.Summary.Installation,
 		repo.Summary.Usage,
+		summaryGeneratedAt,
+		repo.Summary.Version,
+		repo.Summary.Generator,
 		repo.ContentHash,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert updated repository: %w", err)
 	}
 
-	// Insert content chunks if any
-	if len(repo.Chunks) > 0 {
+	// Insert content chunks if any (deprecated but still supported for backward compatibility)
+	if len(repo.Chunks) > 0 && tableExists {
 		insertChunkSQL := `
 		INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -274,77 +356,113 @@ func (r *DuckDBRepository) DeleteRepository(ctx context.Context, fullName string
 
 // GetRepository retrieves a specific repository by full name
 func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (*StoredRepo, error) {
+	// Try new schema first, fall back to old schema for backward compatibility
 	query := `
-	SELECT id, full_name, description, language, stargazers_count, forks_count, size_kb,
-		   created_at, updated_at, last_synced, topics, license_name, license_spdx_id,
-		   purpose, technologies, use_cases, features, installation_instructions,
-		   usage_instructions, content_hash
+	SELECT id, full_name, description, 
+		   COALESCE(homepage, '') as homepage,
+		   language, stargazers_count, forks_count, size_kb,
+		   created_at, updated_at, last_synced,
+		   COALESCE(open_issues_open, 0) as open_issues_open,
+		   COALESCE(open_issues_total, 0) as open_issues_total,
+		   COALESCE(open_prs_open, 0) as open_prs_open,
+		   COALESCE(open_prs_total, 0) as open_prs_total,
+		   COALESCE(commits_30d, 0) as commits_30d,
+		   COALESCE(commits_1y, 0) as commits_1y,
+		   COALESCE(commits_total, 0) as commits_total,
+		   COALESCE(topics_array, '[]') as topics_data,
+		   COALESCE(languages, '{}') as languages,
+		   COALESCE(contributors, '[]') as contributors,
+		   license_name, license_spdx_id,
+		   purpose, technologies, use_cases, features, 
+		   installation_instructions, usage_instructions,
+		   summary_generated_at, 
+		   COALESCE(summary_version, 1) as summary_version,
+		   COALESCE(summary_generator, 'heuristic') as summary_generator,
+		   content_hash
 	FROM repositories WHERE full_name = ?`
 
 	row := r.db.QueryRowContext(ctx, query, fullName)
 
 	var repo StoredRepo
-
-	var topicsJSON, technologiesJSON, useCasesJSON, featuresJSON string
+	var technologiesJSON, useCasesJSON, featuresJSON string
+	var languagesJSON, contributorsJSON string
+	var topicsData interface{} // Can be array or string
 
 	err := row.Scan(
-		&repo.ID, &repo.FullName, &repo.Description, &repo.Language,
-		&repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,
+		&repo.ID, &repo.FullName, &repo.Description, &repo.Homepage,
+		&repo.Language, &repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,
 		&repo.CreatedAt, &repo.UpdatedAt, &repo.LastSynced,
-		&topicsJSON, &repo.LicenseName, &repo.LicenseSPDXID,
+		&repo.OpenIssuesOpen, &repo.OpenIssuesTotal, &repo.OpenPRsOpen, &repo.OpenPRsTotal,
+		&repo.Commits30d, &repo.Commits1y, &repo.CommitsTotal,
+		&topicsData, &languagesJSON, &contributorsJSON,
+		&repo.LicenseName, &repo.LicenseSPDXID,
 		&repo.Purpose, &technologiesJSON, &useCasesJSON, &featuresJSON,
-		&repo.InstallationInstructions, &repo.UsageInstructions, &repo.ContentHash,
+		&repo.InstallationInstructions, &repo.UsageInstructions,
+		&repo.SummaryGeneratedAt, &repo.SummaryVersion, &repo.SummaryGenerator,
+		&repo.ContentHash,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("repository not found: %s", fullName)
 		}
-
 		return nil, fmt.Errorf("failed to scan repository: %w", err)
 	}
 
-	// Parse JSON arrays
-	if topicsJSON != "" {
-		if err := json.Unmarshal([]byte(topicsJSON), &repo.Topics); err != nil {
-			// Log error or handle, but for now ignore since data should be valid JSON
-			_ = err // explicitly ignore the error
+	// Parse topics (now always JSON string format)
+	if topicsData != nil {
+		if topicsStr, ok := topicsData.(string); ok && topicsStr != "" && topicsStr != "[]" {
+			if err := json.Unmarshal([]byte(topicsStr), &repo.Topics); err != nil {
+				// Fallback: try to parse as comma-separated string
+				if topicsStr != "[]" {
+					repo.Topics = strings.Split(topicsStr, ",")
+				}
+			}
 		}
 	}
 
+	// Parse JSON fields
 	if technologiesJSON != "" {
-		if err := json.Unmarshal([]byte(technologiesJSON), &repo.Technologies); err != nil {
-			// Log error or handle, but for now ignore since data should be valid JSON
-			_ = err // explicitly ignore the error
-		}
+		json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
 	}
-
 	if useCasesJSON != "" {
-		if err := json.Unmarshal([]byte(useCasesJSON), &repo.UseCases); err != nil {
-			// Log error or handle, but for now ignore since data should be valid JSON
-			_ = err // explicitly ignore the error
-		}
+		json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
 	}
-
 	if featuresJSON != "" {
-		if err := json.Unmarshal([]byte(featuresJSON), &repo.Features); err != nil {
-			// Log error or handle, but for now ignore since data should be valid JSON
-			_ = err // explicitly ignore the error
-		}
+		json.Unmarshal([]byte(featuresJSON), &repo.Features)
+	}
+	if languagesJSON != "" {
+		json.Unmarshal([]byte(languagesJSON), &repo.Languages)
+	}
+	if contributorsJSON != "" {
+		json.Unmarshal([]byte(contributorsJSON), &repo.Contributors)
 	}
 
-	// Load chunks
+	// Load chunks (deprecated but still supported)
 	chunks, err := r.getRepositoryChunks(ctx, repo.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load chunks: %w", err)
+		// Don't fail if chunks table doesn't exist
+		repo.Chunks = []processor.ContentChunk{}
+	} else {
+		repo.Chunks = chunks
 	}
-
-	repo.Chunks = chunks
 
 	return &repo, nil
 }
 
 // getRepositoryChunks retrieves all chunks for a repository
 func (r *DuckDBRepository) getRepositoryChunks(ctx context.Context, repoID string) ([]processor.ContentChunk, error) {
+	// Check if content_chunks table exists
+	var tableExists bool
+	err := r.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) > 0 
+		FROM information_schema.tables 
+		WHERE table_name = 'content_chunks'
+	`).Scan(&tableExists)
+	
+	if err != nil || !tableExists {
+		return []processor.ContentChunk{}, nil
+	}
+
 	query := `
 	SELECT source_path, chunk_type, content, tokens, priority
 	FROM content_chunks WHERE repository_id = ?
@@ -375,10 +493,27 @@ func (r *DuckDBRepository) getRepositoryChunks(ctx context.Context, repoID strin
 // ListRepositories retrieves a paginated list of repositories
 func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset int) ([]StoredRepo, error) {
 	query := `
-	SELECT id, full_name, description, language, stargazers_count, forks_count, size_kb,
-		   created_at, updated_at, last_synced, topics, license_name, license_spdx_id,
-		   purpose, technologies, use_cases, features, installation_instructions,
-		   usage_instructions, content_hash
+	SELECT id, full_name, description, 
+		   COALESCE(homepage, '') as homepage,
+		   language, stargazers_count, forks_count, size_kb,
+		   created_at, updated_at, last_synced,
+		   COALESCE(open_issues_open, 0) as open_issues_open,
+		   COALESCE(open_issues_total, 0) as open_issues_total,
+		   COALESCE(open_prs_open, 0) as open_prs_open,
+		   COALESCE(open_prs_total, 0) as open_prs_total,
+		   COALESCE(commits_30d, 0) as commits_30d,
+		   COALESCE(commits_1y, 0) as commits_1y,
+		   COALESCE(commits_total, 0) as commits_total,
+		   COALESCE(topics_array, '[]') as topics_data,
+		   COALESCE(languages, '{}') as languages,
+		   COALESCE(contributors, '[]') as contributors,
+		   license_name, license_spdx_id,
+		   purpose, technologies, use_cases, features, 
+		   installation_instructions, usage_instructions,
+		   summary_generated_at, 
+		   COALESCE(summary_version, 1) as summary_version,
+		   COALESCE(summary_generator, 'heuristic') as summary_generator,
+		   content_hash
 	FROM repositories
 	ORDER BY stargazers_count DESC, full_name
 	LIMIT ? OFFSET ?`
@@ -393,44 +528,54 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 
 	for rows.Next() {
 		var repo StoredRepo
-
-		var topicsJSON, technologiesJSON, useCasesJSON, featuresJSON string
+		var technologiesJSON, useCasesJSON, featuresJSON string
+		var languagesJSON, contributorsJSON string
+		var topicsData interface{} // Can be array or string
 
 		err := rows.Scan(
-			&repo.ID, &repo.FullName, &repo.Description, &repo.Language,
-			&repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,
+			&repo.ID, &repo.FullName, &repo.Description, &repo.Homepage,
+			&repo.Language, &repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,
 			&repo.CreatedAt, &repo.UpdatedAt, &repo.LastSynced,
-			&topicsJSON, &repo.LicenseName, &repo.LicenseSPDXID,
+			&repo.OpenIssuesOpen, &repo.OpenIssuesTotal, &repo.OpenPRsOpen, &repo.OpenPRsTotal,
+			&repo.Commits30d, &repo.Commits1y, &repo.CommitsTotal,
+			&topicsData, &languagesJSON, &contributorsJSON,
+			&repo.LicenseName, &repo.LicenseSPDXID,
 			&repo.Purpose, &technologiesJSON, &useCasesJSON, &featuresJSON,
-			&repo.InstallationInstructions, &repo.UsageInstructions, &repo.ContentHash,
+			&repo.InstallationInstructions, &repo.UsageInstructions,
+			&repo.SummaryGeneratedAt, &repo.SummaryVersion, &repo.SummaryGenerator,
+			&repo.ContentHash,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan repository: %w", err)
 		}
 
-		// Parse JSON arrays
-		if topicsJSON != "" {
-			if err := json.Unmarshal([]byte(topicsJSON), &repo.Topics); err != nil {
-				// Log error or handle, but for now ignore since data should be valid JSON
+		// Parse topics (now always JSON string format)
+		if topicsData != nil {
+			if topicsStr, ok := topicsData.(string); ok && topicsStr != "" && topicsStr != "[]" {
+				if err := json.Unmarshal([]byte(topicsStr), &repo.Topics); err != nil {
+					// Fallback: try to parse as comma-separated string
+					if topicsStr != "[]" {
+						repo.Topics = strings.Split(topicsStr, ",")
+					}
+				}
 			}
 		}
 
+		// Parse JSON fields
 		if technologiesJSON != "" {
-			if err := json.Unmarshal([]byte(technologiesJSON), &repo.Technologies); err != nil {
-				// Log error or handle, but for now ignore since data should be valid JSON
-			}
+			json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
 		}
-
 		if useCasesJSON != "" {
-			if err := json.Unmarshal([]byte(useCasesJSON), &repo.UseCases); err != nil {
-				// Log error or handle, but for now ignore since data should be valid JSON
-			}
+			json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
 		}
-
 		if featuresJSON != "" {
-			if err := json.Unmarshal([]byte(featuresJSON), &repo.Features); err != nil {
-				// Log error or handle, but for now ignore since data should be valid JSON
-			}
+			json.Unmarshal([]byte(featuresJSON), &repo.Features)
+		}
+		if languagesJSON != "" {
+			json.Unmarshal([]byte(languagesJSON), &repo.Languages)
+		}
+		if contributorsJSON != "" {
+			json.Unmarshal([]byte(contributorsJSON), &repo.Contributors)
 		}
 
 		repos = append(repos, repo)
@@ -821,6 +966,137 @@ func (r *DuckDBRepository) Clear(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// UpdateRepositoryMetrics updates activity and metrics data for a repository
+func (r *DuckDBRepository) UpdateRepositoryMetrics(ctx context.Context, fullName string, metrics RepositoryMetrics) error {
+	languagesJSON, err := json.Marshal(metrics.Languages)
+	if err != nil {
+		return fmt.Errorf("failed to marshal languages: %w", err)
+	}
+	
+	contributorsJSON, err := json.Marshal(metrics.Contributors)
+	if err != nil {
+		return fmt.Errorf("failed to marshal contributors: %w", err)
+	}
+	
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	
+	updateSQL := `
+	UPDATE repositories SET 
+		homepage = ?,
+		open_issues_open = ?, open_issues_total = ?,
+		open_prs_open = ?, open_prs_total = ?,
+		commits_30d = ?, commits_1y = ?, commits_total = ?,
+		languages = ?, contributors = ?,
+		last_synced = CURRENT_TIMESTAMP
+	WHERE full_name = ?`
+	
+	result, err := tx.ExecContext(ctx, updateSQL,
+		metrics.Homepage,
+		metrics.OpenIssuesOpen, metrics.OpenIssuesTotal,
+		metrics.OpenPRsOpen, metrics.OpenPRsTotal,
+		metrics.Commits30d, metrics.Commits1y, metrics.CommitsTotal,
+		string(languagesJSON), string(contributorsJSON),
+		fullName,
+	)
+	
+	if err != nil {
+		return fmt.Errorf("failed to update repository metrics: %w", err)
+	}
+	
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	
+	if rowsAffected == 0 {
+		return fmt.Errorf("no repository found with full_name: %s", fullName)
+	}
+	
+	return tx.Commit()
+}
+
+// UpdateRepositoryEmbedding updates the embedding for a repository
+func (r *DuckDBRepository) UpdateRepositoryEmbedding(ctx context.Context, fullName string, embedding []float32) error {
+	// Convert []float32 to the format DuckDB expects for FLOAT arrays
+	embeddingJSON, _ := json.Marshal(embedding)
+	
+	updateSQL := `UPDATE repositories SET repo_embedding = ? WHERE full_name = ?`
+	
+	_, err := r.db.ExecContext(ctx, updateSQL, string(embeddingJSON), fullName)
+	if err != nil {
+		return fmt.Errorf("failed to update repository embedding: %w", err)
+	}
+	
+	return nil
+}
+
+// GetRepositoriesNeedingMetricsUpdate returns repositories that need metrics updates
+func (r *DuckDBRepository) GetRepositoriesNeedingMetricsUpdate(ctx context.Context, staleDays int) ([]string, error) {
+	// Use date arithmetic that DuckDB supports
+	cutoffTime := time.Now().AddDate(0, 0, -staleDays)
+	
+	query := `
+	SELECT full_name 
+	FROM repositories 
+	WHERE last_synced IS NULL 
+		OR last_synced < ?
+	ORDER BY last_synced ASC NULLS FIRST`
+	
+	rows, err := r.db.QueryContext(ctx, query, cutoffTime)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query repositories needing metrics update: %w", err)
+	}
+	defer rows.Close()
+	
+	var fullNames []string
+	for rows.Next() {
+		var fullName string
+		if err := rows.Scan(&fullName); err != nil {
+			return nil, err
+		}
+		fullNames = append(fullNames, fullName)
+	}
+	
+	return fullNames, rows.Err()
+}
+
+// GetRepositoriesNeedingSummaryUpdate returns repositories that need summary updates
+func (r *DuckDBRepository) GetRepositoriesNeedingSummaryUpdate(ctx context.Context, forceUpdate bool) ([]string, error) {
+	var query string
+	if forceUpdate {
+		query = `SELECT full_name FROM repositories ORDER BY full_name`
+	} else {
+		query = `
+		SELECT full_name 
+		FROM repositories 
+		WHERE purpose IS NULL OR purpose = ''
+			OR summary_generated_at IS NULL
+			OR summary_version < 1
+		ORDER BY full_name`
+	}
+	
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query repositories needing summary update: %w", err)
+	}
+	defer rows.Close()
+	
+	var fullNames []string
+	for rows.Next() {
+		var fullName string
+		if err := rows.Scan(&fullName); err != nil {
+			return nil, err
+		}
+		fullNames = append(fullNames, fullName)
+	}
+	
+	return fullNames, rows.Err()
 }
 
 // Close closes the database connection

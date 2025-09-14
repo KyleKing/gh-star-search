@@ -36,12 +36,15 @@ type ContentChunk struct {
 
 // Summary represents the LLM-generated summary of repository content
 type Summary struct {
-	Purpose      string   `json:"purpose"`
-	Technologies []string `json:"technologies"`
-	UseCases     []string `json:"use_cases"`
-	Features     []string `json:"features"`
-	Installation string   `json:"installation"`
-	Usage        string   `json:"usage"`
+	Purpose      string     `json:"purpose"`
+	Technologies []string   `json:"technologies"`
+	UseCases     []string   `json:"use_cases"`
+	Features     []string   `json:"features"`
+	Installation string     `json:"installation"`
+	Usage        string     `json:"usage"`
+	GeneratedAt  *time.Time `json:"generated_at,omitempty"`
+	Version      int        `json:"version"`
+	Generator    string     `json:"generator"`
 }
 
 // ProcessedRepo represents a fully processed repository with summary and chunks
@@ -651,10 +654,14 @@ func (s *serviceImpl) prepareContentForLLM(chunks []ContentChunk) string {
 
 // generateBasicSummary creates a basic summary without LLM processing
 func (s *serviceImpl) generateBasicSummary(chunks []ContentChunk) *Summary {
+	now := time.Now()
 	summary := &Summary{
 		Technologies: []string{},
 		UseCases:     []string{},
 		Features:     []string{},
+		GeneratedAt:  &now,
+		Version:      1,
+		Generator:    "heuristic",
 	}
 
 	// Extract basic information from chunks
