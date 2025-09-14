@@ -3,7 +3,10 @@ package github
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -28,6 +31,31 @@ type Client interface {
 	// Partial failures are handled gracefully - if some metadata cannot be fetched,
 	// the available data is still returned.
 	GetRepositoryMetadata(ctx context.Context, repo Repository) (*Metadata, error)
+
+	// GetContributors fetches the top N contributors for a repository.
+	// Returns contributor login names and their contribution counts.
+	GetContributors(ctx context.Context, fullName string, topN int) ([]Contributor, error)
+
+	// GetTopics fetches the topics/tags associated with a repository.
+	GetTopics(ctx context.Context, fullName string) ([]string, error)
+
+	// GetLanguages fetches the programming languages used in a repository.
+	// Returns a map of language names to byte counts.
+	GetLanguages(ctx context.Context, fullName string) (map[string]int64, error)
+
+	// GetCommitActivity fetches commit activity statistics for a repository.
+	// Returns weekly commit counts for the last 52 weeks.
+	GetCommitActivity(ctx context.Context, fullName string) (*CommitActivity, error)
+
+	// GetPullCounts fetches pull request counts (open and total) for a repository.
+	GetPullCounts(ctx context.Context, fullName string) (open int, total int, err error)
+
+	// GetIssueCounts fetches issue counts (open and total) for a repository.
+	GetIssueCounts(ctx context.Context, fullName string) (open int, total int, err error)
+
+	// GetHomepageText fetches text content from an external homepage URL.
+	// This is optional and used for additional context extraction.
+	GetHomepageText(ctx context.Context, url string) (string, error)
 }
 
 // RESTClientInterface defines the interface for REST API operations
@@ -92,6 +120,35 @@ type Release struct {
 	PublishedAt time.Time `json:"published_at"`
 	Prerelease  bool      `json:"prerelease"`
 	Draft       bool      `json:"draft"`
+}
+
+// Contributor represents a repository contributor
+type Contributor struct {
+	Login         string `json:"login"`
+	Contributions int    `json:"contributions"`
+	Type          string `json:"type"`
+	AvatarURL     string `json:"avatar_url"`
+}
+
+// CommitActivity represents weekly commit activity statistics
+type CommitActivity struct {
+	Weeks []WeeklyCommits `json:"weeks"`
+	Total int             `json:"total"`
+}
+
+// WeeklyCommits represents commit counts for a specific week
+type WeeklyCommits struct {
+	Week    int64 `json:"w"`    // Unix timestamp for the start of the week
+	Commits int   `json:"c"`    // Number of commits
+	Adds    int   `json:"a"`    // Lines added
+	Deletes int   `json:"d"`    // Lines deleted
+}
+
+// SearchResult represents a search result from GitHub API
+type SearchResult struct {
+	TotalCount        int                    `json:"total_count"`
+	IncompleteResults bool                   `json:"incomplete_results"`
+	Items             []map[string]interface{} `json:"items"`
 }
 
 // clientImpl implements the Client interface using go-gh
@@ -309,4 +366,222 @@ func (c *clientImpl) fetchLatestRelease(ctx context.Context, repo Repository, me
 	metadata.ReleaseCount = len(releases)
 
 	return nil
+}
+
+// GetContributors fetches the top N contributors for a repository
+func (c *clientImpl) GetContributors(ctx context.Context, fullName string, topN int) ([]Contributor, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	var contributors []Contributor
+
+	err := c.apiClient.Get(fmt.Sprintf("repos/%s/contributors?per_page=%d", fullName, topN), &contributors)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch contributors for %s: %w", fullName, err)
+	}
+
+	return contributors, nil
+}
+
+// GetTopics fetches the topics associated with a repository
+func (c *clientImpl) GetTopics(ctx context.Context, fullName string) ([]string, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	var response struct {
+		Names []string `json:"names"`
+	}
+
+	err := c.apiClient.Get(fmt.Sprintf("repos/%s/topics", fullName), &response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch topics for %s: %w", fullName, err)
+	}
+
+	return response.Names, nil
+}
+
+// GetLanguages fetches the programming languages used in a repository
+func (c *clientImpl) GetLanguages(ctx context.Context, fullName string) (map[string]int64, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	var languages map[string]int64
+
+	err := c.apiClient.Get(fmt.Sprintf("repos/%s/languages", fullName), &languages)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch languages for %s: %w", fullName, err)
+	}
+
+	return languages, nil
+}
+
+// GetCommitActivity fetches commit activity statistics for a repository
+func (c *clientImpl) GetCommitActivity(ctx context.Context, fullName string) (*CommitActivity, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	var weeks []WeeklyCommits
+
+	err := c.apiClient.Get(fmt.Sprintf("repos/%s/stats/commit_activity", fullName), &weeks)
+	if err != nil {
+		// Handle 202 Accepted response (stats being computed)
+		if httpErr, ok := err.(*api.HTTPError); ok && httpErr.StatusCode == http.StatusAccepted {
+			return &CommitActivity{
+				Weeks: []WeeklyCommits{},
+				Total: -1, // Indicates stats are being computed
+			}, nil
+		}
+		return nil, fmt.Errorf("failed to fetch commit activity for %s: %w", fullName, err)
+	}
+
+	// Calculate total commits
+	total := 0
+	for _, week := range weeks {
+		total += week.Commits
+	}
+
+	return &CommitActivity{
+		Weeks: weeks,
+		Total: total,
+	}, nil
+}
+
+// GetPullCounts fetches pull request counts for a repository
+func (c *clientImpl) GetPullCounts(ctx context.Context, fullName string) (open int, total int, err error) {
+	select {
+	case <-ctx.Done():
+		return 0, 0, ctx.Err()
+	default:
+	}
+
+	// Get open PRs
+	var openResult SearchResult
+	err = c.apiClient.Get(fmt.Sprintf("search/issues?q=repo:%s+type:pr+state:open&per_page=1", fullName), &openResult)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to fetch open PR count for %s: %w", fullName, err)
+	}
+	open = openResult.TotalCount
+
+	// Get total PRs (open + closed)
+	var totalResult SearchResult
+	err = c.apiClient.Get(fmt.Sprintf("search/issues?q=repo:%s+type:pr&per_page=1", fullName), &totalResult)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to fetch total PR count for %s: %w", fullName, err)
+	}
+	total = totalResult.TotalCount
+
+	return open, total, nil
+}
+
+// GetIssueCounts fetches issue counts for a repository
+func (c *clientImpl) GetIssueCounts(ctx context.Context, fullName string) (open int, total int, err error) {
+	select {
+	case <-ctx.Done():
+		return 0, 0, ctx.Err()
+	default:
+	}
+
+	// Get open issues (excluding PRs)
+	var openResult SearchResult
+	err = c.apiClient.Get(fmt.Sprintf("search/issues?q=repo:%s+type:issue+state:open&per_page=1", fullName), &openResult)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to fetch open issue count for %s: %w", fullName, err)
+	}
+	open = openResult.TotalCount
+
+	// Get total issues (open + closed, excluding PRs)
+	var totalResult SearchResult
+	err = c.apiClient.Get(fmt.Sprintf("search/issues?q=repo:%s+type:issue&per_page=1", fullName), &totalResult)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to fetch total issue count for %s: %w", fullName, err)
+	}
+	total = totalResult.TotalCount
+
+	return open, total, nil
+}
+
+// GetHomepageText fetches text content from an external homepage URL
+func (c *clientImpl) GetHomepageText(ctx context.Context, urlStr string) (string, error) {
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	default:
+	}
+
+	// Validate URL
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid URL: %w", err)
+	}
+
+	// Only allow HTTP/HTTPS
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return "", fmt.Errorf("unsupported URL scheme: %s", parsedURL.Scheme)
+	}
+
+	// Create HTTP client with timeout
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set user agent
+	req.Header.Set("User-Agent", "gh-star-search/1.0")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch URL: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
+	}
+
+	// Limit response size to prevent abuse
+	const maxSize = 1024 * 1024 // 1MB
+	limitedReader := io.LimitReader(resp.Body, maxSize)
+
+	body, err := io.ReadAll(limitedReader)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Basic text extraction (remove HTML tags)
+	text := string(body)
+	text = strings.ReplaceAll(text, "<", " <")
+	text = strings.ReplaceAll(text, ">", "> ")
+	
+	// Simple HTML tag removal
+	var result strings.Builder
+	inTag := false
+	for _, char := range text {
+		if char == '<' {
+			inTag = true
+		} else if char == '>' {
+			inTag = false
+		} else if !inTag {
+			result.WriteRune(char)
+		}
+	}
+
+	// Clean up whitespace
+	cleaned := strings.Fields(result.String())
+	return strings.Join(cleaned, " "), nil
 }

@@ -37,7 +37,7 @@ LLM, NL query parser, and wide content extraction pieces are now deprecated (see
     - Versioning & generator metadata recorded; marked as "heuristic" generator.
     - _Requirements: 1.4, 8.4_
 
-- [ ] 5. Enhanced GitHub API Integration, Metrics Ingestion, and Caching
+- [x] 5. Enhanced GitHub API Integration, Metrics Ingestion, and Caching
     - Implement missing GitHub API endpoints: GetContributors, GetTopics, GetLanguages, GetCommitActivity, GetPullCounts, GetIssueCounts.
     - Add GetHomepageText for optional external link scraping.
     - Issues / PR counts (open + total) cached 7d; commit activity aggregation (30d, 1y, total; handle 202 retry state with placeholders); top 10 contributors (login + contributions); topics; languages (bytes → LOC estimate or raw); related star counts (same org, shared contributor repos) computed on demand (not persisted).

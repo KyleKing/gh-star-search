@@ -56,6 +56,58 @@ func (m *MockGitHubClient) GetRepositoryMetadata(ctx context.Context, repo githu
 	return &github.Metadata{}, nil
 }
 
+func (m *MockGitHubClient) GetContributors(ctx context.Context, fullName string, topN int) ([]github.Contributor, error) {
+	if err, exists := m.errors[fullName+"_contributors"]; exists {
+		return nil, err
+	}
+	return []github.Contributor{{Login: "testuser", Contributions: 10}}, nil
+}
+
+func (m *MockGitHubClient) GetTopics(ctx context.Context, fullName string) ([]string, error) {
+	if err, exists := m.errors[fullName+"_topics"]; exists {
+		return nil, err
+	}
+	return []string{"test", "mock"}, nil
+}
+
+func (m *MockGitHubClient) GetLanguages(ctx context.Context, fullName string) (map[string]int64, error) {
+	if err, exists := m.errors[fullName+"_languages"]; exists {
+		return nil, err
+	}
+	return map[string]int64{"Go": 12345}, nil
+}
+
+func (m *MockGitHubClient) GetCommitActivity(ctx context.Context, fullName string) (*github.CommitActivity, error) {
+	if err, exists := m.errors[fullName+"_commits"]; exists {
+		return nil, err
+	}
+	return &github.CommitActivity{
+		Weeks: []github.WeeklyCommits{{Week: 1640995200, Commits: 5}},
+		Total: 5,
+	}, nil
+}
+
+func (m *MockGitHubClient) GetPullCounts(ctx context.Context, fullName string) (open int, total int, err error) {
+	if err, exists := m.errors[fullName+"_prs"]; exists {
+		return 0, 0, err
+	}
+	return 2, 10, nil
+}
+
+func (m *MockGitHubClient) GetIssueCounts(ctx context.Context, fullName string) (open int, total int, err error) {
+	if err, exists := m.errors[fullName+"_issues"]; exists {
+		return 0, 0, err
+	}
+	return 3, 15, nil
+}
+
+func (m *MockGitHubClient) GetHomepageText(ctx context.Context, url string) (string, error) {
+	if err, exists := m.errors["homepage_"+url]; exists {
+		return "", err
+	}
+	return "Mock homepage text", nil
+}
+
 func TestSyncService_DetermineSyncOperations(t *testing.T) {
 	baseTime := time.Now().Add(-2 * time.Hour)
 

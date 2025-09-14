@@ -199,7 +199,7 @@ func TestGetStarredRepos_Error(t *testing.T) {
 		t.Error("Expected nil repositories on error")
 	}
 
-	if !contains(err.Error(), "failed to fetch starred repositories") {
+	if !containsStr(err.Error(), "failed to fetch starred repositories") {
 		t.Errorf("Expected error message to contain 'failed to fetch starred repositories', got: %s", err.Error())
 	}
 }
@@ -426,7 +426,7 @@ func TestGetRepositoryMetadata_NoReleases(t *testing.T) {
 }
 
 // Helper function to check if a string contains a substring
-func contains(s, substr string) bool {
+func containsStr(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || (len(s) > len(substr) &&
 		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
 			containsAt(s, substr))))
@@ -440,4 +440,229 @@ func containsAt(s, substr string) bool {
 	}
 
 	return false
+}
+
+func TestGetContributors_Success(t *testing.T) {
+	mockClient := newMockRESTClient()
+	client := &clientImpl{apiClient: mockClient}
+
+	expectedContributors := []Contributor{
+		{Login: "user1", Contributions: 100, Type: "User"},
+		{Login: "user2", Contributions: 50, Type: "User"},
+	}
+
+	mockClient.setResponse("repos/owner/repo/contributors?per_page=10", expectedContributors)
+
+	ctx := context.Background()
+	contributors, err := client.GetContributors(ctx, "owner/repo", 10)
+
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if len(contributors) != 2 {
+		t.Fatalf("Expected 2 contributors, got: %d", len(contributors))
+	}
+
+	if contributors[0].Login != "user1" {
+		t.Errorf("Expected first contributor 'user1', got: %s", contributors[0].Login)
+	}
+
+	if contributors[0].Contributions != 100 {
+		t.Errorf("Expected first contributor contributions 100, got: %d", contributors[0].Contributions)
+	}
+}
+
+func TestGetTopics_Success(t *testing.T) {
+	mockClient := newMockRESTClient()
+	client := &clientImpl{apiClient: mockClient}
+
+	topicsResponse := struct {
+		Names []string `json:"names"`
+	}{
+		Names: []string{"go", "cli", "github"},
+	}
+
+	mockClient.setResponse("repos/owner/repo/topics", topicsResponse)
+
+	ctx := context.Background()
+	topics, err := client.GetTopics(ctx, "owner/repo")
+
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if len(topics) != 3 {
+		t.Fatalf("Expected 3 topics, got: %d", len(topics))
+	}
+
+	expectedTopics := []string{"go", "cli", "github"}
+	for i, topic := range topics {
+		if topic != expectedTopics[i] {
+			t.Errorf("Expected topic %s, got: %s", expectedTopics[i], topic)
+		}
+	}
+}
+
+func TestGetLanguages_Success(t *testing.T) {
+	mockClient := newMockRESTClient()
+	client := &clientImpl{apiClient: mockClient}
+
+	expectedLanguages := map[string]int64{
+		"Go":         12345,
+		"JavaScript": 5678,
+		"Shell":      123,
+	}
+
+	mockClient.setResponse("repos/owner/repo/languages", expectedLanguages)
+
+	ctx := context.Background()
+	languages, err := client.GetLanguages(ctx, "owner/repo")
+
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if len(languages) != 3 {
+		t.Fatalf("Expected 3 languages, got: %d", len(languages))
+	}
+
+	if languages["Go"] != 12345 {
+		t.Errorf("Expected Go bytes 12345, got: %d", languages["Go"])
+	}
+
+	if languages["JavaScript"] != 5678 {
+		t.Errorf("Expected JavaScript bytes 5678, got: %d", languages["JavaScript"])
+	}
+}
+
+func TestGetCommitActivity_Success(t *testing.T) {
+	mockClient := newMockRESTClient()
+	client := &clientImpl{apiClient: mockClient}
+
+	expectedWeeks := []WeeklyCommits{
+		{Week: 1640995200, Commits: 10, Adds: 100, Deletes: 20},
+		{Week: 1641600000, Commits: 5, Adds: 50, Deletes: 10},
+	}
+
+	mockClient.setResponse("repos/owner/repo/stats/commit_activity", expectedWeeks)
+
+	ctx := context.Background()
+	activity, err := client.GetCommitActivity(ctx, "owner/repo")
+
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if activity.Total != 15 {
+		t.Errorf("Expected total commits 15, got: %d", activity.Total)
+	}
+
+	if len(activity.Weeks) != 2 {
+		t.Fatalf("Expected 2 weeks, got: %d", len(activity.Weeks))
+	}
+
+	if activity.Weeks[0].Commits != 10 {
+		t.Errorf("Expected first week commits 10, got: %d", activity.Weeks[0].Commits)
+	}
+}
+
+func TestGetCommitActivity_StatsComputing(t *testing.T) {
+	mockClient := newMockRESTClient()
+	client := &clientImpl{apiClient: mockClient}
+
+	// Mock 202 Accepted response (stats being computed)
+	mockClient.setError("repos/owner/repo/stats/commit_activity", &api.HTTPError{StatusCode: http.StatusAccepted})
+
+	ctx := context.Background()
+	activity, err := client.GetCommitActivity(ctx, "owner/repo")
+
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if activity.Total != -1 {
+		t.Errorf("Expected total commits -1 (computing), got: %d", activity.Total)
+	}
+
+	if len(activity.Weeks) != 0 {
+		t.Errorf("Expected 0 weeks when computing, got: %d", len(activity.Weeks))
+	}
+}
+
+func TestGetPullCounts_Success(t *testing.T) {
+	mockClient := newMockRESTClient()
+	client := &clientImpl{apiClient: mockClient}
+
+	openResult := SearchResult{TotalCount: 5, IncompleteResults: false}
+	totalResult := SearchResult{TotalCount: 25, IncompleteResults: false}
+
+	mockClient.setResponse("search/issues?q=repo:owner/repo+type:pr+state:open&per_page=1", openResult)
+	mockClient.setResponse("search/issues?q=repo:owner/repo+type:pr&per_page=1", totalResult)
+
+	ctx := context.Background()
+	open, total, err := client.GetPullCounts(ctx, "owner/repo")
+
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if open != 5 {
+		t.Errorf("Expected open PRs 5, got: %d", open)
+	}
+
+	if total != 25 {
+		t.Errorf("Expected total PRs 25, got: %d", total)
+	}
+}
+
+func TestGetIssueCounts_Success(t *testing.T) {
+	mockClient := newMockRESTClient()
+	client := &clientImpl{apiClient: mockClient}
+
+	openResult := SearchResult{TotalCount: 8, IncompleteResults: false}
+	totalResult := SearchResult{TotalCount: 42, IncompleteResults: false}
+
+	mockClient.setResponse("search/issues?q=repo:owner/repo+type:issue+state:open&per_page=1", openResult)
+	mockClient.setResponse("search/issues?q=repo:owner/repo+type:issue&per_page=1", totalResult)
+
+	ctx := context.Background()
+	open, total, err := client.GetIssueCounts(ctx, "owner/repo")
+
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if open != 8 {
+		t.Errorf("Expected open issues 8, got: %d", open)
+	}
+
+	if total != 42 {
+		t.Errorf("Expected total issues 42, got: %d", total)
+	}
+}
+
+func TestGetHomepageText_Success(t *testing.T) {
+	// This test would require mocking HTTP client
+	// For now, we'll test the URL validation logic
+	mockClient := newMockRESTClient()
+	client := &clientImpl{apiClient: mockClient}
+
+	ctx := context.Background()
+
+	// Test invalid URL
+	_, err := client.GetHomepageText(ctx, "invalid-url")
+	if err == nil {
+		t.Error("Expected error for invalid URL")
+	}
+
+	// Test unsupported scheme
+	_, err = client.GetHomepageText(ctx, "ftp://example.com")
+	if err == nil {
+		t.Error("Expected error for unsupported scheme")
+	}
+
+	if !containsStr(err.Error(), "unsupported URL scheme") {
+		t.Errorf("Expected unsupported scheme error, got: %s", err.Error())
+	}
 }

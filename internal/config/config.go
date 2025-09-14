@@ -35,10 +35,12 @@ type GitHubConfig struct {
 
 // CacheConfig represents caching configuration
 type CacheConfig struct {
-	Directory   string `json:"directory"`
-	MaxSizeMB   int    `json:"max_size_mb"`
-	TTLHours    int    `json:"ttl_hours"`
-	CleanupFreq string `json:"cleanup_frequency"`
+	Directory        string `json:"directory"`
+	MaxSizeMB        int    `json:"max_size_mb"`
+	TTLHours         int    `json:"ttl_hours"`
+	CleanupFreq      string `json:"cleanup_frequency"`
+	MetadataStaleDays int   `json:"metadata_stale_days"`
+	StatsStaleDays    int   `json:"stats_stale_days"`
 }
 
 // LoggingConfig represents logging configuration
@@ -75,10 +77,12 @@ func DefaultConfig() *Config {
 			Timeout:       "30s",
 		},
 		Cache: CacheConfig{
-			Directory:   "~/.cache/gh-star-search",
-			MaxSizeMB:   500,
-			TTLHours:    24,
-			CleanupFreq: "1h",
+			Directory:         "~/.cache/gh-star-search",
+			MaxSizeMB:         500,
+			TTLHours:          24,
+			CleanupFreq:       "1h",
+			MetadataStaleDays: 14,
+			StatsStaleDays:    7,
 		},
 		Logging: LoggingConfig{
 			Level:      "info",
@@ -200,6 +204,16 @@ func applyEnvironmentOverrides(config *Config) error {
 			config.Cache.TTLHours = intVal
 		}
 	}
+	if val := os.Getenv("GH_STAR_SEARCH_CACHE_METADATA_STALE_DAYS"); val != "" {
+		if intVal, err := strconv.Atoi(val); err == nil {
+			config.Cache.MetadataStaleDays = intVal
+		}
+	}
+	if val := os.Getenv("GH_STAR_SEARCH_CACHE_STATS_STALE_DAYS"); val != "" {
+		if intVal, err := strconv.Atoi(val); err == nil {
+			config.Cache.StatsStaleDays = intVal
+		}
+	}
 
 	// Logging configuration
 	if val := os.Getenv("GH_STAR_SEARCH_LOG_LEVEL"); val != "" {
@@ -292,6 +306,12 @@ func mergeConfigs(target, source *Config) {
 	}
 	if source.Cache.CleanupFreq != "" {
 		target.Cache.CleanupFreq = source.Cache.CleanupFreq
+	}
+	if source.Cache.MetadataStaleDays > 0 {
+		target.Cache.MetadataStaleDays = source.Cache.MetadataStaleDays
+	}
+	if source.Cache.StatsStaleDays > 0 {
+		target.Cache.StatsStaleDays = source.Cache.StatsStaleDays
 	}
 
 	// Logging

@@ -83,3 +83,23 @@ func (m *MockRepository) Close() error {
 	m.closed = true
 	return nil
 }
+
+func (m *MockRepository) GetRepositoriesNeedingMetricsUpdate(ctx context.Context, staleDays int) ([]string, error) {
+	return []string{}, nil
+}
+
+func (m *MockRepository) GetRepositoriesNeedingSummaryUpdate(ctx context.Context, forceUpdate bool) ([]string, error) {
+	return []string{}, nil
+}
+
+func (m *MockRepository) InitializeWithPrompt(ctx context.Context, autoApprove bool) error {
+	return nil
+}
+
+func (m *MockRepository) UpdateRepositoryEmbedding(ctx context.Context, fullName string, embedding []float32) error {
+	return nil
+}
+
+func (m *MockRepository) UpdateRepositoryMetrics(ctx context.Context, fullName string, metrics storage.RepositoryMetrics) error {
+	return nil
+}
