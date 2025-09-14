@@ -109,7 +109,7 @@ func (m *Manager) GetDimensions() int {
 // DisabledProvider is a no-op provider for when embeddings are disabled
 type DisabledProvider struct{}
 
-func (p *DisabledProvider) GenerateEmbedding(ctx context.Context, text string) ([]float32, error) {
+func (p *DisabledProvider) GenerateEmbedding(_ context.Context, text string) ([]float32, error) {
 	return nil, errors.New("embedding provider is disabled")
 }
 
@@ -136,7 +136,7 @@ func NewLocalProvider(config Config) (*LocalProvider, error) {
 	return &LocalProvider{config: config}, nil
 }
 
-func (p *LocalProvider) GenerateEmbedding(ctx context.Context, text string) ([]float32, error) {
+func (p *LocalProvider) GenerateEmbedding(_ context.Context, text string) ([]float32, error) {
 	// TODO: Implement local embedding generation
 	// For now, return a placeholder embedding
 	return make([]float32, p.config.Dimensions), nil
@@ -166,7 +166,7 @@ func NewRemoteProvider(config Config) (*RemoteProvider, error) {
 	return &RemoteProvider{config: config}, nil
 }
 
-func (p *RemoteProvider) GenerateEmbedding(ctx context.Context, text string) ([]float32, error) {
+func (p *RemoteProvider) GenerateEmbedding(_ context.Context, text string) ([]float32, error) {
 	// TODO: Implement remote embedding generation
 	// For now, return a placeholder embedding
 	return make([]float32, p.config.Dimensions), nil

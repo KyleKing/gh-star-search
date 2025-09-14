@@ -8,14 +8,17 @@ import (
 )
 
 func main() {
-	// Ensure logger is closed on exit
-	defer func() {
+	if err := cmd.Execute(); err != nil {
+		// Ensure logger is closed on exit
 		if logger := logging.GetLogger(); logger != nil {
 			logger.Close()
 		}
-	}()
 
-	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
+	}
+
+	// Ensure logger is closed on normal exit
+	if logger := logging.GetLogger(); logger != nil {
+		logger.Close()
 	}
 }

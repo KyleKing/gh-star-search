@@ -499,7 +499,7 @@ func (m *MigrationManager) MigrateToLatest(ctx context.Context, autoConfirm bool
 
 		var response string
 
-		fmt.Scanln(&response)
+		_, _ = fmt.Scanln(&response)
 
 		if response != "y" && response != "Y" && response != "yes" {
 			return errors.New("migration cancelled by user")

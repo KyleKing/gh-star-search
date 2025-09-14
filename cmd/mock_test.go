@@ -16,19 +16,19 @@ type MockRepository struct {
 	closed bool
 }
 
-func (m *MockRepository) Initialize(ctx context.Context) error {
+func (m *MockRepository) Initialize(_ context.Context) error {
 	return nil
 }
 
-func (m *MockRepository) StoreRepository(ctx context.Context, repo processor.ProcessedRepo) error {
+func (m *MockRepository) StoreRepository(_ context.Context, _ processor.ProcessedRepo) error {
 	return nil
 }
 
-func (m *MockRepository) UpdateRepository(ctx context.Context, repo processor.ProcessedRepo) error {
+func (m *MockRepository) UpdateRepository(_ context.Context, _ processor.ProcessedRepo) error {
 	return nil
 }
 
-func (m *MockRepository) DeleteRepository(ctx context.Context, fullName string) error {
+func (m *MockRepository) DeleteRepository(_ context.Context, fullName string) error {
 	return nil
 }
 

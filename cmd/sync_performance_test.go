@@ -242,8 +242,6 @@ func TestMemoryOptimization_Effectiveness(t *testing.T) {
 	// Optimize memory
 	optimizer.OptimizeForBatch(100)
 
-	data = nil // Allow GC
-
 	runtime.GC()
 
 	time.Sleep(100 * time.Millisecond) // Let monitoring update

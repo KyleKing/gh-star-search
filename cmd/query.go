@@ -133,7 +133,7 @@ func runQuery(cmd *cobra.Command, args []string) error {
 		fmt.Println("\n--- Related Repositories ---")
 
 		// Initialize related engine
-		relatedEngine := related.NewRelatedEngine(repo)
+		relatedEngine := related.NewEngine(repo)
 
 		// Show related repos for the top result
 		topRepo := results[0].Repository.FullName
@@ -205,7 +205,7 @@ func validateQueryFlags() error {
 }
 
 // displayLongFormResult displays a search result in long format
-func displayLongFormResult(rank int, result query.Result, showRelated bool) {
+func displayLongFormResult(rank int, result query.Result, _ bool) {
 	repo := result.Repository
 
 	// Header line with link
@@ -362,14 +362,14 @@ func formatAge(timestamp time.Time) string {
 		}
 
 		return fmt.Sprintf("%d months ago", months)
-	} else {
-		years := days / 365
-		if years == 1 {
-			return "1 year ago"
-		}
-
-		return fmt.Sprintf("%d years ago", years)
 	}
+
+	years := days / 365
+	if years == 1 {
+		return "1 year ago"
+	}
+
+	return fmt.Sprintf("%d years ago", years)
 }
 
 func formatContributors(contributors []storage.Contributor) string {
@@ -377,7 +377,7 @@ func formatContributors(contributors []storage.Contributor) string {
 		return "-"
 	}
 
-	var parts []string
+	parts := make([]string, 0, 10)
 
 	for i, contrib := range contributors {
 		if i >= 10 { // Limit to top 10
@@ -414,7 +414,7 @@ func formatLanguages(languages map[string]int64) string {
 	return strings.Join(parts, ", ")
 }
 
-func formatRelatedStars(repo storage.StoredRepo) string {
+func formatRelatedStars(_ storage.StoredRepo) string {
 	// TODO: Implement actual related star counting
 	// For now, return placeholder
 	return "- in same org, - by top contributors"

@@ -27,10 +27,10 @@ func init() {
 }
 
 func runClear(ctx context.Context, force bool) error {
-	return runClearWithStorage(ctx, force, nil)
+	return RunClearWithStorage(ctx, force, nil)
 }
 
-func runClearWithStorage(ctx context.Context, force bool, repo storage.Repository) error {
+func RunClearWithStorage(ctx context.Context, force bool, repo storage.Repository) error {
 	// Initialize storage if not provided (for testing)
 	if repo == nil {
 		var err error

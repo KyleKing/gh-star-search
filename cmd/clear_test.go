@@ -72,7 +72,7 @@ func TestRunClear(t *testing.T) {
 			}
 
 			// Run the command with mock storage
-			err := runClearWithStorage(context.Background(), tt.force, mockRepo)
+			err := RunClearWithStorage(context.Background(), tt.force, mockRepo)
 
 			// Restore stdout and get output
 			w.Close()
@@ -81,7 +81,7 @@ func TestRunClear(t *testing.T) {
 
 			var buf bytes.Buffer
 
-			buf.ReadFrom(r)
+			_, _ = buf.ReadFrom(r)
 			output := buf.String()
 
 			// Check error

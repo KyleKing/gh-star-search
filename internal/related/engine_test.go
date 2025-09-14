@@ -6,8 +6,8 @@ import (
 	"github.com/kyleking/gh-star-search/internal/storage"
 )
 
-func TestRelatedEngine_CalculateSameOrgScore(t *testing.T) {
-	engine := &RelatedEngine{}
+func TestEngineImpl_CalculateSameOrgScore(t *testing.T) {
+	engine := &EngineImpl{}
 
 	tests := []struct {
 		name          string
@@ -49,8 +49,8 @@ func TestRelatedEngine_CalculateSameOrgScore(t *testing.T) {
 	}
 }
 
-func TestRelatedEngine_CalculateTopicOverlapScore(t *testing.T) {
-	engine := &RelatedEngine{}
+func TestEngineImpl_CalculateTopicOverlapScore(t *testing.T) {
+	engine := &EngineImpl{}
 
 	tests := []struct {
 		name            string
@@ -103,8 +103,8 @@ func TestRelatedEngine_CalculateTopicOverlapScore(t *testing.T) {
 	}
 }
 
-func TestRelatedEngine_CalculateSharedContribScore(t *testing.T) {
-	engine := &RelatedEngine{}
+func TestEngineImpl_CalculateSharedContribScore(t *testing.T) {
+	engine := &EngineImpl{}
 
 	tests := []struct {
 		name              string
@@ -160,8 +160,8 @@ func TestRelatedEngine_CalculateSharedContribScore(t *testing.T) {
 	}
 }
 
-func TestRelatedEngine_GenerateExplanation(t *testing.T) {
-	engine := &RelatedEngine{}
+func TestEngineImpl_GenerateExplanation(t *testing.T) {
+	engine := &EngineImpl{}
 
 	tests := []struct {
 		name           string

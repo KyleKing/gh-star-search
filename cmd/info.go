@@ -22,10 +22,10 @@ var infoCmd = &cobra.Command{
 }
 
 func runInfo(ctx context.Context, repoName string) error {
-	return runInfoWithStorage(ctx, repoName, nil)
+	return RunInfoWithStorage(ctx, repoName, nil)
 }
 
-func runInfoWithStorage(ctx context.Context, repoName string, repo storage.Repository) error {
+func RunInfoWithStorage(ctx context.Context, repoName string, repo storage.Repository) error {
 	// Initialize storage if not provided (for testing)
 	if repo == nil {
 		var err error

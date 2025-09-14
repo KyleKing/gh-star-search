@@ -84,7 +84,7 @@ func runRelated(cmd *cobra.Command, args []string) error {
 	logger.Debugf("Finding repositories related to: %s", repoFullName)
 
 	// Initialize related engine
-	relatedEngine := related.NewRelatedEngine(repo)
+	relatedEngine := related.NewEngine(repo)
 
 	// Find related repositories
 	relatedRepos, err := relatedEngine.FindRelated(ctx, repoFullName, relatedLimit)
@@ -130,7 +130,7 @@ func validateRepositoryName(repoName string) error {
 }
 
 // displayRelatedRepository displays a related repository result
-func displayRelatedRepository(rank int, rel related.RelatedRepository, targetRepo *storage.StoredRepo) {
+func displayRelatedRepository(rank int, rel related.Repository, _ *storage.StoredRepo) {
 	repo := rel.Repository
 
 	// First line: rank, name, stars, primary language, score

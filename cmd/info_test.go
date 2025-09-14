@@ -104,7 +104,7 @@ func TestRunInfo(t *testing.T) {
 			}
 
 			// Run the command with mock storage
-			err := runInfoWithStorage(context.Background(), tt.repoName, mockRepo)
+			err := RunInfoWithStorage(context.Background(), tt.repoName, mockRepo)
 
 			// Restore stdout and get output
 			w.Close()
@@ -113,7 +113,7 @@ func TestRunInfo(t *testing.T) {
 
 			var buf bytes.Buffer
 
-			buf.ReadFrom(r)
+			_, _ = buf.ReadFrom(r)
 			output := buf.String()
 
 			// Check error

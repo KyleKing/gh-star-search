@@ -81,7 +81,7 @@ func TestMemoryMonitor_ShouldOptimize(t *testing.T) {
 	}
 }
 
-func TestMemoryMonitor_StartStop(t *testing.T) {
+func TestMemoryMonitor_StartStop(_ *testing.T) {
 	monitor := NewMemoryMonitor(100, time.Minute)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
@@ -113,7 +113,7 @@ func TestMemoryOptimizer_OptimizeForBatch(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(_ *testing.T) {
 			optimizer.OptimizeForBatch(tc.batchSize)
 			// Should not panic
 		})
@@ -123,7 +123,7 @@ func TestMemoryOptimizer_OptimizeForBatch(t *testing.T) {
 	optimizer.RestoreDefaults()
 }
 
-func TestMemoryOptimizer_OptimizeForQuery(t *testing.T) {
+func TestMemoryOptimizer_OptimizeForQuery(_ *testing.T) {
 	monitor := NewMemoryMonitor(100, time.Minute)
 	optimizer := NewMemoryOptimizer(monitor)
 
@@ -213,9 +213,6 @@ func TestMemoryMonitor_MemoryAllocation(t *testing.T) {
 	// Force GC and check memory is freed
 	monitor.OptimizeMemory()
 	runtime.KeepAlive(data) // Prevent premature GC
-
-	// Clear reference to allow GC
-	data = nil
 
 	monitor.OptimizeMemory()
 

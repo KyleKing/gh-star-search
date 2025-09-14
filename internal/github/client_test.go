@@ -213,7 +213,7 @@ func TestGetStarredRepos_ContextCancellation(t *testing.T) {
 
 	repos, err := client.GetStarredRepos(ctx, "testuser")
 
-	if err != context.Canceled {
+	if !errors.Is(err, context.Canceled) {
 		t.Errorf("Expected context.Canceled error, got: %v", err)
 	}
 

@@ -49,7 +49,7 @@ func TestLoadConfigFromFile(t *testing.T) {
 	data, err := json.MarshalIndent(testConfig, "", "  ")
 	require.NoError(t, err)
 
-	err = os.WriteFile(configPath, data, 0644)
+	err = os.WriteFile(configPath, data, 0600)
 	require.NoError(t, err)
 
 	// Test loading
@@ -73,7 +73,7 @@ func TestLoadConfigFromFileInvalidJSON(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
 
-	err := os.WriteFile(configPath, []byte("invalid json"), 0644)
+	err := os.WriteFile(configPath, []byte("invalid json"), 0600)
 	require.NoError(t, err)
 
 	config := DefaultConfig()
@@ -159,7 +159,7 @@ func TestValidateConfig(t *testing.T) {
 	}{
 		{
 			name: "valid config",
-			modifyConfig: func(c *Config) {
+			modifyConfig: func(_ *Config) {
 				// No modifications - should be valid
 			},
 			expectError: false,

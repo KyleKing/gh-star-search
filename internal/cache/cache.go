@@ -175,7 +175,7 @@ func (c *FileCache) Set(ctx context.Context, key string, data []byte, ttl time.D
 	}
 
 	// Write data file
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
+	if err := os.WriteFile(filePath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write cache data: %w", err)
 	}
 
@@ -186,7 +186,7 @@ func (c *FileCache) Set(ctx context.Context, key string, data []byte, ttl time.D
 		return fmt.Errorf("failed to marshal cache metadata: %w", err)
 	}
 
-	if err := os.WriteFile(metaPath, metaData, 0644); err != nil {
+	if err := os.WriteFile(metaPath, metaData, 0600); err != nil {
 		os.Remove(filePath) // Clean up data file on error
 		return fmt.Errorf("failed to write cache metadata: %w", err)
 	}
@@ -492,7 +492,7 @@ func (c *FileCache) backgroundCleanup() {
 	for {
 		select {
 		case <-ticker.C:
-			c.Cleanup(context.Background())
+			_ = c.Cleanup(context.Background())
 		case <-c.stopCleanup:
 			return
 		}

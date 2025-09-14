@@ -24,7 +24,7 @@ type MockGitHubClient struct {
 	errors       map[string]error
 }
 
-func (m *MockGitHubClient) GetStarredRepos(_ context.Context, username string) ([]github.Repository, error) {
+func (m *MockGitHubClient) GetStarredRepos(_ context.Context, _ string) ([]github.Repository, error) {
 	if err, exists := m.errors["starred"]; exists {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func (m *MockGitHubClient) GetStarredRepos(_ context.Context, username string) (
 	return m.starredRepos, nil
 }
 
-func (m *MockGitHubClient) GetRepositoryContent(_ context.Context, repo github.Repository, paths []string) ([]github.Content, error) {
+func (m *MockGitHubClient) GetRepositoryContent(_ context.Context, repo github.Repository, _ []string) ([]github.Content, error) {
 	if err, exists := m.errors[repo.FullName]; exists {
 		return nil, err
 	}

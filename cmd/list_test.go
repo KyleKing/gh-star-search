@@ -107,7 +107,7 @@ func TestRunList(t *testing.T) {
 			}
 
 			// Run the command with mock storage
-			err := runListWithStorage(context.Background(), tt.limit, tt.offset, tt.format, mockRepo)
+			err := RunListWithStorage(context.Background(), tt.limit, tt.offset, tt.format, mockRepo)
 
 			// Restore stdout and get output
 			w.Close()
@@ -116,7 +116,7 @@ func TestRunList(t *testing.T) {
 
 			var buf bytes.Buffer
 
-			buf.ReadFrom(r)
+			_, _ = buf.ReadFrom(r)
 			output := buf.String()
 
 			// Check error
@@ -169,7 +169,7 @@ func TestOutputTable(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r)
 	output := buf.String()
 
 	if err != nil {

@@ -22,7 +22,8 @@ func ExampleDuckDBRepository() {
 	// Create repository instance
 	repo, err := NewDuckDBRepository(dbPath)
 	if err != nil {
-		log.Fatalf("Failed to create repository: %v", err)
+		log.Printf("Failed to create repository: %v", err)
+		return
 	}
 	defer repo.Close()
 

@@ -172,7 +172,7 @@ func (s *serviceImpl) ExtractContent(ctx context.Context, repo github.Repository
 		cacheKey := fmt.Sprintf("content:%s:%s", repo.FullName, repo.UpdatedAt.Format(time.RFC3339))
 		if cachedData, err := json.Marshal(filteredContent); err == nil {
 			// Cache for 24 hours
-			s.cache.Set(ctx, cacheKey, cachedData, 24*time.Hour)
+			_ = s.cache.Set(ctx, cacheKey, cachedData, 24*time.Hour)
 		}
 	}
 
@@ -180,7 +180,7 @@ func (s *serviceImpl) ExtractContent(ctx context.Context, repo github.Repository
 }
 
 // GenerateSummary generates a basic summary from content chunks
-func (s *serviceImpl) GenerateSummary(ctx context.Context, chunks []ContentChunk) (*Summary, error) {
+func (s *serviceImpl) GenerateSummary(_ context.Context, chunks []ContentChunk) (*Summary, error) {
 	return s.generateBasicSummary(chunks), nil
 }
 
@@ -619,37 +619,6 @@ func (s *serviceImpl) generateContentHash(chunks []ContentChunk) string {
 	}
 
 	return hex.EncodeToString(hasher.Sum(nil))
-}
-
-// prepareContentForLLM combines and formats content chunks for LLM processing
-func (s *serviceImpl) prepareContentForLLM(chunks []ContentChunk) string {
-	var contentBuilder strings.Builder
-
-	totalTokens := 0
-	maxTokens := 8000 // Leave room for prompt and response
-
-	// Sort chunks by priority (high priority first)
-	sortedChunks := make([]ContentChunk, len(chunks))
-	copy(sortedChunks, chunks)
-	sort.Slice(sortedChunks, func(i, j int) bool {
-		return sortedChunks[i].Priority < sortedChunks[j].Priority
-	})
-
-	// Add chunks while respecting token limits
-	for _, chunk := range sortedChunks {
-		if totalTokens+chunk.Tokens > maxTokens {
-			break
-		}
-
-		// Add section header
-		contentBuilder.WriteString(fmt.Sprintf("\n=== %s (%s) ===\n", chunk.Source, chunk.Type))
-		contentBuilder.WriteString(chunk.Content)
-		contentBuilder.WriteString("\n")
-
-		totalTokens += chunk.Tokens
-	}
-
-	return contentBuilder.String()
 }
 
 // generateBasicSummary creates a basic summary without LLM processing

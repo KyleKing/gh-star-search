@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -332,7 +333,7 @@ func (r *DuckDBRepository) DeleteRepository(ctx context.Context, fullName string
 
 	err := r.db.QueryRowContext(ctx, "SELECT id FROM repositories WHERE full_name = ?", fullName).Scan(&repoID)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil // Repository doesn't exist, nothing to delete
 		}
 
@@ -405,7 +406,7 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 		&repo.ContentHash,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("repository not found: %s", fullName)
 		}
 
@@ -426,23 +427,23 @@ func (r *DuckDBRepository) GetRepository(ctx context.Context, fullName string) (
 
 	// Parse JSON fields
 	if technologiesJSON != "" {
-		json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
+		_ = json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
 	}
 
 	if useCasesJSON != "" {
-		json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
+		_ = json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
 	}
 
 	if featuresJSON != "" {
-		json.Unmarshal([]byte(featuresJSON), &repo.Features)
+		_ = json.Unmarshal([]byte(featuresJSON), &repo.Features)
 	}
 
 	if languagesJSON != "" {
-		json.Unmarshal([]byte(languagesJSON), &repo.Languages)
+		_ = json.Unmarshal([]byte(languagesJSON), &repo.Languages)
 	}
 
 	if contributorsJSON != "" {
-		json.Unmarshal([]byte(contributorsJSON), &repo.Contributors)
+		_ = json.Unmarshal([]byte(contributorsJSON), &repo.Contributors)
 	}
 
 	// Load chunks (deprecated but still supported)
@@ -574,23 +575,23 @@ func (r *DuckDBRepository) ListRepositories(ctx context.Context, limit, offset i
 
 		// Parse JSON fields
 		if technologiesJSON != "" {
-			json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
+			_ = json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
 		}
 
 		if useCasesJSON != "" {
-			json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
+			_ = json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
 		}
 
 		if featuresJSON != "" {
-			json.Unmarshal([]byte(featuresJSON), &repo.Features)
+			_ = json.Unmarshal([]byte(featuresJSON), &repo.Features)
 		}
 
 		if languagesJSON != "" {
-			json.Unmarshal([]byte(languagesJSON), &repo.Languages)
+			_ = json.Unmarshal([]byte(languagesJSON), &repo.Languages)
 		}
 
 		if contributorsJSON != "" {
-			json.Unmarshal([]byte(contributorsJSON), &repo.Contributors)
+			_ = json.Unmarshal([]byte(contributorsJSON), &repo.Contributors)
 		}
 
 		repos = append(repos, repo)
@@ -709,9 +710,7 @@ func (r *DuckDBRepository) executeTextSearch(ctx context.Context, query string) 
 
 		// Parse JSON arrays
 		if topicsJSON != "" {
-			if err := json.Unmarshal([]byte(topicsJSON), &repo.Topics); err != nil {
-				// Log error or handle, but for now ignore since data should be valid JSON
-			}
+			_ = json.Unmarshal([]byte(topicsJSON), &repo.Topics)
 		}
 
 		if technologiesJSON != "" {
@@ -911,7 +910,7 @@ func truncateForMatch(text, query string) string {
 	}
 
 	if end < len(text) {
-		result = result + "..."
+		result += "..."
 	}
 
 	return result
@@ -940,7 +939,7 @@ func (r *DuckDBRepository) GetStats(ctx context.Context) (*Stats, error) {
 	var lastSyncTime *time.Time
 
 	err = r.db.QueryRowContext(ctx, "SELECT MAX(last_synced) FROM repositories").Scan(&lastSyncTime)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("failed to get last sync time: %w", err)
 	}
 

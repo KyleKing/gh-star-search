@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"strings"
@@ -142,7 +143,8 @@ func captureStack() string {
 
 // IsType checks if an error is of a specific type
 func IsType(err error, errType ErrorType) bool {
-	if structErr, ok := err.(*Error); ok {
+	var structErr *Error
+	if errors.As(err, &structErr) {
 		return structErr.Type == errType
 	}
 
@@ -151,7 +153,8 @@ func IsType(err error, errType ErrorType) bool {
 
 // GetType returns the error type if it's a structured error
 func GetType(err error) ErrorType {
-	if structErr, ok := err.(*Error); ok {
+	var structErr *Error
+	if errors.As(err, &structErr) {
 		return structErr.Type
 	}
 

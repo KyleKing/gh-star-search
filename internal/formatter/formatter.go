@@ -178,8 +178,8 @@ func (f *Formatter) formatShort(repo storage.StoredRepo, score float64, rank int
 	primaryLang := f.getPrimaryLanguage(repo.Languages)
 
 	result := strings.Join(firstTwoLines, "\n")
-	result += fmt.Sprintf("\n%d. %s  ⭐ %d  %s  Updated %s  Score:%.2f",
-		rank, repo.FullName, repo.StargazersCount, primaryLang,
+	result += fmt.Sprintf("\n%d. %s (%s)  ⭐ %d  %s  Updated %s  Score:%.2f",
+		rank, repo.FullName, description, repo.StargazersCount, primaryLang,
 		f.humanizeAge(repo.UpdatedAt), score)
 
 	return result
@@ -231,14 +231,14 @@ func (f *Formatter) humanizeAge(t time.Time) string {
 		}
 
 		return fmt.Sprintf("%d months ago", months)
-	} else {
-		years := days / 365
-		if years == 1 {
-			return "1 year ago"
-		}
-
-		return fmt.Sprintf("%d years ago", years)
 	}
+
+	years := days / 365
+	if years == 1 {
+		return "1 year ago"
+	}
+
+	return fmt.Sprintf("%d years ago", years)
 }
 
 // formatContributors formats the contributors list
@@ -247,12 +247,13 @@ func (f *Formatter) formatContributors(contributors []storage.Contributor) strin
 		return "-"
 	}
 
-	var parts []string
 	// Limit to top 10 contributors
 	limit := len(contributors)
 	if limit > 10 {
 		limit = 10
 	}
+
+	parts := make([]string, 0, limit)
 
 	for i := range limit {
 		contrib := contributors[i]
@@ -274,7 +275,7 @@ func (f *Formatter) formatLanguages(languages map[string]int64) string {
 		bytes int64
 	}
 
-	var entries []langEntry
+	entries := make([]langEntry, 0, len(languages))
 	for lang, bytes := range languages {
 		entries = append(entries, langEntry{name: lang, bytes: bytes})
 	}
@@ -289,8 +290,9 @@ func (f *Formatter) formatLanguages(languages map[string]int64) string {
 		}
 	}
 
-	var parts []string
 	// Convert bytes to approximate lines of code (60 bytes per line average)
+	parts := make([]string, 0, len(entries))
+
 	for _, entry := range entries {
 		loc := entry.bytes / 60 // Approximate LOC
 		parts = append(parts, fmt.Sprintf("%s (%d)", entry.name, loc))

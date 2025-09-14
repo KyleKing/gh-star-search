@@ -10,8 +10,8 @@ import (
 	"github.com/kyleking/gh-star-search/internal/storage"
 )
 
-// RelatedRepository represents a related repository with scoring details
-type RelatedRepository struct {
+// Repository represents a related repository with scoring details
+type Repository struct {
 	Repository  storage.StoredRepo `json:"repository"`
 	Score       float64            `json:"score"`
 	Explanation string             `json:"explanation"`
@@ -29,23 +29,23 @@ type ScoreComponents struct {
 
 // Engine defines the related repository engine interface
 type Engine interface {
-	FindRelated(ctx context.Context, repoFullName string, limit int) ([]RelatedRepository, error)
+	FindRelated(ctx context.Context, repoFullName string, limit int) ([]Repository, error)
 }
 
-// RelatedEngine implements the Engine interface
-type RelatedEngine struct {
+// EngineImpl implements the Engine interface
+type EngineImpl struct {
 	repo storage.Repository
 }
 
-// NewRelatedEngine creates a new related repository engine
-func NewRelatedEngine(repo storage.Repository) *RelatedEngine {
-	return &RelatedEngine{
+// NewEngine creates a new related repository engine
+func NewEngine(repo storage.Repository) *EngineImpl {
+	return &EngineImpl{
 		repo: repo,
 	}
 }
 
 // FindRelated finds repositories related to the given repository
-func (e *RelatedEngine) FindRelated(ctx context.Context, repoFullName string, limit int) ([]RelatedRepository, error) {
+func (e *EngineImpl) FindRelated(ctx context.Context, repoFullName string, limit int) ([]Repository, error) {
 	// Get the target repository
 	targetRepo, err := e.repo.GetRepository(ctx, repoFullName)
 	if err != nil {
@@ -58,7 +58,7 @@ func (e *RelatedEngine) FindRelated(ctx context.Context, repoFullName string, li
 		return nil, fmt.Errorf("failed to list repositories: %w", err)
 	}
 
-	var related []RelatedRepository
+	var related []Repository
 
 	for _, candidate := range allRepos {
 		// Skip the target repository itself
@@ -77,7 +77,7 @@ func (e *RelatedEngine) FindRelated(ctx context.Context, repoFullName string, li
 		// Generate explanation
 		explanation := e.generateExplanation(components, *targetRepo, candidate)
 
-		related = append(related, RelatedRepository{
+		related = append(related, Repository{
 			Repository:  candidate,
 			Score:       components.FinalScore,
 			Explanation: explanation,
@@ -99,7 +99,7 @@ func (e *RelatedEngine) FindRelated(ctx context.Context, repoFullName string, li
 }
 
 // calculateComponents computes the weighted score components
-func (e *RelatedEngine) calculateComponents(target, candidate storage.StoredRepo) ScoreComponents {
+func (e *EngineImpl) calculateComponents(target, candidate storage.StoredRepo) ScoreComponents {
 	var components ScoreComponents
 
 	// Component weights (will be renormalized if some are missing)
@@ -165,7 +165,7 @@ func (e *RelatedEngine) calculateComponents(target, candidate storage.StoredRepo
 }
 
 // calculateSameOrgScore returns 1.0 if same org, 0.0 otherwise
-func (e *RelatedEngine) calculateSameOrgScore(target, candidate storage.StoredRepo) float64 {
+func (e *EngineImpl) calculateSameOrgScore(target, candidate storage.StoredRepo) float64 {
 	targetOrg := extractOrg(target.FullName)
 	candidateOrg := extractOrg(candidate.FullName)
 
@@ -179,7 +179,7 @@ func (e *RelatedEngine) calculateSameOrgScore(target, candidate storage.StoredRe
 }
 
 // calculateTopicOverlapScore calculates Jaccard similarity of topics
-func (e *RelatedEngine) calculateTopicOverlapScore(target, candidate storage.StoredRepo) float64 {
+func (e *EngineImpl) calculateTopicOverlapScore(target, candidate storage.StoredRepo) float64 {
 	if len(target.Topics) == 0 || len(candidate.Topics) == 0 {
 		return 0.0
 	}
@@ -216,7 +216,7 @@ func (e *RelatedEngine) calculateTopicOverlapScore(target, candidate storage.Sto
 }
 
 // calculateSharedContribScore calculates normalized intersection of top contributors
-func (e *RelatedEngine) calculateSharedContribScore(target, candidate storage.StoredRepo) float64 {
+func (e *EngineImpl) calculateSharedContribScore(target, candidate storage.StoredRepo) float64 {
 	if len(target.Contributors) == 0 || len(candidate.Contributors) == 0 {
 		return 0.0
 	}
@@ -259,7 +259,7 @@ func (e *RelatedEngine) calculateSharedContribScore(target, candidate storage.St
 }
 
 // calculateVectorSimilarityScore calculates cosine similarity of embeddings
-func (e *RelatedEngine) calculateVectorSimilarityScore(target, candidate storage.StoredRepo) float64 {
+func (e *EngineImpl) calculateVectorSimilarityScore(target, candidate storage.StoredRepo) float64 {
 	// TODO: Implement when embeddings are available
 	// For now, return 0.0 (will be excluded from scoring)
 	if len(target.RepoEmbedding) == 0 || len(candidate.RepoEmbedding) == 0 {
@@ -271,7 +271,7 @@ func (e *RelatedEngine) calculateVectorSimilarityScore(target, candidate storage
 }
 
 // generateExplanation creates a human-readable explanation of the relationship
-func (e *RelatedEngine) generateExplanation(components ScoreComponents, target, candidate storage.StoredRepo) string {
+func (e *EngineImpl) generateExplanation(components ScoreComponents, target, candidate storage.StoredRepo) string {
 	var explanations []string
 
 	// Same org explanation
@@ -392,7 +392,7 @@ func cosineSimilarity(a, b []float32) float64 {
 
 	var dotProduct, normA, normB float64
 
-	for i := range len(a) {
+	for i := range a {
 		dotProduct += float64(a[i]) * float64(b[i])
 		normA += float64(a[i]) * float64(a[i])
 		normB += float64(b[i]) * float64(b[i])

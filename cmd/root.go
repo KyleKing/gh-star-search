@@ -2,14 +2,22 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/kyleking/gh-star-search/internal/config"
-	"github.com/kyleking/gh-star-search/internal/errors"
+	gherrors "github.com/kyleking/gh-star-search/internal/errors"
 	"github.com/kyleking/gh-star-search/internal/logging"
+)
+
+// contextKey is a type for context keys to avoid string collisions
+type contextKey string
+
+const (
+	configContextKey contextKey = "config"
 )
 
 var (
@@ -31,7 +39,7 @@ against a local DuckDB database containing both structured metadata and unstruct
 content from your starred repositories.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		return initializeGlobalConfig(cmd)
 	},
 }
@@ -45,7 +53,8 @@ func Execute() error {
 	err := rootCmd.ExecuteContext(ctx)
 	if err != nil {
 		// Handle structured errors with user-friendly messages
-		if structErr, ok := err.(*errors.Error); ok {
+		var structErr *gherrors.Error
+		if errors.As(err, &structErr) {
 			printStructuredError(structErr)
 		} else {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -107,19 +116,19 @@ func initializeGlobalConfig(cmd *cobra.Command) error {
 	// Load configuration with overrides
 	cfg, err := config.LoadConfigWithOverrides(flagOverrides)
 	if err != nil {
-		return errors.Wrap(err, errors.ErrTypeConfig, "failed to load configuration")
+		return gherrors.Wrap(err, gherrors.ErrTypeConfig, "failed to load configuration")
 	}
 
 	// Expand paths and ensure directories exist
 	cfg.ExpandAllPaths()
 
 	if err := cfg.EnsureDirectories(); err != nil {
-		return errors.Wrap(err, errors.ErrTypeFileSystem, "failed to create required directories")
+		return gherrors.Wrap(err, gherrors.ErrTypeFileSystem, "failed to create required directories")
 	}
 
 	// Initialize logging
 	if err := logging.InitializeLogger(cfg.Logging); err != nil {
-		return errors.Wrap(err, errors.ErrTypeConfig, "failed to initialize logging")
+		return gherrors.Wrap(err, gherrors.ErrTypeConfig, "failed to initialize logging")
 	}
 
 	// Log startup information
@@ -136,14 +145,14 @@ func initializeGlobalConfig(cmd *cobra.Command) error {
 	logger.Info("gh-star-search starting")
 
 	// Store config in context for subcommands
-	ctx := context.WithValue(cmd.Context(), "config", cfg)
+	ctx := context.WithValue(cmd.Context(), configContextKey, cfg)
 	cmd.SetContext(ctx)
 
 	return nil
 }
 
 // printStructuredError prints a user-friendly error message
-func printStructuredError(err *errors.Error) {
+func printStructuredError(err *gherrors.Error) {
 	fmt.Fprintf(os.Stderr, "Error: %s\n", err.Message)
 
 	if err.Code != "" {
@@ -183,9 +192,9 @@ func getVersion() string {
 
 // GetConfigFromContext retrieves the configuration from the command context
 func GetConfigFromContext(cmd *cobra.Command) (*config.Config, error) {
-	cfg, ok := cmd.Context().Value("config").(*config.Config)
+	cfg, ok := cmd.Context().Value(configContextKey).(*config.Config)
 	if !ok {
-		return nil, errors.New(errors.ErrTypeInternal, "configuration not found in context")
+		return nil, gherrors.New(gherrors.ErrTypeInternal, "configuration not found in context")
 	}
 
 	return cfg, nil

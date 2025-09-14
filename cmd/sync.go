@@ -283,7 +283,10 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 	}
 
 	// Process repositories in batches with enhanced progress tracking
-	allToProcess := append(operations.toAdd, operations.toUpdate...)
+	allToProcess := make([]github.Repository, 0, len(operations.toAdd)+len(operations.toUpdate))
+	allToProcess = append(allToProcess, operations.toAdd...)
+	allToProcess = append(allToProcess, operations.toUpdate...)
+
 	if len(allToProcess) > 0 {
 		if err := s.processRepositoriesInBatchesWithForceAndMonitor(ctx, allToProcess, batchSize, stats, operations, force, memMonitor); err != nil {
 			return fmt.Errorf("failed to process repositories: %w", err)
@@ -737,17 +740,16 @@ func (s *SyncService) calculateOptimalWorkers(batchSize int) int {
 	if batchSize <= 5 {
 		return 1
 	} else if batchSize <= 10 {
-		return min(2, cpuCount)
+		return minInt(2, cpuCount)
 	} else if batchSize <= 20 {
-		return min(3, cpuCount)
-	} else {
-		// For larger batches, use more workers but cap at CPU count
-		return min(cpuCount, 8) // Cap at 8 to avoid too many concurrent API calls
+		return minInt(3, cpuCount)
 	}
+	// For larger batches, use more workers but cap at CPU count
+	return minInt(cpuCount, 8) // Cap at 8 to avoid too many concurrent API calls
 }
 
-// min returns the minimum of two integers
-func min(a, b int) int {
+// minInt returns the minimum of two integers
+func minInt(a, b int) int {
 	if a < b {
 		return a
 	}

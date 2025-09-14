@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -212,7 +213,7 @@ func (c *clientImpl) GetStarredRepos(ctx context.Context, _ string) ([]Repositor
 
 // GetRepositoryContent fetches specific file contents from a repository
 func (c *clientImpl) GetRepositoryContent(ctx context.Context, repo Repository, paths []string) ([]Content, error) {
-	var contents []Content
+	contents := make([]Content, 0, len(paths))
 
 	for _, path := range paths {
 		select {
@@ -226,7 +227,8 @@ func (c *clientImpl) GetRepositoryContent(ctx context.Context, repo Repository, 
 		err := c.apiClient.Get(fmt.Sprintf("repos/%s/contents/%s", repo.FullName, path), &content)
 		if err != nil {
 			// If file doesn't exist, skip it rather than failing
-			if httpErr, ok := err.(*api.HTTPError); ok && httpErr.StatusCode == http.StatusNotFound {
+			var httpErr *api.HTTPError
+			if errors.As(err, &httpErr) && httpErr.StatusCode == http.StatusNotFound {
 				continue
 			}
 
@@ -345,7 +347,8 @@ func (c *clientImpl) fetchLatestRelease(ctx context.Context, repo Repository, me
 	err := c.apiClient.Get(fmt.Sprintf("repos/%s/releases/latest", repo.FullName), &release)
 	if err != nil {
 		// If no releases exist, that's okay
-		if httpErr, ok := err.(*api.HTTPError); ok && httpErr.StatusCode == http.StatusNotFound {
+		var httpErr *api.HTTPError
+		if errors.As(err, &httpErr) && httpErr.StatusCode == http.StatusNotFound {
 			return nil
 		}
 
@@ -437,7 +440,8 @@ func (c *clientImpl) GetCommitActivity(ctx context.Context, fullName string) (*C
 	err := c.apiClient.Get(fmt.Sprintf("repos/%s/stats/commit_activity", fullName), &weeks)
 	if err != nil {
 		// Handle 202 Accepted response (stats being computed)
-		if httpErr, ok := err.(*api.HTTPError); ok && httpErr.StatusCode == http.StatusAccepted {
+		var httpErr *api.HTTPError
+		if errors.As(err, &httpErr) && httpErr.StatusCode == http.StatusAccepted {
 			return &CommitActivity{
 				Weeks: []WeeklyCommits{},
 				Total: -1, // Indicates stats are being computed
@@ -521,6 +525,35 @@ func (c *clientImpl) GetIssueCounts(ctx context.Context, fullName string) (open 
 	return open, total, nil
 }
 
+// stripHTMLTags removes HTML tags from text and cleans whitespace
+func stripHTMLTags(html string) string {
+	// Add spaces around tags for better parsing
+	html = strings.ReplaceAll(html, "<", " <")
+	html = strings.ReplaceAll(html, ">", "> ")
+
+	var result strings.Builder
+
+	inTag := false
+
+	for _, char := range html {
+		switch char {
+		case '<':
+			inTag = true
+		case '>':
+			inTag = false
+		default:
+			if !inTag {
+				result.WriteRune(char)
+			}
+		}
+	}
+
+	// Clean up whitespace
+	cleaned := strings.Fields(result.String())
+
+	return strings.Join(cleaned, " ")
+}
+
 // GetHomepageText fetches text content from an external homepage URL
 func (c *clientImpl) GetHomepageText(ctx context.Context, urlStr string) (string, error) {
 	select {
@@ -572,28 +605,8 @@ func (c *clientImpl) GetHomepageText(ctx context.Context, urlStr string) (string
 		return "", fmt.Errorf("failed to read response: %w", err)
 	}
 
-	// Basic text extraction (remove HTML tags)
-	text := string(body)
-	text = strings.ReplaceAll(text, "<", " <")
-	text = strings.ReplaceAll(text, ">", "> ")
+	// Extract text from HTML
+	text := stripHTMLTags(string(body))
 
-	// Simple HTML tag removal
-	var result strings.Builder
-
-	inTag := false
-
-	for _, char := range text {
-		if char == '<' {
-			inTag = true
-		} else if char == '>' {
-			inTag = false
-		} else if !inTag {
-			result.WriteRune(char)
-		}
-	}
-
-	// Clean up whitespace
-	cleaned := strings.Fields(result.String())
-
-	return strings.Join(cleaned, " "), nil
+	return text, nil
 }

@@ -102,7 +102,7 @@ func TestRunStats(t *testing.T) {
 
 			var buf bytes.Buffer
 
-			buf.ReadFrom(r)
+			_, _ = buf.ReadFrom(r)
 			output := buf.String()
 
 			// Check error

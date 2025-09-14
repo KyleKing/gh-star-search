@@ -3,12 +3,12 @@ package github
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/kyleking/gh-star-search/internal/cache"
 	"github.com/kyleking/gh-star-search/internal/config"
+	"github.com/kyleking/gh-star-search/internal/errors"
 )
 
 // CachedClient wraps a GitHub client with caching capabilities
@@ -50,7 +50,7 @@ func (c *CachedClient) GetStarredRepos(ctx context.Context, username string) ([]
 	// Fetch from API
 	repos, err := c.client.GetStarredRepos(ctx, username)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errors.ErrTypeGitHubAPI, "failed to get starred repos")
 	}
 
 	// Cache the result
@@ -74,7 +74,7 @@ func (c *CachedClient) GetRepositoryContent(ctx context.Context, repo Repository
 	// Fetch from API
 	content, err := c.client.GetRepositoryContent(ctx, repo, paths)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errors.ErrTypeGitHubAPI, "failed to get repository content")
 	}
 
 	// Cache the result
@@ -375,7 +375,7 @@ func (c *CachedClient) getCachedData(ctx context.Context, key string, maxAge tim
 
 	// Check if entry has expired based on maxAge
 	if time.Since(entry.CachedAt) > maxAge {
-		return nil, errors.New("cache entry expired")
+		return nil, errors.New(errors.ErrTypeInternal, "cache entry expired")
 	}
 
 	return entry.Data, nil
@@ -397,7 +397,7 @@ func (c *CachedClient) setCachedData(ctx context.Context, key string, data inter
 	}
 
 	// Store in cache (ignore errors for now)
-	c.cache.Set(ctx, key, entryData, ttl)
+	_ = c.cache.Set(ctx, key, entryData, ttl)
 }
 
 // InvalidateCache removes cached data for a specific repository
@@ -417,7 +417,7 @@ func (c *CachedClient) InvalidateCache(ctx context.Context, fullName string) err
 	for _, pattern := range patterns {
 		// For simplicity, we'll delete exact matches
 		// In a more sophisticated implementation, we'd support pattern matching
-		c.cache.Delete(ctx, pattern)
+		_ = c.cache.Delete(ctx, pattern)
 	}
 
 	return nil
