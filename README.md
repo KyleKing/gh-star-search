@@ -144,12 +144,12 @@ gh-star-search/
 
 ### Building
 ```bash
-go build -o gh-star-search
+mise run build
 ```
 
 ### Testing
 ```bash
-go test ./...
+mise run test
 ```
 
 ### Configuration (High-Level)

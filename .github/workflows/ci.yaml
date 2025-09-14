@@ -7,23 +7,19 @@ on:
     tags: ["*"]
     branches: ["main"]
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v3
         with:
           mise_toml: |
             [env]
             MISE_ENV = "ci"
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
 
       - run: mise run ci --jobs=1

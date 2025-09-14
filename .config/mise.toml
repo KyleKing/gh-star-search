@@ -26,6 +26,10 @@ description = "View last run test coverage. Alternatively, use `gocovsh`"
 # https://go.dev/blog/cover#heat-maps
 run = "go tool cover -html=coverage.out"
 
+[tasks.build]
+description = "Build the project"
+run = "go build -o gh-star-search"
+
 [tasks.update]
 description = "Update dependencies"
 run = ["go get -u ./...", "go mod tidy"]
