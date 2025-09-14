@@ -2,9 +2,20 @@
 
 ## Overview
 
-The `gh-star-search` extension is a GitHub CLI extension built in Go that provides intelligent search capabilities over a user's starred repositories. The system combines structured metadata extraction with unstructured content processing using LLMs to enable natural language queries against a local DuckDB database.
+The `gh-star-search` GitHub CLI extension provides intelligent search, inspection, and related-repository discovery over a user's starred repositories. After simplification (per `new.md` guidance), the system now:
 
-The architecture follows a modular design with clear separation between data ingestion, processing, storage, and querying components. The extension leverages the existing GitHub CLI authentication and follows GitHub CLI conventions for seamless integration.
+- Accepts a direct user query string (no natural language → SQL translation, no user-visible SQL)
+- Supports two search modes: fuzzy (full‑text) and vector (semantic embeddings)
+- Returns scored results with configurable limit (default 10)
+- Does NOT (currently) support filtering by stars, language, topics, etc. (structured filtering is deferred)
+- Provides short-form and long-form CLI output formats
+- Offers a Related feature (same org, shared contributors, topic overlap, vector similarity)
+- Generates summaries using a non-LLM (transformers-based) pipeline; LLM integration is temporarily removed
+- Ingests only minimal content: GitHub Description, main README, `docs/README.md` (if present), and (optionally) text of a single external link referenced (e.g. project homepage) — BUT summary generation itself uses ONLY the main README + Description (per guidance)
+- Uses a conservative caching & refresh policy (metadata refresh after staleness threshold; summaries only when forced)
+- Minimizes file downloads (no full git clone)
+
+LLM summarization, natural language query parsing, and extensive repository crawling are explicitly deferred (see Future Work).
 
 ## Architecture
 
@@ -12,485 +23,375 @@ The architecture follows a modular design with clear separation between data ing
 
 ```mermaid
 graph TB
-    CLI[CLI Interface] --> Sync[Sync Command]
-    CLI --> Query[Query Command]
-    CLI --> Mgmt[Management Commands]
+    CLI[CLI Interface]
+    CLI --> Sync[Sync]
+    CLI --> Query[Query]
+    CLI --> Related[Related]
+    CLI --> Mgmt[Mgmt Commands]
 
     Sync --> GH[GitHub API Client]
-    Sync --> Proc[Content Processor]
-    Sync --> Store[Storage Layer]
+    Sync --> Proc[Processor]
+    Sync --> Store[Storage]
 
-    Query --> NLP[NL Query Parser]
+    Query --> SearchCore[Search Engine]
     Query --> Store
-    Query --> Format[Result Formatter]
+    Query --> Format[Formatter]
 
-    GH --> Cache[Local Cache]
-    Proc --> LLM[LLM Service]
+    Related --> RelEngine[Related Engine]
+    Related --> Store
+
+    Proc --> Summ[Summary (transformers)]
+    Proc --> Embed[Embedding Generator]
+
     Store --> DB[(DuckDB)]
+    GH --> Cache[Local Cache]
 
-    subgraph "External Services"
+    subgraph "External Services (Optional)"
         GHAPI[GitHub API]
-        LLMAPI[LLM API/Local]
+        EmbedAPI[Embedding Provider]
     end
 
     GH --> GHAPI
-    LLM --> LLMAPI
+    Embed --> EmbedAPI
 ```
 
 ### Component Architecture
 
-The system is organized into the following main packages:
+Primary packages (updated):
 
-- **cmd/**: CLI command implementations (sync, query, list, info, stats, clear)
-- **internal/github/**: GitHub API client and repository fetching logic
-- **internal/processor/**: Content extraction and LLM processing
-- **internal/storage/**: DuckDB database operations and schema management
-- **internal/query/**: Natural language query parsing and SQL generation
-- **internal/config/**: Configuration management for LLM backends and settings
-- **internal/cache/**: Local file caching for repository content
+- **cmd/**: CLI commands (`sync`, `query`, `list`, `info`, `stats`, `clear`, `related` or `query --related`)
+- **internal/github/**: GitHub API client (metadata, topics, contributors, languages, commit stats, optional external link fetch)
+- **internal/processor/**: Content extraction (minimal scope), summary generation (transformers), embedding generation
+- **internal/storage/**: DuckDB persistence, search primitives, contributor/topic linkage
+- **internal/query/**: Search engine (fuzzy + vector) & ranking (repurposed from previous NL parser)
+- **internal/related/**: Related repository computation (may initially live inside `internal/query`)
+- **internal/cache/**: Local caching + freshness timestamps & content hash tracking
+- **internal/config/**: Configuration (search defaults, staleness thresholds, embedding provider switch)
+- **internal/logging/**: Structured logging utilities
+
+(Former **internal/llm/** module removed temporarily.)
 
 ## Components and Interfaces
 
 ### 1. CLI Interface Layer
 
-**Package**: `cmd/`
+Key flags (query):
+- `--mode (fuzzy|vector)` (default `fuzzy` via config)
+- `--limit <n>` (default 10, max 50)
+- `--long` / `--short` (format override; `list` always short, `info` always long)
+- `--related` (augment results with related section) or `related <repo>` subcommand
 
-The CLI layer implements the GitHub CLI extension interface with the following commands:
-
-```go
-// Main command structure
-type Command interface {
-    Execute(ctx context.Context, args []string) error
-    Usage() string
-    Flags() []Flag
-}
-
-// Command implementations
-type SyncCommand struct {
-    githubClient github.Client
-    processor    processor.Service
-    storage      storage.Repository
-}
-
-type QueryCommand struct {
-    queryParser  query.Parser
-    storage      storage.Repository
-    formatter    formatter.Service
-}
-```
+Validation: raw query length ≥ 2; limit bounds; mode enumeration; rejects unsupported structured filters (explicit user help text clarifies not yet supported).
 
 ### 2. GitHub API Client
 
-**Package**: `internal/github`
-
-Handles all GitHub API interactions with rate limiting and authentication:
-
+Adds focused endpoints only when necessary (lazy fetch on demand / cached):
 ```go
 type Client interface {
-    GetStarredRepos(ctx context.Context, username string) ([]Repository, error)
-    GetRepositoryContent(ctx context.Context, repo Repository, paths []string) ([]Content, error)
-    GetRepositoryMetadata(ctx context.Context, repo Repository) (*Metadata, error)
+    GetStarredRepos(ctx context.Context) ([]Repository, error)      // basic metadata
+    GetRepositoryReadme(ctx context.Context, fullName string) (Content, error)
+    GetDocsReadme(ctx context.Context, fullName string) (Content, error) // optional
+    GetContributors(ctx context.Context, fullName string, topN int) ([]Contributor, error)
+    GetTopics(ctx context.Context, fullName string) ([]string, error)
+    GetLanguages(ctx context.Context, fullName string) (map[string]int64, error) // bytes per language
+    GetCommitActivity(ctx context.Context, fullName string) (*CommitActivity, error) // last 52 weeks
+    GetPullCounts(ctx context.Context, fullName string) (open, total int, error) // aggregated via search/list
+    GetIssueCounts(ctx context.Context, fullName string) (open, total int, error) // aggregated via search/list
+    GetHomepageText(ctx context.Context, url string) (string, error) // single external link (optional)
 }
 
-type Repository struct {
-    FullName        string    `json:"full_name"`
-    Description     string    `json:"description"`
-    Language        string    `json:"language"`
-    StargazersCount int       `json:"stargazers_count"`
-    ForksCount      int       `json:"forks_count"`
-    UpdatedAt       time.Time `json:"updated_at"`
-    CreatedAt       time.Time `json:"created_at"`
-    Topics          []string  `json:"topics"`
-    License         *License  `json:"license"`
-    Size            int       `json:"size"`
-}
-
-type Content struct {
-    Path     string `json:"path"`
-    Type     string `json:"type"`
-    Content  string `json:"content"`
-    Size     int    `json:"size"`
-    Encoding string `json:"encoding"`
+type Contributor struct {
+    Login        string
+    Contributions int
 }
 ```
+Caching TTL distinctions:
+- Metadata & topics: staleness threshold (default 14 days)
+- Contributors / commit stats / counts: separate 7-day TTL (rate-limit sensitive)
+- Languages: 14-day TTL
 
-### 3. Content Processor
+### 3. Processor (Extraction & Summarization)
 
-**Package**: `internal/processor`
-
-Extracts and processes unstructured content using configurable LLM backends:
+Responsibilities:
+1. Fetch minimal content (README, optional docs README, optional homepage link text)
+2. Compute content hash (ordered concatenation of included sources)
+3. If summary absent OR forced OR version mismatch → generate summary (only from README + Description)
+4. Generate embeddings (optional; skipped if embedding disabled)
 
 ```go
-type Service interface {
-    ProcessRepository(ctx context.Context, repo github.Repository, content []github.Content) (*ProcessedRepo, error)
-    ExtractContent(ctx context.Context, repo github.Repository) ([]github.Content, error)
-    GenerateSummary(ctx context.Context, chunks []ContentChunk) (*Summary, error)
+type Processor interface {
+    Extract(ctx context.Context, repo github.Repository) (*Extraction, error)
+    Summarize(ctx context.Context, readme string, description string) (*Summary, error) // transformers/heuristic
+    EmbedRepository(ctx context.Context, summary *Summary) ([]float32, error)          // repo-level vector
 }
 
-type ContentChunk struct {
-    Source   string `json:"source"`   // file path or section
-    Type     string `json:"type"`     // readme, code, docs, etc.
-    Content  string `json:"content"`
-    Tokens   int    `json:"tokens"`
-    Priority int    `json:"priority"` // for size limit handling
+type Extraction struct {
+    Readme       string
+    DocsReadme   string // optional
+    HomepageText string // optional
+    Hash         string
 }
 
 type Summary struct {
-    Purpose      string   `json:"purpose"`
-    Technologies []string `json:"technologies"`
-    UseCases     []string `json:"use_cases"`
-    Features     []string `json:"features"`
-    Installation string   `json:"installation"`
-    Usage        string   `json:"usage"`
-}
-
-type ProcessedRepo struct {
-    Repository github.Repository `json:"repository"`
-    Summary    Summary           `json:"summary"`
-    Chunks     []ContentChunk    `json:"chunks"`
-    ProcessedAt time.Time        `json:"processed_at"`
+    Purpose      string
+    Technologies []string
+    UseCases     []string
+    Features     []string
+    Installation string
+    Usage        string
+    GeneratedAt  time.Time
+    Version      int
+    Generator    string // e.g. "transformers:distilbart-cnn-12-6" / "heuristic"
 }
 ```
 
-### 4. LLM Service
+### 4. Search Engine (`internal/query` repurposed)
 
-**Package**: `internal/llm`
+Search fields (fuzzy index composition):
+- Repository full_name (split owner + name)
+- Description
+- Summary fields (purpose, features, usage, installation)
+- Topics (joined)
+- Top contributor logins (joined; limited to top N=10)
 
-Provides abstraction over different LLM backends (OpenAI, Anthropic, local models):
+Vector search uses repository-level embedding (summary text). (Chunk-level embeddings deferred unless needed.)
 
+Interface:
 ```go
-type Service interface {
-    Summarize(ctx context.Context, prompt string, content string) (*SummaryResponse, error)
-    ParseQuery(ctx context.Context, query string, schema Schema) (*QueryResponse, error)
-    Configure(config Config) error
-}
-
-type Config struct {
-    Provider string            `json:"provider"` // openai, anthropic, local
-    Model    string            `json:"model"`
-    APIKey   string            `json:"api_key,omitempty"`
-    BaseURL  string            `json:"base_url,omitempty"`
-    Options  map[string]string `json:"options,omitempty"`
-}
-
-type SummaryResponse struct {
-    Purpose      string   `json:"purpose"`
-    Technologies []string `json:"technologies"`
-    UseCases     []string `json:"use_cases"`
-    Features     []string `json:"features"`
-    Installation string   `json:"installation"`
-    Usage        string   `json:"usage"`
-}
-```
-
-### 5. Storage Layer
-
-**Package**: `internal/storage`
-
-Manages DuckDB database operations with optimized schema for search:
-
-```go
-type Repository interface {
-    Initialize(ctx context.Context) error
-    StoreRepository(ctx context.Context, repo ProcessedRepo) error
-    UpdateRepository(ctx context.Context, repo ProcessedRepo) error
-    DeleteRepository(ctx context.Context, fullName string) error
-    SearchRepositories(ctx context.Context, query string) ([]SearchResult, error)
-    GetRepository(ctx context.Context, fullName string) (*StoredRepo, error)
-    ListRepositories(ctx context.Context, limit, offset int) ([]StoredRepo, error)
-    GetStats(ctx context.Context) (*Stats, error)
-    Clear(ctx context.Context) error
-}
-
-type SearchResult struct {
-    Repository StoredRepo `json:"repository"`
-    Score      float64    `json:"score"`
-    Matches    []Match    `json:"matches"`
-}
-
-type Match struct {
-    Field   string `json:"field"`
-    Content string `json:"content"`
-    Score   float64 `json:"score"`
-}
-```
-
-### 6. Query Parser
-
-**Package**: `internal/query`
-
-Converts natural language queries to DuckDB SQL:
-
-```go
-type Parser interface {
-    Parse(ctx context.Context, naturalQuery string) (*ParsedQuery, error)
-    ValidateSQL(sql string) error
-    ExplainQuery(sql string) (*QueryPlan, error)
-}
-
-type ParsedQuery struct {
-    SQL         string            `json:"sql"`
-    Parameters  map[string]string `json:"parameters"`
-    Explanation string            `json:"explanation"`
-    Confidence  float64           `json:"confidence"`
-}
-```
-
-## Data Models
-
-### Database Schema
-
-The DuckDB database uses the following optimized schema:
-
-```sql
--- Main repositories table
-CREATE TABLE repositories (
-    id VARCHAR PRIMARY KEY,
-    full_name VARCHAR UNIQUE NOT NULL,
-    description TEXT,
-    language VARCHAR,
-    stargazers_count INTEGER,
-    forks_count INTEGER,
-    size_kb INTEGER,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP,
-    last_synced TIMESTAMP,
-    topics VARCHAR[], -- Array of topic strings
-    license_name VARCHAR,
-    license_spdx_id VARCHAR,
-
-    -- Processed summary fields
-    purpose TEXT,
-    technologies VARCHAR[], -- Array of technology strings
-    use_cases VARCHAR[], -- Array of use case strings
-    features VARCHAR[], -- Array of feature strings
-    installation_instructions TEXT,
-    usage_instructions TEXT,
-
-    -- Search optimization
-    search_vector FLOAT[384], -- Embedding vector for semantic search
-    content_hash VARCHAR -- Hash of processed content for change detection
-);
-
--- Content chunks table for detailed search
-CREATE TABLE content_chunks (
-    id VARCHAR PRIMARY KEY,
-    repository_id VARCHAR REFERENCES repositories(id),
-    source_path VARCHAR NOT NULL,
-    chunk_type VARCHAR NOT NULL, -- readme, code, docs, etc.
-    content TEXT NOT NULL,
-    tokens INTEGER,
-    priority INTEGER,
-    embedding FLOAT[384], -- Chunk-level embeddings
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Full-text search indexes
-CREATE INDEX idx_repositories_fts ON repositories USING fts(
-    full_name, description, purpose, installation_instructions, usage_instructions
-);
-
-CREATE INDEX idx_content_chunks_fts ON content_chunks USING fts(content);
-
--- Performance indexes
-CREATE INDEX idx_repositories_language ON repositories(language);
-CREATE INDEX idx_repositories_updated_at ON repositories(updated_at);
-CREATE INDEX idx_repositories_stargazers ON repositories(stargazers_count);
-CREATE INDEX idx_content_chunks_repo_type ON content_chunks(repository_id, chunk_type);
-```
-
-### Configuration Model
-
-```go
-type Config struct {
-    Database DatabaseConfig `json:"database"`
-    LLM      LLMConfig      `json:"llm"`
-    GitHub   GitHubConfig   `json:"github"`
-    Cache    CacheConfig    `json:"cache"`
-}
-
-type DatabaseConfig struct {
-    Path           string `json:"path"`
-    MaxConnections int    `json:"max_connections"`
-    QueryTimeout   string `json:"query_timeout"`
-}
-
-type LLMConfig struct {
-    DefaultProvider string            `json:"default_provider"`
-    Providers       map[string]Config `json:"providers"`
-    MaxTokens       int               `json:"max_tokens"`
-    Temperature     float64           `json:"temperature"`
-}
-
-type CacheConfig struct {
-    Directory   string `json:"directory"`
-    MaxSizeMB   int    `json:"max_size_mb"`
-    TTLHours    int    `json:"ttl_hours"`
-    CleanupFreq string `json:"cleanup_frequency"`
-}
-```
-
-## Error Handling
-
-### Error Types
-
-```go
-type ErrorType string
-
+type Mode string
 const (
-    ErrTypeGitHubAPI     ErrorType = "github_api"
-    ErrTypeLLM          ErrorType = "llm"
-    ErrTypeDatabase     ErrorType = "database"
-    ErrTypeValidation   ErrorType = "validation"
-    ErrTypeRateLimit    ErrorType = "rate_limit"
-    ErrTypeNotFound     ErrorType = "not_found"
-    ErrTypeConfig       ErrorType = "config"
+    ModeFuzzy  Mode = "fuzzy"
+    ModeVector Mode = "vector"
 )
 
-type Error struct {
-    Type    ErrorType `json:"type"`
-    Message string    `json:"message"`
-    Code    string    `json:"code"`
-    Cause   error     `json:"-"`
+type Query struct { Raw string; Mode Mode }
+
+type SearchOptions struct { Limit int; MinScore float64 }
+
+type Result struct {
+    RepoID      string
+    Score       float64
+    Rank        int
+    MatchFields []string // best-matching logical fields
+}
+
+type Engine interface {
+    Search(ctx context.Context, q Query, opts SearchOptions) ([]Result, error)
 }
 ```
+Ranking:
+- BaseScore = BM25 normalized (fuzzy) OR cosine similarity (vector)
+- Tie-break (optional, non-filter) lightweight boosts: star logarithmic + recency decay (documented as internal heuristics; user filtering still unsupported)
+- Final Score capped to 1.0
 
-### Error Handling Strategy
+### 5. Related Engine
 
-1. **GitHub API Errors**: Implement exponential backoff for rate limits, graceful degradation for unavailable repositories
-1. **LLM Errors**: Fallback to structured metadata when LLM processing fails, retry with different models
-1. **Database Errors**: Transaction rollback, connection pool management, corruption recovery
-1. **Validation Errors**: Clear user feedback with suggestions for correction
-1. **Configuration Errors**: Helpful setup guidance and validation
+Computes related repositories for a focus repo (via `related <repo>` or `--related` in query result expansion).
 
-## Testing Strategy
+Components:
+- Same Organization (binary ⇒ 1.0 else 0)
+- Topic Overlap (Jaccard)
+- Shared Contributors (normalized intersection of top 10 contributor sets)
+- Vector Similarity (cosine; skipped if embeddings disabled)
 
-### Unit Testing
+Weights (available components renormalized): SameOrg 0.30, Topic 0.25, SharedContrib 0.25, Vector 0.20
 
-- **GitHub Client**: Mock GitHub API responses, test rate limiting and error handling
-- **Content Processor**: Test content extraction logic, chunking algorithms, LLM integration
-- **Storage Layer**: Test database operations, schema migrations, query performance
-- **Query Parser**: Test natural language to SQL conversion, edge cases, validation
+Explanation template examples:
+- "Shared org 'hashicorp' and 3 overlapping topics (terraform, cloud, plugin)"
+- "2 shared top contributors (alice, bob) and high vector similarity 0.78"
 
-### Integration Testing
+### 6. Storage Layer
 
-- **End-to-End Sync**: Test complete repository ingestion pipeline with real GitHub data
-- **Search Functionality**: Test query parsing and result accuracy with sample datasets
-- **CLI Interface**: Test command-line interactions, flag parsing, output formatting
-- **Database Performance**: Test with large datasets (1000+ repositories)
+Simplified schema (repository + optional summary + embedding). Content chunks table retained ONLY if/when chunk-level embeddings added (deferred). Current design omits chunk table; embedding is repo-level.
 
-### Test Data Strategy
+```sql
+CREATE TABLE repositories (
+    id                  VARCHAR PRIMARY KEY,
+    full_name           VARCHAR UNIQUE NOT NULL,
+    description         TEXT,
+    homepage            TEXT,
+    stargazers_count    INTEGER,
+    forks_count         INTEGER,
+    open_issues_open    INTEGER,
+    open_issues_total   INTEGER,
+    open_prs_open       INTEGER,
+    open_prs_total      INTEGER,
+    commits_30d         INTEGER,
+    commits_1y          INTEGER,
+    commits_total       INTEGER,
+    created_at          TIMESTAMP,
+    updated_at          TIMESTAMP,
+    last_synced         TIMESTAMP,
+    topics              VARCHAR[],
+    license_spdx_id     VARCHAR,
+    license_name        VARCHAR,
+    languages           JSON,         -- {"Go":12345,"Rust":2345} lines of code
+
+    -- Summary
+    purpose             TEXT,
+    technologies        VARCHAR[],
+    use_cases           VARCHAR[],
+    features            VARCHAR[],
+    installation        TEXT,
+    usage               TEXT,
+    summary_generated_at TIMESTAMP,
+    summary_version     INTEGER,
+    summary_generator   VARCHAR,
+
+    -- Embedding
+    repo_embedding      FLOAT[384],
+
+    content_hash        VARCHAR
+);
+
+-- Fuzzy index (implementation-specific pseudo)
+CREATE INDEX idx_repos_fts ON repositories USING fts(
+  full_name, description, purpose, installation, usage, topics, technologies, features
+);
+
+CREATE INDEX idx_repositories_updated_at ON repositories(updated_at);
+CREATE INDEX idx_repositories_stars ON repositories(stargazers_count);
+```
+
+### 7. Configuration Model
 
 ```go
-// Test fixtures for consistent testing
-type TestRepository struct {
-    Repository github.Repository
-    Content    []github.Content
-    Expected   ProcessedRepo
+type Config struct {
+    Database   DatabaseConfig  `json:"database"`
+    Search     SearchConfig    `json:"search"`
+    Embeddings EmbeddingConfig `json:"embeddings"`
+    Summary    SummaryConfig   `json:"summary"`
+    Refresh    RefreshConfig   `json:"refresh"`
+    GitHub     GitHubConfig    `json:"github"`
 }
 
-// Mock services for isolated testing
-type MockGitHubClient struct {
-    repositories []github.Repository
-    content      map[string][]github.Content
-    errors       map[string]error
-}
+type SearchConfig struct { DefaultMode string; MinScore float64 }
 
-type MockLLMService struct {
-    responses map[string]llm.SummaryResponse
-    errors    map[string]error
-}
+type EmbeddingConfig struct { Provider string; Model string; Dimensions int; Enabled bool; Options map[string]string }
+
+type SummaryConfig struct { Version int; TransformersModel string; Enable bool }
+
+type RefreshConfig struct { MetadataStaleDays int; ForceSummary bool; StatsStaleDays int }
 ```
 
-### Performance Testing
+### 8. Output Formatting (Detailed Specification)
 
-- **Sync Performance**: Measure ingestion speed for various repository sizes
-- **Query Performance**: Benchmark search response times with different query types
-- **Memory Usage**: Monitor memory consumption during large sync operations
-- **Database Size**: Track database growth and optimization effectiveness
-
-## Security Considerations
-
-### Authentication and Authorization
-
-- Leverage GitHub CLI's existing authentication mechanism
-- Store sensitive configuration (API keys) using system keychain when available
-- Validate GitHub token permissions before operations
-
-### Data Privacy
-
-- Local-only data storage by default
-- Clear data retention policies and cleanup options
-- Secure handling of repository content in memory and cache
-
-### Input Validation
-
-- Sanitize all user inputs for SQL injection prevention
-- Validate natural language queries for malicious content
-- Limit query complexity to prevent resource exhaustion
-
-## Performance Optimizations
-
-### Database Optimizations
-
-- Use DuckDB's columnar storage for analytical queries
-- Implement proper indexing strategy for common search patterns
-- Batch insert operations for improved sync performance
-- Use prepared statements for repeated queries
-
-### Content Processing Optimizations
-
-- Implement intelligent content prioritization to stay within size limits
-- Use streaming processing for large repositories
-- Cache LLM responses to avoid reprocessing unchanged content
-- Parallel processing of independent repositories during sync
-
-### Memory Management
-
-- Stream large file contents instead of loading entirely into memory
-- Implement connection pooling for database operations
-- Use context cancellation for long-running operations
-- Garbage collection optimization for large datasets
-
-## Deployment and Distribution
-
-### GitHub CLI Extension Distribution
-
-```yaml
-# .github/workflows/release.yml
-name: Release
-on:
-  push:
-    tags: ['v*']
-jobs:
-  release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
-        with:
-          go-version: '1.21'
-      - name: Build binaries
-        run: |
-          GOOS=linux GOARCH=amd64 go build -o gh-star-search-linux-amd64
-          GOOS=darwin GOARCH=amd64 go build -o gh-star-search-darwin-amd64
-          GOOS=darwin GOARCH=arm64 go build -o gh-star-search-darwin-arm64
-          GOOS=windows GOARCH=amd64 go build -o gh-star-search-windows-amd64.exe
-      - name: Create release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: gh-star-search-*
+Long-form (each repository):
+```
+<org>/<name>  (link: https://github.com/<org>/<name>)
+GitHub Description: <description or ->
+GitHub External Description Link: <homepage or ->
+Numbers: <open_issues>/<total_issues> open issues, <open_prs>/<total_prs> open PRs, <stars> stars, <forks> forks
+Commits: <commits_30d> in last 30 days, <commits_1y> in last year, <commits_total> total
+Age: <humanized (now - created_at)>
+License: <license_spdx_id or license_name or ->
+Top 10 Contributors: login1 (C1), login2 (C2), ...
+GitHub Topics: topic1, topic2, ...
+Languages: Lang1 (LOC/approx), Lang2 (...)
+Related Stars: <count_same_org> in <org>, <count_shared_contrib> by top contributors
+Last synced: <humanized (now - last_synced)>
+Summary: <summary purpose/combined> (optional if available)
+(PLANNED: dependencies count)
+(PLANNED: dependents count)
 ```
 
-### Installation Methods
+Short-form: first two lines of long-form + truncated description (80 chars) + score: `<rank>. <full_name>  ⭐ <stars>  <language primary>  Updated <rel>  Score:<x.xx>`.
 
-1. **GitHub CLI Extension Registry**: `gh extension install kyleking/gh-star-search`
-1. **Manual Installation**: Download binary and place in PATH
-1. **Package Managers**: Homebrew formula, Scoop manifest for Windows
+Derivations:
+- `total_issues` = open issues + closed issues (queried via search API or pagination) cached 7d
+- `total_prs` = open PRs + closed PRs (same method)
+- `commits_30d` = sum of commit_activity weeks fully or partially within last 30 days
+- `commits_1y` = sum last 365 days from weekly commit activity
+- `commits_total` = sum all weeks + (optional) prior historical if available; fallback `-1` if stats endpoint not ready (GitHub may return 202); display `?` for unknown
+- Languages LOC approximation: (bytes / average_bytes_per_line≈60) rounded; or display raw bytes if estimation disabled
+- `count_same_org` = number of other starred repos with same owner (owner must be org, not user) excluding self
+- `count_shared_contrib` = count of starred repos that share at least one of top 10 contributors (contributors intersection non-empty)
 
-### Configuration Management
+### 9. Caching & Refresh Strategy
 
-- Default configuration in `~/.config/gh-star-search/config.json`
-- Environment variable overrides for CI/CD environments
-- Command-line flags for one-time configuration changes
+- On `sync`: fetch basic metadata for all starred repos.
+- Metadata refresh if `now - last_synced > metadata_stale_days`.
+- Stats (issues/prs/commit activity/contributors/languages) refresh if `now - last_synced_stats > stats_stale_days` (stored implicitly via last_synced or per-field timestamps; simplified to reuse `last_synced` if separate columns avoided).
+- Summary regenerated ONLY if (a) missing; (b) version mismatch; (c) `--force-summary` or config `ForceSummary`; content hash change alone does not force summary unless forced to minimize cost.
+- Embeddings recalculated if summary changed or embedding missing and embeddings enabled.
+- All heavy API calls (commit stats) parallelized with limited worker pool + backoff.
 
+### 10. Related Computation Flow
+
+1. Ensure contributor + topics + embedding (if enabled) present or fetch on demand.
+2. Preselect candidate set: all other starred repos (optionally prune by same org OR topic overlap >0 OR shared contributor OR vector similarity baseline > threshold).
+3. Compute component scores; renormalize missing.
+4. Filter out final score <0.25; sort desc; take default limit (5).
+5. Build explanation string from highest non-zero components.
+
+### 11. Error Handling (Updated Taxonomy)
+
+Categories: GitHubAPI, Storage, Search, Summary, Embedding, Configuration, Validation, Related.
+
+Fallbacks:
+- Embedding failure: fallback to fuzzy search; log warning.
+- Commit stats incomplete (202): mark metrics unknown; proceed.
+- Related partial data: omit missing components; renormalize.
+
+### 12. Testing Strategy (Revised)
+
+Unit:
+- Search Engine: fuzzy score normalization, vector cosine, boost application
+- Related Engine: weight renormalization, explanation formatting, thresholds
+- Summary: transformer invocation adapter; heuristic fallback
+- Refresh: staleness & force logic
+- Formatting: long-form builder deterministic assembly
+
+Integration:
+- Sync end-to-end (with/without embeddings)
+- Query (mode switching, score bounds [0,1])
+- Related results determinism given frozen dataset
+- Failure injection (simulate missing commit stats)
+
+Performance:
+- Sync 500 repos baseline (< target duration) with summary disabled/enabled
+- Query latency (median & p95) for fuzzy vs vector
+
+### 13. Performance Considerations
+
+- Batch HTTP requests where APIs allow (topics/languages parallelized with limits)
+- Cache commit stats & issue/PR counts (avoid per-query recomputation)
+- Single-pass README preprocessing (strip badges) before summary & embedding
+- Star/recency boost kept minimal to maintain user-intuitive ranking
+
+### 14. Security & Privacy
+
+- Only targeted file/content retrieval (README + optional docs README + homepage)
+- All data local; embeddings provider may send summary text externally (explicit config warning)
+- API keys never persisted in database tables
+
+### 15. Future Work
+
+- Reintroduce optional LLM summarization (replace or complement transformers)
+- Structured filtering (stars>, language, topic) & advanced query grammar
+- Chunk-level embeddings & hybrid BM25 + dense rerank pipeline
+- Dependency / dependent metrics integration (GitHub dependency graph)
+- Incremental background refresh & partial sync scheduling
+- TUI interface (Bubble Tea) for interactive browsing
+- Migration engine (golang-migrate) when schema stabilizes
+
+### 16. Changes from Previous Design (Delta vs original & earlier simplified draft)
+
+Referencing `new.md` guidance:
+- Removed natural language → SQL parser & interfaces
+- Removed temporary LLM integration; summaries now transformer/heuristic only
+- Limited summary input strictly to main README + Description (other sources not fed into summary)
+- Added explicit long-form output specification with metric definitions
+- Added issue/PR counts, commit activity, contributor list, languages, related star metrics to schema
+- Eliminated chunk-level embeddings (deferred) and broad file crawling
+- Added contributor & language ingestion endpoints; refined caching TTLs
+- Added explicit prohibition of structured filtering (only free-text ranking)
+- Added Related engine design & scoring weights
+- Added summary provenance fields & version gating
+- Adjusted storage schema to include activity & count fields
+- Clarified ranking heuristics are boosts (not user filters)
+- Added precise derivations & placeholder handling for missing stats
+
+## Rationale Summary
+
+The redesign enforces a minimal, deterministic surface aligned with `new.md`: simpler ingestion, low overhead summarization, explicit formatting, and explainable related recommendations. Complexity (LLM parsing, wide crawling, advanced filters) is deferred, improving maintainability and reducing API & cost footprint while retaining meaningful semantic and relational discovery capabilities.

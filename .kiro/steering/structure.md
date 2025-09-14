@@ -3,52 +3,53 @@
 ## gh-star-search (Cobra-based)
 ```
 gh-star-search/
-├── main.go              # Simple entry point
-├── cmd/                 # CLI commands (Cobra pattern)
+├── main.go              # Entry point
+├── cmd/                 # CLI commands
 │   ├── root.go          # Root command setup
-│   ├── sync.go          # Sync command
-│   ├── query.go         # Query command
-│   ├── list.go          # List command
-│   ├── info.go          # Info command
+│   ├── sync.go          # Sync command (incremental, minimal fetch)
+│   ├── query.go         # Query command (fuzzy/vector modes)
+│   ├── list.go          # List command (formatted output)
+│   ├── info.go          # Info command (long/short forms)
 │   ├── stats.go         # Stats command
 │   └── clear.go         # Clear command
-└── internal/            # Internal packages
-    ├── github/          # GitHub API client
-    ├── processor/       # Content processing
-    ├── storage/         # Database operations
-    ├── query/           # Query parsing
-    ├── llm/             # LLM service
-    ├── config/          # Configuration
-    └── cache/           # Local caching
+└── internal/
+    ├── github/          # GitHub API client (metadata, topics, contributors)
+    ├── processor/       # Content processing (README extraction, summarization)
+    ├── storage/         # DuckDB repository (tables, embeddings)
+    ├── query/           # Query execution (fuzzy & vector strategies)
+    ├── llm/             # (Disabled) future LLM integration
+    ├── config/          # Configuration management
+    ├── cache/           # Local caching & staleness checks
+    └── logging/         # Logging utilities
 ```
 
-## Architectural Patterns
+## Architectural Notes
+- Minimal ingestion: README + docs/README.md + external linked page (if present)
+- Summaries limited to primary README; recomputed only when forced
+- Single query-string interface for search; structured filters deferred
+- Pluggable related strategies (org, topic, contributor, vector)
+- Output renderer centralizes long vs short formatting logic
 
-### Package Organization
-- **cmd/**: CLI command implementations and main business logic
-- **internal/**: Private packages not meant for external use
-- **conn/**: External system integration layer
-- **mocks/**: Generated test mocks
-- **fixtures/**: Test data and mock responses
+## Package Adjustments
+- Removed references to unused generic layers (`conn/`, `fixtures/` as global concept)
+- Emphasis on `processor/` + `query/` for summarization and search strategies
+- `llm/` retained but currently dormant
 
-### File Naming Conventions
-- `main.go`: Application entry point
-- `*_test.go`: Test files alongside source files
-- `*.go`: Implementation files named after their primary type/function
-- Interface files often named after the main interface (e.g., `connection.go`)
+## Testing Layout
+- Standard `*_test.go` co-located tests
+- Integration & performance tests for sync/query in existing `*_integration_test.go` and `*_performance_test.go`
+- Test data housed under package `testdata/` directories (e.g., `processor/testdata`)
 
-### Testing Structure
-- Tests co-located with source files
-- Fixture data in dedicated `fixtures/` directories
-- Mock generation using `//go:generate` directives
-- Separate test packages for integration tests
+## Configuration & Caching
+- Configurable sync staleness window (default 14 days)
+- Force flag for summary regeneration
+- Embedding generation optional; absence falls back to fuzzy mode
 
-### Configuration Files
-- `go.mod`/`go.sum`: Go module definitions
-- `.gitignore`: Git ignore patterns
-- `.github/`: GitHub Actions and templates (where present)
-- `README.md`: Project documentation
-- `LICENSE`: License files
-
-## Development Workflow
-Each project is independently buildable and testable. The repository supports working on individual projects without affecting others, while sharing common patterns and conventions across all three tools.
+## Changes
+- Added vector vs fuzzy query distinction & related strategies
+- Documented minimal file fetch + summary scope
+- Clarified dormant LLM package status
+- Simplified package list (removed unused `conn/`, `fixtures/` bullets)
+- Added logging package mention
+- Added config & caching behavioral notes
+- Added long vs short output renderer description
