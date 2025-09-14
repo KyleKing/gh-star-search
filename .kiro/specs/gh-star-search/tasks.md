@@ -44,14 +44,14 @@ LLM, NL query parser, and wide content extraction pieces are now deprecated (see
     - Implement proper caching with TTL distinctions (metadata 14d, stats 7d); configurable `metadata_stale_days` & `stats_stale_days`; only refresh summaries when (missing | version mismatch | forced flag/config); recompute embeddings only if summary changed or embedding missing; parallel worker pool with backoff for rate-limited endpoints.
     - _Requirements: 1.2, 1.3, 5.1, 5.2, 5.4_
 
-- [ ] 6. Dual-Mode Search and Related Engine Implementation
+- [x] 6. Dual-Mode Search and Related Engine Implementation
     - Create `cmd/query.go` with flags: `--mode (fuzzy|vector)`, `--limit`, `--long/--short`; implement query string validation (length ≥ 2, reject structured filters with helpful message); wire up to existing SearchRepositories with mode selection.
     - Enhance existing text search to implement proper BM25/FTS scoring for fuzzy mode; add vector search mode with cosine similarity (requires embeddings); implement ranking boosts: star logarithmic (+small), recency decay; clamp final score ≤1.0; track matched logical fields for explanation.
     - Single repository-level embedding over concatenated summary text (select key fields: purpose, features, usage); provider abstraction (local model / remote API) with `Enabled` flag & dimensionality validation; graceful fallback to fuzzy search if disabled or failure.
     - Create `internal/related/` package for related repository computation; compute weighted score: SameOrg(0.30), Topics(0.25), SharedContrib(0.25), Vector(0.20) with renormalization when components missing; explanation string assembly (top non-zero contributors); CLI integration via `related <repo>` command and `query --related` augmentation.
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 8.4_
 
-- [ ] 7. Output Formatting (Long & Short Forms)
+- [-] 7. Output Formatting (Long & Short Forms)
     - Create `internal/formatter/` package for output rendering.
     - Implement exact long-form spec (Lines: header link, Description, External link, Numbers, Commits, Age, License, Contributors, Topics, Languages, Related Stars, Last synced, Summary, planned placeholders).
     - Short-form = first two lines of long-form + score + truncated description (80 chars) + primary language.
@@ -65,33 +65,28 @@ LLM, NL query parser, and wide content extraction pieces are now deprecated (see
     - Versioning & generator metadata recorded; gated by config.
     - _Requirements: 1.4, 8.4_
 
-- [ ] 9. Configuration Model Refactor
+- [ ] 9. Configuration Model Refactor and Testing Expansion
     - Add `SearchConfig`, `SummaryConfig`, `EmbeddingConfig`, `RefreshConfig` per design.
     - Validate dimensions vs embedding provider; emit clear error if mismatch.
     - Remove deprecated parser / LLM config fields.
-    - _Requirements: 7.3_
-
-- [ ] 10. Testing Expansion
     - Unit: search scoring, vector similarity, related weighting & renorm, summary fallback, refresh gating, formatting builder.
     - Integration: sync (with & without embeddings), query (mode switch, score bounds), related deterministic outputs.
     - Failure injection: missing commit stats, embedding failure.
     - Performance: sync 500 repos (baseline target), query latency p50/p95 for both modes.
     - _Requirements: 7.3_
 
-- [ ] 11. Documentation, Logging & Error Taxonomy
+- [ ] 10. Documentation, Logging & Error Taxonomy
     - Create CONTRIBUTING.md with architecture snapshot, endpoint usage & rate limits, caching strategy, summarization & embedding disclaimers, development workflow.
     - Centralize error categories: GitHubAPI, Storage, Search, Summary, Embedding, Configuration, Validation, Related; add structured warning for partial data (e.g., commit stats unready, embedding skipped).
     - _Requirements: 7.1, 7.2, 9.1, 9.2, 9.3_
 
-- [ ] 12. Packaging & Release (Carryover)
+- [ ] 11. Packaging & Release and Resource Optimizations
     - GitHub CLI extension manifest, cross-platform build, release workflow, install/update validation.
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
-
-- [ ] 13. Performance & Resource Optimizations
     - Batch/lazy fetch where possible; concurrency tuning; measure memory footprint for large star sets.
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 14. Future Feature Gate Placeholders
+- [ ] 12. Future Feature Gate Placeholders
     - Stubs / TODO comments for: structured filtering, chunk embeddings, dependency metrics, LLM summaries, export, TUI.
     - _Requirements: Deferred features_
 

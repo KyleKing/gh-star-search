@@ -12,11 +12,15 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Database DatabaseConfig `json:"database"`
-	GitHub   GitHubConfig   `json:"github"`
-	Cache    CacheConfig    `json:"cache"`
-	Logging  LoggingConfig  `json:"logging"`
-	Debug    DebugConfig    `json:"debug"`
+	Database   DatabaseConfig   `json:"database"`
+	GitHub     GitHubConfig     `json:"github"`
+	Cache      CacheConfig      `json:"cache"`
+	Logging    LoggingConfig    `json:"logging"`
+	Debug      DebugConfig      `json:"debug"`
+	Search     SearchConfig     `json:"search"`
+	Embeddings EmbeddingConfig  `json:"embeddings"`
+	Summary    SummaryConfig    `json:"summary"`
+	Refresh    RefreshConfig    `json:"refresh"`
 }
 
 // DatabaseConfig represents database configuration
@@ -63,6 +67,35 @@ type DebugConfig struct {
 	TraceAPI    bool `json:"trace_api"`
 }
 
+// SearchConfig represents search configuration
+type SearchConfig struct {
+	DefaultMode string  `json:"default_mode"` // "fuzzy" or "vector"
+	MinScore    float64 `json:"min_score"`    // Minimum score threshold
+}
+
+// EmbeddingConfig represents embedding configuration
+type EmbeddingConfig struct {
+	Provider   string            `json:"provider"`   // "local" or "remote"
+	Model      string            `json:"model"`      // Model name/path
+	Dimensions int               `json:"dimensions"` // Expected embedding dimensions
+	Enabled    bool              `json:"enabled"`    // Whether embeddings are enabled
+	Options    map[string]string `json:"options"`    // Provider-specific options
+}
+
+// SummaryConfig represents summarization configuration
+type SummaryConfig struct {
+	Version           int    `json:"version"`             // Summary format version
+	TransformersModel string `json:"transformers_model"`  // Python transformers model
+	Enabled           bool   `json:"enabled"`             // Whether summarization is enabled
+}
+
+// RefreshConfig represents refresh and caching configuration
+type RefreshConfig struct {
+	MetadataStaleDays int  `json:"metadata_stale_days"` // Days before metadata refresh
+	StatsStaleDays    int  `json:"stats_stale_days"`    // Days before stats refresh
+	ForceSummary      bool `json:"force_summary"`       // Force summary regeneration
+}
+
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
@@ -99,6 +132,27 @@ func DefaultConfig() *Config {
 			MetricsPort: 8080,
 			Verbose:     false,
 			TraceAPI:    false,
+		},
+		Search: SearchConfig{
+			DefaultMode: "fuzzy",
+			MinScore:    0.0,
+		},
+		Embeddings: EmbeddingConfig{
+			Provider:   "local",
+			Model:      "sentence-transformers/all-MiniLM-L6-v2",
+			Dimensions: 384,
+			Enabled:    false,
+			Options:    make(map[string]string),
+		},
+		Summary: SummaryConfig{
+			Version:           1,
+			TransformersModel: "distilbart-cnn-12-6",
+			Enabled:           true,
+		},
+		Refresh: RefreshConfig{
+			MetadataStaleDays: 14,
+			StatsStaleDays:    7,
+			ForceSummary:      false,
 		},
 	}
 }
@@ -347,6 +401,47 @@ func mergeConfigs(target, source *Config) {
 	if source.Debug.MetricsPort > 0 {
 		target.Debug.MetricsPort = source.Debug.MetricsPort
 	}
+
+	// Search
+	if source.Search.DefaultMode != "" {
+		target.Search.DefaultMode = source.Search.DefaultMode
+	}
+	if source.Search.MinScore > 0 {
+		target.Search.MinScore = source.Search.MinScore
+	}
+
+	// Embeddings
+	if source.Embeddings.Provider != "" {
+		target.Embeddings.Provider = source.Embeddings.Provider
+	}
+	if source.Embeddings.Model != "" {
+		target.Embeddings.Model = source.Embeddings.Model
+	}
+	if source.Embeddings.Dimensions > 0 {
+		target.Embeddings.Dimensions = source.Embeddings.Dimensions
+	}
+	target.Embeddings.Enabled = source.Embeddings.Enabled
+	if source.Embeddings.Options != nil {
+		target.Embeddings.Options = source.Embeddings.Options
+	}
+
+	// Summary
+	if source.Summary.Version > 0 {
+		target.Summary.Version = source.Summary.Version
+	}
+	if source.Summary.TransformersModel != "" {
+		target.Summary.TransformersModel = source.Summary.TransformersModel
+	}
+	target.Summary.Enabled = source.Summary.Enabled
+
+	// Refresh
+	if source.Refresh.MetadataStaleDays > 0 {
+		target.Refresh.MetadataStaleDays = source.Refresh.MetadataStaleDays
+	}
+	if source.Refresh.StatsStaleDays > 0 {
+		target.Refresh.StatsStaleDays = source.Refresh.StatsStaleDays
+	}
+	target.Refresh.ForceSummary = source.Refresh.ForceSummary
 }
 
 // validateConfig validates the configuration for common errors
