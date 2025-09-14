@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/JohannesKaufmann/html-to-markdown/v2/converter"
+	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/base"
 	"github.com/cli/go-gh/v2/pkg/api"
 )
 
@@ -527,31 +529,19 @@ func (c *clientImpl) GetIssueCounts(ctx context.Context, fullName string) (open 
 
 // stripHTMLTags removes HTML tags from text and cleans whitespace
 func stripHTMLTags(html string) string {
-	// Add spaces around tags for better parsing
-	html = strings.ReplaceAll(html, "<", " <")
-	html = strings.ReplaceAll(html, ">", "> ")
+	// Use html-to-markdown library with only base plugin for plain text output
+	conv := converter.NewConverter(
+		converter.WithPlugins(
+			base.NewBasePlugin(),
+		),
+	)
 
-	var result strings.Builder
-
-	inTag := false
-
-	for _, char := range html {
-		switch char {
-		case '<':
-			inTag = true
-		case '>':
-			inTag = false
-		default:
-			if !inTag {
-				result.WriteRune(char)
-			}
-		}
+	// Convert HTML to plain text (no markdown formatting)
+	text, err := conv.ConvertString(html)
+	if err != nil {
+		return html
 	}
-
-	// Clean up whitespace
-	cleaned := strings.Fields(result.String())
-
-	return strings.Join(cleaned, " ")
+	return text
 }
 
 // GetHomepageText fetches text content from an external homepage URL
