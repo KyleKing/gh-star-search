@@ -152,21 +152,7 @@ func TestSyncIntegration(t *testing.T) {
 		},
 	}
 
-	mockLLM := &MockLLMService{
-		responses: map[string]*processor.SummaryResponse{
-			"default": {
-				Purpose:      "A comprehensive test repository",
-				Technologies: []string{"Go", "CLI", "Testing"},
-				UseCases:     []string{"Command line tools", "Testing utilities"},
-				Features:     []string{"Cross-platform", "Easy to use", "Well documented"},
-				Installation: "go install github.com/user/repo",
-				Usage:        "repo [command] [flags]",
-				Confidence:   0.9,
-			},
-		},
-	}
-
-	processorService := processor.NewService(mockGitHub, mockLLM)
+	processorService := processor.NewService(mockGitHub)
 	syncService := createTestSyncService(mockGitHub, processorService, repo)
 
 	// Step 1: Perform initial sync (all repositories should be new)
@@ -432,25 +418,11 @@ func TestSyncSpecificRepository(t *testing.T) {
 		},
 	}
 
-	mockLLM := &MockLLMService{
-		responses: map[string]*processor.SummaryResponse{
-			"default": {
-				Purpose:      "A repository for testing specific sync functionality",
-				Technologies: []string{"Go", "Testing"},
-				UseCases:     []string{"Unit testing", "Specific sync testing"},
-				Features:     []string{"Focused testing", "Isolated functionality"},
-				Installation: "go get github.com/user/specific-repo",
-				Usage:        "specific-repo test",
-				Confidence:   0.95,
-			},
-		},
-	}
-
-	processorService := processor.NewService(mockGitHub, mockLLM)
+	processorService := processor.NewService(mockGitHub)
 	syncService := createTestSyncService(mockGitHub, processorService, repo)
 
 	// Test syncing specific repository
-	err = syncService.syncSpecificRepository(ctx, "user/specific-repo", false)
+	err = syncService.syncSpecificRepository(ctx, "user/specific-repo")
 	if err != nil {
 		t.Fatalf("Failed to sync specific repository: %v", err)
 	}
@@ -474,7 +446,7 @@ func TestSyncSpecificRepository(t *testing.T) {
 	}
 
 	// Test syncing non-existent repository
-	err = syncService.syncSpecificRepository(ctx, "user/non-existent", false)
+	err = syncService.syncSpecificRepository(ctx, "user/non-existent")
 	if err == nil {
 		t.Error("Expected error when syncing non-existent repository")
 	}
@@ -541,8 +513,7 @@ func TestSyncErrorHandling(t *testing.T) {
 		},
 	}
 
-	mockLLM := &MockLLMService{}
-	processorService := processor.NewService(mockGitHub, mockLLM)
+	processorService := processor.NewService(mockGitHub)
 	syncService := createTestSyncService(mockGitHub, processorService, repo)
 
 	// Perform sync with errors
@@ -629,21 +600,7 @@ func TestSyncIncrementalUpdates(t *testing.T) {
 		},
 	}
 
-	mockLLM := &MockLLMService{
-		responses: map[string]*processor.SummaryResponse{
-			"default": {
-				Purpose:      "Test repository for incremental updates",
-				Technologies: []string{"Go", "Testing"},
-				UseCases:     []string{"Testing incremental sync"},
-				Features:     []string{"Change detection", "Hash comparison"},
-				Installation: "go get github.com/user/test-repo",
-				Usage:        "test-repo [command]",
-				Confidence:   0.9,
-			},
-		},
-	}
-
-	processorService := processor.NewService(mockGitHub, mockLLM)
+	processorService := processor.NewService(mockGitHub)
 	syncService := createTestSyncService(mockGitHub, processorService, repo)
 
 	// Step 1: Initial sync
@@ -836,8 +793,7 @@ func TestSyncProgressTracking(t *testing.T) {
 		content:      content,
 	}
 
-	mockLLM := &MockLLMService{}
-	processorService := processor.NewService(mockGitHub, mockLLM)
+	processorService := processor.NewService(mockGitHub)
 	syncService := createTestSyncService(mockGitHub, processorService, repo)
 	syncService.verbose = false // Disable verbose to test progress indicators
 

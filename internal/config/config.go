@@ -8,14 +8,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/kyleking/gh-star-search/internal/llm"
 )
 
 // Config represents the application configuration
 type Config struct {
 	Database DatabaseConfig `json:"database"`
-	LLM      LLMConfig      `json:"llm"`
 	GitHub   GitHubConfig   `json:"github"`
 	Cache    CacheConfig    `json:"cache"`
 	Logging  LoggingConfig  `json:"logging"`
@@ -27,14 +24,6 @@ type DatabaseConfig struct {
 	Path           string `json:"path"`
 	MaxConnections int    `json:"max_connections"`
 	QueryTimeout   string `json:"query_timeout"`
-}
-
-// LLMConfig represents LLM service configuration
-type LLMConfig struct {
-	DefaultProvider string                `json:"default_provider"`
-	Providers       map[string]llm.Config `json:"providers"`
-	MaxTokens       int                   `json:"max_tokens"`
-	Temperature     float64               `json:"temperature"`
 }
 
 // GitHubConfig represents GitHub API configuration
@@ -54,22 +43,22 @@ type CacheConfig struct {
 
 // LoggingConfig represents logging configuration
 type LoggingConfig struct {
-	Level      string `json:"level"`       // debug, info, warn, error
-	Format     string `json:"format"`      // text, json
-	Output     string `json:"output"`      // stdout, stderr, file
-	File       string `json:"file"`        // log file path when output is file
-	MaxSizeMB  int    `json:"max_size_mb"` // max log file size
-	MaxBackups int    `json:"max_backups"` // max number of backup files
+	Level      string `json:"level"`        // debug, info, warn, error
+	Format     string `json:"format"`       // text, json
+	Output     string `json:"output"`       // stdout, stderr, file
+	File       string `json:"file"`         // log file path when output is file
+	MaxSizeMB  int    `json:"max_size_mb"`  // max log file size
+	MaxBackups int    `json:"max_backups"`  // max number of backup files
 	MaxAgeDays int    `json:"max_age_days"` // max age of log files
 }
 
 // DebugConfig represents debug configuration
 type DebugConfig struct {
-	Enabled     bool   `json:"enabled"`
-	ProfilePort int    `json:"profile_port"`
-	MetricsPort int    `json:"metrics_port"`
-	Verbose     bool   `json:"verbose"`
-	TraceAPI    bool   `json:"trace_api"`
+	Enabled     bool `json:"enabled"`
+	ProfilePort int  `json:"profile_port"`
+	MetricsPort int  `json:"metrics_port"`
+	Verbose     bool `json:"verbose"`
+	TraceAPI    bool `json:"trace_api"`
 }
 
 // DefaultConfig returns the default configuration
@@ -79,17 +68,6 @@ func DefaultConfig() *Config {
 			Path:           "~/.config/gh-star-search/database.db",
 			MaxConnections: 10,
 			QueryTimeout:   "30s",
-		},
-		LLM: LLMConfig{
-			DefaultProvider: llm.ProviderOpenAI,
-			Providers: map[string]llm.Config{
-				llm.ProviderOpenAI: {
-					Provider: llm.ProviderOpenAI,
-					Model:    llm.ModelGPT35Turbo,
-				},
-			},
-			MaxTokens:   2000,
-			Temperature: 0.1,
 		},
 		GitHub: GitHubConfig{
 			RateLimit:     5000,
@@ -193,21 +171,6 @@ func applyEnvironmentOverrides(config *Config) error {
 		config.Database.QueryTimeout = val
 	}
 
-	// LLM configuration
-	if val := os.Getenv("GH_STAR_SEARCH_LLM_PROVIDER"); val != "" {
-		config.LLM.DefaultProvider = val
-	}
-	if val := os.Getenv("GH_STAR_SEARCH_LLM_MAX_TOKENS"); val != "" {
-		if intVal, err := strconv.Atoi(val); err == nil {
-			config.LLM.MaxTokens = intVal
-		}
-	}
-	if val := os.Getenv("GH_STAR_SEARCH_LLM_TEMPERATURE"); val != "" {
-		if floatVal, err := strconv.ParseFloat(val, 64); err == nil {
-			config.LLM.Temperature = floatVal
-		}
-	}
-
 	// GitHub configuration
 	if val := os.Getenv("GH_STAR_SEARCH_GITHUB_RATE_LIMIT"); val != "" {
 		if intVal, err := strconv.Atoi(val); err == nil {
@@ -304,25 +267,6 @@ func mergeConfigs(target, source *Config) {
 	}
 	if source.Database.QueryTimeout != "" {
 		target.Database.QueryTimeout = source.Database.QueryTimeout
-	}
-
-	// LLM
-	if source.LLM.DefaultProvider != "" {
-		target.LLM.DefaultProvider = source.LLM.DefaultProvider
-	}
-	if len(source.LLM.Providers) > 0 {
-		if target.LLM.Providers == nil {
-			target.LLM.Providers = make(map[string]llm.Config)
-		}
-		for k, v := range source.LLM.Providers {
-			target.LLM.Providers[k] = v
-		}
-	}
-	if source.LLM.MaxTokens > 0 {
-		target.LLM.MaxTokens = source.LLM.MaxTokens
-	}
-	if source.LLM.Temperature >= 0 {
-		target.LLM.Temperature = source.LLM.Temperature
 	}
 
 	// GitHub
@@ -425,12 +369,6 @@ func validateConfig(config *Config) error {
 	// Validate numeric values
 	if config.Database.MaxConnections <= 0 {
 		return fmt.Errorf("database max connections must be positive: %d", config.Database.MaxConnections)
-	}
-	if config.LLM.MaxTokens <= 0 {
-		return fmt.Errorf("LLM max tokens must be positive: %d", config.LLM.MaxTokens)
-	}
-	if config.LLM.Temperature < 0 || config.LLM.Temperature > 2 {
-		return fmt.Errorf("LLM temperature must be between 0 and 2: %f", config.LLM.Temperature)
 	}
 	if config.GitHub.RateLimit <= 0 {
 		return fmt.Errorf("GitHub rate limit must be positive: %d", config.GitHub.RateLimit)

@@ -84,8 +84,7 @@ func TestIntegrationContentExtraction(t *testing.T) {
 
 	// Create service
 	client := &mockGitHubClient{content: content}
-	llmService := &mockLLMService{}
-	service := NewService(client, llmService)
+	service := NewService(client)
 
 	// Test full processing pipeline
 	ctx := context.Background()
@@ -195,8 +194,7 @@ func TestIntegrationContentExtractionWithLargeContent(t *testing.T) {
 	}
 
 	client := &mockGitHubClient{content: content}
-	llmService := &mockLLMService{}
-	service := NewService(client, llmService)
+	service := NewService(client)
 
 	ctx := context.Background()
 	processed, err := service.ProcessRepository(ctx, repo, content)
@@ -247,8 +245,7 @@ func TestIntegrationContentExtractionErrorHandling(t *testing.T) {
 	}
 
 	client := &mockGitHubClient{content: invalidContent}
-	llmService := &mockLLMService{}
-	service := NewService(client, llmService)
+	service := NewService(client)
 
 	ctx := context.Background()
 	processed, err := service.ProcessRepository(ctx, repo, invalidContent)

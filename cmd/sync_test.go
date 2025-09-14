@@ -11,6 +11,7 @@ import (
 
 	"github.com/kyleking/gh-star-search/internal/config"
 	"github.com/kyleking/gh-star-search/internal/github"
+	"github.com/kyleking/gh-star-search/internal/monitor"
 	"github.com/kyleking/gh-star-search/internal/processor"
 	"github.com/kyleking/gh-star-search/internal/storage"
 )
@@ -53,33 +54,6 @@ func (m *MockGitHubClient) GetRepositoryMetadata(ctx context.Context, repo githu
 	}
 
 	return &github.Metadata{}, nil
-}
-
-// MockLLMService implements processor.LLMService for testing
-type MockLLMService struct {
-	responses map[string]*processor.SummaryResponse
-	errors    map[string]error
-}
-
-func (m *MockLLMService) Summarize(ctx context.Context, prompt string, content string) (*processor.SummaryResponse, error) {
-	key := "default"
-	if err, exists := m.errors[key]; exists {
-		return nil, err
-	}
-
-	if response, exists := m.responses[key]; exists {
-		return response, nil
-	}
-
-	return &processor.SummaryResponse{
-		Purpose:      "Test repository purpose",
-		Technologies: []string{"Go", "Test"},
-		UseCases:     []string{"Testing"},
-		Features:     []string{"Mock feature"},
-		Installation: "go install",
-		Usage:        "go run main.go",
-		Confidence:   0.9,
-	}, nil
 }
 
 func TestSyncService_DetermineSyncOperations(t *testing.T) {
@@ -266,36 +240,42 @@ func TestSyncService_ProcessRepository(t *testing.T) {
 				{
 					Path:     "README.md",
 					Type:     "file",
-					Content:  "VGVzdCByZWFkbWUgY29udGVudA==", // base64 encoded "Test readme content"
-					Size:     20,
+					Content:  "VGhpcyBpcyBhIHRlc3QgcmVwb3NpdG9yeSBmb3IgdW5pdCB0ZXN0aW5nIHB1cnBvc2VzLiBJdCBjb250YWlucyB2YXJpb3VzIHRlc3QgZmlsZXMgYW5kIGV4YW1wbGVzIHRvIHZhbGlkYXRlIHRoZSBmdW5jdGlvbmFsaXR5IG9mIHRoZSBzeXN0ZW0u", // base64 encoded longer description
+					Size:     150,
+					Encoding: "base64",
+				},
+				{
+					Path:     "go.mod",
+					Type:     "file",
+					Content:  "bW9kdWxlIGdpdGh1Yi5jb20va3lsZWtpbmcvZ2gtc3Rhci1zZWFyY2gKCm9vIDEuMjE=", // base64 encoded go.mod content
+					Size:     60,
+					Encoding: "base64",
+				},
+				{
+					Path:     "package.json",
+					Type:     "file",
+					Content:  "ewogICJuYW1lIjogInRlc3QtcmVwbyIsCiAgInZlcnNpb24iOiAiMS4wLjAiLAogICJkZXNjcmlwdGlvbiI6ICJUZXN0IHJlcG8gd2l0aCBKYXZhU2NyaXB0IiwKICAibWFpbiI6ICJpbmRleC5qcyIKfQ==", // base64 encoded package.json content
+					Size:     120,
 					Encoding: "base64",
 				},
 			},
 		},
 	}
 
-	mockLLM := &MockLLMService{
-		responses: map[string]*processor.SummaryResponse{
-			"default": {
-				Purpose:      "Test repository for unit testing",
-				Technologies: []string{"Go", "Testing"},
-				UseCases:     []string{"Unit testing", "Integration testing"},
-				Features:     []string{"Mock services", "Test utilities"},
-				Installation: "go get github.com/user/test-repo",
-				Usage:        "import \"github.com/user/test-repo\"",
-				Confidence:   0.95,
-			},
-		},
-	}
+	processorService := processor.NewService(mockGitHub)
 
-	processorService := processor.NewService(mockGitHub, mockLLM)
+	// Initialize memory monitor
+	memoryMonitor := monitor.NewMemoryMonitor(500, 5*time.Minute)
+	memoryOptimizer := monitor.NewMemoryOptimizer(memoryMonitor)
 
 	syncService := &SyncService{
-		githubClient: mockGitHub,
-		processor:    processorService,
-		storage:      repo,
-		config:       config.DefaultConfig(),
-		verbose:      true,
+		githubClient:    mockGitHub,
+		processor:       processorService,
+		storage:         repo,
+		config:          config.DefaultConfig(),
+		verbose:         true,
+		memoryMonitor:   memoryMonitor,
+		memoryOptimizer: memoryOptimizer,
 	}
 
 	// Test repository
@@ -337,8 +317,9 @@ func TestSyncService_ProcessRepository(t *testing.T) {
 		t.Errorf("Expected StargazersCount 42, got %d", stored.StargazersCount)
 	}
 
-	if stored.Purpose != "Test repository for unit testing" {
-		t.Errorf("Expected Purpose 'Test repository for unit testing', got '%s'", stored.Purpose)
+	expectedPurpose := "This is a test repository for unit testing purposes. It contains various test files and examples to validate the functionality of the system."
+	if stored.Purpose != expectedPurpose {
+		t.Errorf("Expected Purpose '%s', got '%s'", expectedPurpose, stored.Purpose)
 	}
 
 	if len(stored.Technologies) != 2 {
@@ -381,15 +362,20 @@ func TestSyncService_ProcessRepositoriesInBatches(t *testing.T) {
 		},
 	}
 
-	mockLLM := &MockLLMService{}
-	processorService := processor.NewService(mockGitHub, mockLLM)
+	processorService := processor.NewService(mockGitHub)
+
+	// Initialize memory monitor
+	memoryMonitor := monitor.NewMemoryMonitor(500, 5*time.Minute)
+	memoryOptimizer := monitor.NewMemoryOptimizer(memoryMonitor)
 
 	syncService := &SyncService{
-		githubClient: mockGitHub,
-		processor:    processorService,
-		storage:      repo,
-		config:       config.DefaultConfig(),
-		verbose:      false,
+		githubClient:    mockGitHub,
+		processor:       processorService,
+		storage:         repo,
+		config:          config.DefaultConfig(),
+		verbose:         false,
+		memoryMonitor:   memoryMonitor,
+		memoryOptimizer: memoryOptimizer,
 	}
 
 	// Test repositories

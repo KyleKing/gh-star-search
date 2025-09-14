@@ -10,28 +10,28 @@ import (
 type ErrorType string
 
 const (
-	ErrTypeGitHubAPI     ErrorType = "github_api"
-	ErrTypeLLM          ErrorType = "llm"
-	ErrTypeDatabase     ErrorType = "database"
-	ErrTypeValidation   ErrorType = "validation"
-	ErrTypeRateLimit    ErrorType = "rate_limit"
-	ErrTypeNotFound     ErrorType = "not_found"
-	ErrTypeConfig       ErrorType = "config"
-	ErrTypeNetwork      ErrorType = "network"
-	ErrTypeAuth         ErrorType = "auth"
-	ErrTypeFileSystem   ErrorType = "filesystem"
-	ErrTypeInternal     ErrorType = "internal"
+	ErrTypeGitHubAPI ErrorType = "github_api"
+
+	ErrTypeDatabase   ErrorType = "database"
+	ErrTypeValidation ErrorType = "validation"
+	ErrTypeRateLimit  ErrorType = "rate_limit"
+	ErrTypeNotFound   ErrorType = "not_found"
+	ErrTypeConfig     ErrorType = "config"
+	ErrTypeNetwork    ErrorType = "network"
+	ErrTypeAuth       ErrorType = "auth"
+	ErrTypeFileSystem ErrorType = "filesystem"
+	ErrTypeInternal   ErrorType = "internal"
 )
 
 // Error represents a structured error with context
 type Error struct {
-	Type        ErrorType `json:"type"`
-	Message     string    `json:"message"`
-	Code        string    `json:"code"`
-	Cause       error     `json:"-"`
+	Type        ErrorType              `json:"type"`
+	Message     string                 `json:"message"`
+	Code        string                 `json:"code"`
+	Cause       error                  `json:"-"`
 	Context     map[string]interface{} `json:"context,omitempty"`
-	Stack       string    `json:"stack,omitempty"`
-	Suggestions []string  `json:"suggestions,omitempty"`
+	Stack       string                 `json:"stack,omitempty"`
+	Suggestions []string               `json:"suggestions,omitempty"`
 }
 
 // Error implements the error interface
@@ -111,10 +111,10 @@ func captureStack() string {
 	const depth = 32
 	var pcs [depth]uintptr
 	n := runtime.Callers(3, pcs[:])
-	
+
 	var sb strings.Builder
 	frames := runtime.CallersFrames(pcs[:n])
-	
+
 	for {
 		frame, more := frames.Next()
 		if !strings.Contains(frame.File, "gh-star-search") {
@@ -123,14 +123,14 @@ func captureStack() string {
 			}
 			continue
 		}
-		
+
 		sb.WriteString(fmt.Sprintf("%s:%d %s\n", frame.File, frame.Line, frame.Function))
-		
+
 		if !more {
 			break
 		}
 	}
-	
+
 	return sb.String()
 }
 
@@ -158,14 +158,6 @@ func NewGitHubAPIError(message string, statusCode int) *Error {
 		WithContext("status_code", statusCode).
 		WithSuggestion("Check your GitHub authentication with 'gh auth status'").
 		WithSuggestion("Verify your internet connection")
-}
-
-// NewLLMError creates an LLM service error
-func NewLLMError(message string, provider string) *Error {
-	return New(ErrTypeLLM, message).
-		WithContext("provider", provider).
-		WithSuggestion("Check your LLM provider configuration").
-		WithSuggestion("Verify your API keys are set correctly")
 }
 
 // NewDatabaseError creates a database error

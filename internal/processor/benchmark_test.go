@@ -47,8 +47,7 @@ func BenchmarkProcessRepository(b *testing.B) {
 	}
 
 	client := &mockGitHubClient{content: content}
-	llmService := &mockLLMService{}
-	service := NewService(client, llmService)
+	service := NewService(client)
 	ctx := context.Background()
 
 	b.ResetTimer()

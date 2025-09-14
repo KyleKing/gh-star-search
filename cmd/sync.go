@@ -14,7 +14,6 @@ import (
 	"github.com/kyleking/gh-star-search/internal/cache"
 	"github.com/kyleking/gh-star-search/internal/config"
 	"github.com/kyleking/gh-star-search/internal/github"
-	"github.com/kyleking/gh-star-search/internal/llm"
 	"github.com/kyleking/gh-star-search/internal/monitor"
 	"github.com/kyleking/gh-star-search/internal/processor"
 	"github.com/kyleking/gh-star-search/internal/storage"
@@ -36,7 +35,6 @@ intelligent search capabilities.`,
 func init() {
 	syncCmd.Flags().StringP("repo", "r", "", "Sync a specific repository for fine-tuning")
 	syncCmd.Flags().BoolP("verbose", "v", false, "Show detailed processing steps")
-	syncCmd.Flags().BoolP("compare-models", "c", false, "Compare different LLM backends")
 	syncCmd.Flags().IntP("batch-size", "b", 10, "Number of repositories to process in each batch")
 	syncCmd.Flags().BoolP("force", "f", false, "Force re-processing of all repositories")
 }
@@ -142,7 +140,6 @@ func runSync(ctx context.Context, cmd *cobra.Command, _ []string) error {
 	// Parse flags
 	specificRepo, _ := cmd.Flags().GetString("repo")
 	verbose, _ := cmd.Flags().GetBool("verbose")
-	compareModels, _ := cmd.Flags().GetBool("compare-models")
 	batchSize, _ := cmd.Flags().GetInt("batch-size")
 	force, _ := cmd.Flags().GetBool("force")
 
@@ -163,7 +160,7 @@ func runSync(ctx context.Context, cmd *cobra.Command, _ []string) error {
 
 	// Handle specific repository sync
 	if specificRepo != "" {
-		return syncService.syncSpecificRepository(ctx, specificRepo, compareModels)
+		return syncService.syncSpecificRepository(ctx, specificRepo)
 	}
 
 	// Perform full sync
@@ -185,43 +182,6 @@ func initializeSyncService(cfg *config.Config, verbose bool) (*SyncService, erro
 		return nil, fmt.Errorf("failed to create storage repository: %w", err)
 	}
 
-	// Initialize LLM service (optional)
-	var llmService processor.LLMService
-
-	if cfg.LLM.DefaultProvider != "" {
-		llmManager := llm.NewManager(llm.DefaultManagerConfig())
-
-		// Register available providers with default configs
-		defaultConfig := llm.Config{Provider: llm.ProviderOpenAI, Model: llm.ModelGPT35Turbo}
-		if err := llmManager.RegisterProvider(llm.ProviderOpenAI, llm.NewClient(defaultConfig)); err != nil {
-			fmt.Printf("Warning: Failed to register OpenAI provider: %v\n", err)
-		}
-
-		defaultConfig.Provider = llm.ProviderAnthropic
-		defaultConfig.Model = llm.ModelClaude3
-
-		if err := llmManager.RegisterProvider(llm.ProviderAnthropic, llm.NewClient(defaultConfig)); err != nil {
-			fmt.Printf("Warning: Failed to register Anthropic provider: %v\n", err)
-		}
-
-		defaultConfig.Provider = llm.ProviderLocal
-		defaultConfig.Model = llm.ModelLlama2
-
-		if err := llmManager.RegisterProvider(llm.ProviderLocal, llm.NewClient(defaultConfig)); err != nil {
-			fmt.Printf("Warning: Failed to register Local provider: %v\n", err)
-		}
-
-		// Configure the default provider
-		if llmConfig, exists := cfg.LLM.Providers[cfg.LLM.DefaultProvider]; exists {
-			if err := llmManager.Configure(llmConfig); err != nil {
-				fmt.Printf("Warning: Failed to configure LLM service: %v\n", err)
-				fmt.Println("Continuing with basic content processing...")
-			} else {
-				llmService = &llmServiceAdapter{manager: llmManager}
-			}
-		}
-	}
-
 	// Initialize cache
 	var fileCache *cache.FileCache
 	if cfg.Cache.Directory != "" {
@@ -240,9 +200,9 @@ func initializeSyncService(cfg *config.Config, verbose bool) (*SyncService, erro
 	// Initialize processor with cache
 	var processorService processor.Service
 	if fileCache != nil {
-		processorService = processor.NewServiceWithCache(githubClient, llmService, fileCache)
+		processorService = processor.NewServiceWithCache(githubClient, fileCache)
 	} else {
-		processorService = processor.NewService(githubClient, llmService)
+		processorService = processor.NewService(githubClient)
 	}
 
 	// Initialize memory monitoring
@@ -268,7 +228,7 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 	// Create a new memory monitor for this sync operation to avoid channel reuse issues
 	memMonitor := monitor.NewMemoryMonitor(500, 5*time.Minute)
 	memOptimizer := monitor.NewMemoryOptimizer(memMonitor)
-	
+
 	// Start memory monitoring
 	memMonitor.Start(ctx, 30*time.Second)
 	defer memMonitor.Stop()
@@ -335,14 +295,14 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 
 	// Final memory optimization
 	memMonitor.OptimizeMemory()
-	
+
 	s.printSyncSummary(stats)
 	s.logVerbose(fmt.Sprintf("Final memory stats:\n%s", memMonitor.GetFormattedStats()))
 
 	return nil
 }
 
-func (s *SyncService) syncSpecificRepository(ctx context.Context, repoName string, compareModels bool) error {
+func (s *SyncService) syncSpecificRepository(ctx context.Context, repoName string) error {
 	s.logVerbose("Syncing specific repository: " + repoName)
 
 	// Fetch the specific repository
@@ -364,61 +324,7 @@ func (s *SyncService) syncSpecificRepository(ctx context.Context, repoName strin
 		return fmt.Errorf("repository %s not found in starred repositories", repoName)
 	}
 
-	if compareModels {
-		return s.compareModelsForRepository(ctx, *targetRepo)
-	}
-
 	return s.processRepository(ctx, *targetRepo, true)
-}
-
-func (s *SyncService) compareModelsForRepository(ctx context.Context, repo github.Repository) error {
-	fmt.Printf("Comparing LLM models for repository: %s\n", repo.FullName)
-
-	// Extract content first
-	content, err := s.processor.ExtractContent(ctx, repo)
-	if err != nil {
-		return fmt.Errorf("failed to extract content: %w", err)
-	}
-
-	// Test different LLM providers
-	providers := []string{llm.ProviderOpenAI, llm.ProviderAnthropic, llm.ProviderLocal}
-
-	for _, provider := range providers {
-		fmt.Printf("\n--- Testing %s ---\n", provider)
-
-		// Create processor with specific provider
-		llmManager := llm.NewManager(llm.DefaultManagerConfig())
-
-		// Register and configure the provider
-		defaultConfig := llm.Config{Provider: provider, Model: llm.ModelGPT35Turbo}
-		if err := llmManager.RegisterProvider(provider, llm.NewClient(defaultConfig)); err != nil {
-			fmt.Printf("Skipping %s: failed to register: %v\n", provider, err)
-			continue
-		}
-
-		if llmConfig, exists := s.config.LLM.Providers[provider]; exists {
-			if err := llmManager.Configure(llmConfig); err != nil {
-				fmt.Printf("Skipping %s: failed to configure: %v\n", provider, err)
-				continue
-			}
-		}
-
-		processorService := processor.NewService(s.githubClient, &llmServiceAdapter{manager: llmManager})
-
-		// Process repository
-		processed, err := processorService.ProcessRepository(ctx, repo, content)
-		if err != nil {
-			fmt.Printf("Error with %s: %v\n", provider, err)
-			continue
-		}
-
-		// Display results
-		fmt.Printf("Purpose: %s\n", processed.Summary.Purpose)
-		fmt.Printf("Technologies: %v\n", processed.Summary.Technologies)
-		fmt.Printf("Features: %v\n", processed.Summary.Features)
-	}
-
-	return nil
 }
 
 type syncOperations struct {
@@ -699,19 +605,19 @@ func (s *SyncService) processRepositoriesInBatchesWithForceAndMonitor(ctx contex
 func (s *SyncService) processBatch(ctx context.Context, batch []github.Repository, stats *SyncStats, progress *ProgressTracker, isNewRepo map[string]bool, forceUpdate bool) error {
 	// Determine optimal concurrency based on batch size and system resources
 	maxWorkers := s.calculateOptimalWorkers(len(batch))
-	
+
 	// Create worker pool for parallel processing
 	jobs := make(chan github.Repository, len(batch))
 	results := make(chan *ProcessResult, len(batch))
 	errors := make(chan error, len(batch))
-	
+
 	// Start workers
 	var wg sync.WaitGroup
 	for i := 0; i < maxWorkers; i++ {
 		wg.Add(1)
 		go s.processWorker(ctx, jobs, results, errors, &wg, progress, isNewRepo, forceUpdate)
 	}
-	
+
 	// Send jobs to workers
 	go func() {
 		defer close(jobs)
@@ -723,53 +629,53 @@ func (s *SyncService) processBatch(ctx context.Context, batch []github.Repositor
 			}
 		}
 	}()
-	
+
 	// Wait for all workers to complete
 	go func() {
 		wg.Wait()
 		close(results)
 		close(errors)
 	}()
-	
+
 	// Collect results
 	processedCount := 0
 	errorCount := 0
-	
-	for processedCount + errorCount < len(batch) {
+
+	for processedCount+errorCount < len(batch) {
 		select {
 		case result := <-results:
 			if result != nil {
 				stats.SafeIncrement("processed")
-				
+
 				// Track the type of operation based on result
 				if result.IsNew {
 					stats.SafeIncrement("new")
 				} else {
 					stats.SafeIncrement("updated")
-					
+
 					if result.ContentChanged {
 						stats.SafeIncrement("content_changes")
 					}
-					
+
 					if result.MetadataChanged {
 						stats.SafeIncrement("metadata_changes")
 					}
 				}
 			}
 			processedCount++
-			
+
 		case err := <-errors:
 			if err != nil {
 				s.logVerbose(fmt.Sprintf("Worker error: %v", err))
 				stats.SafeIncrement("error")
 			}
 			errorCount++
-			
+
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
-	
+
 	return nil
 }
 
@@ -781,19 +687,19 @@ func (s *SyncService) processRepositoriesInBatchesWithForce(ctx context.Context,
 // processWorker processes repositories in parallel
 func (s *SyncService) processWorker(ctx context.Context, jobs <-chan github.Repository, results chan<- *ProcessResult, errors chan<- error, wg *sync.WaitGroup, progress *ProgressTracker, isNewRepo map[string]bool, forceUpdate bool) {
 	defer wg.Done()
-	
+
 	for {
 		select {
 		case repo, ok := <-jobs:
 			if !ok {
 				return // No more jobs
 			}
-			
+
 			progress.Update(repo.FullName)
-			
+
 			// Get existing repository to track changes
 			existing, _ := s.storage.GetRepository(ctx, repo.FullName)
-			
+
 			result, err := s.processRepositoryWithChangeTrackingAndForce(ctx, repo, existing, false, forceUpdate)
 			if err != nil {
 				s.logVerbose(fmt.Sprintf("Failed to process %s: %v", repo.FullName, err))
@@ -805,10 +711,10 @@ func (s *SyncService) processWorker(ctx context.Context, jobs <-chan github.Repo
 				}
 				results <- result
 			}
-			
+
 			// Rate limiting - small delay between repositories
 			time.Sleep(100 * time.Millisecond)
-			
+
 		case <-ctx.Done():
 			errors <- ctx.Err()
 			return
@@ -820,7 +726,7 @@ func (s *SyncService) processWorker(ctx context.Context, jobs <-chan github.Repo
 func (s *SyncService) calculateOptimalWorkers(batchSize int) int {
 	// Base the number of workers on CPU count and batch size
 	cpuCount := runtime.NumCPU()
-	
+
 	// For small batches, use fewer workers to avoid overhead
 	if batchSize <= 5 {
 		return 1
@@ -1063,27 +969,4 @@ func expandPath(path string) string {
 	}
 
 	return path
-}
-
-// llmServiceAdapter adapts the llm.Manager to implement processor.LLMService
-type llmServiceAdapter struct {
-	manager *llm.Manager
-}
-
-func (a *llmServiceAdapter) Summarize(ctx context.Context, prompt string, content string) (*processor.SummaryResponse, error) {
-	response, err := a.manager.Summarize(ctx, prompt, content)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert llm.SummaryResponse to processor.SummaryResponse
-	return &processor.SummaryResponse{
-		Purpose:      response.Purpose,
-		Technologies: response.Technologies,
-		UseCases:     response.UseCases,
-		Features:     response.Features,
-		Installation: response.Installation,
-		Usage:        response.Usage,
-		Confidence:   response.Confidence,
-	}, nil
 }

@@ -15,7 +15,7 @@ These foundational capabilities remain valid and are retained (no rework unless 
 LLM, NL query parser, and wide content extraction pieces are now deprecated (see Changes section).
 
 ## Phase 2 – Simplification & New Core Features (Pending)
-- [ ] 1. Remove Legacy NL & LLM Code
+- [x] 1. Remove Legacy NL & LLM Code
    - Delete / archive `internal/llm/` and NL query parser code & references.
    - Strip interactive SQL editing & confidence scoring paths.
    - Ensure build passes after removal; add deprecation note in CHANGELOG (if present).

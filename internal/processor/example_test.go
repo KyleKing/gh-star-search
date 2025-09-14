@@ -13,21 +13,6 @@ import (
 // mockClient implements the GitHubClient interface for examples
 type mockClient struct{}
 
-// mockLLMService implements LLMService for examples
-type mockLLMService struct{}
-
-func (m *mockLLMService) Summarize(_ context.Context, _ string, _ string) (*processor.SummaryResponse, error) {
-	return &processor.SummaryResponse{
-		Purpose:      "A RESTful API for web applications built with Go.",
-		Technologies: []string{"Go"},
-		UseCases:     []string{},
-		Features:     []string{},
-		Installation: "",
-		Usage:        "",
-		Confidence:   0.8,
-	}, nil
-}
-
 func (m *mockClient) GetRepositoryContent(ctx context.Context, repo github.Repository, paths []string) ([]github.Content, error) {
 	// Return sample content for demonstration
 	readmeContent := `# Example Project
@@ -63,8 +48,7 @@ func ExampleService_ProcessRepository() {
 
 	// Create processor service with mock client
 	client := &mockClient{}
-	llmService := &mockLLMService{}
-	service := processor.NewService(client, llmService)
+	service := processor.NewService(client)
 
 	// Extract content from repository
 	ctx := context.Background()
@@ -117,7 +101,7 @@ func ExampleService_GenerateSummary() {
 	}
 
 	// Create service and generate summary
-	service := processor.NewService(&mockClient{}, &mockLLMService{})
+	service := processor.NewService(&mockClient{})
 	ctx := context.Background()
 
 	summary, err := service.GenerateSummary(ctx, chunks)

@@ -12,7 +12,7 @@ import (
 
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
-	
+
 	assert.NotNil(t, cfg)
 	assert.Equal(t, "~/.config/gh-star-search/database.db", cfg.Database.Path)
 	assert.Equal(t, 10, cfg.Database.MaxConnections)
@@ -27,7 +27,7 @@ func TestLoadConfigFromFile(t *testing.T) {
 	// Create temporary config file
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
-	
+
 	testConfig := map[string]interface{}{
 		"database": map[string]interface{}{
 			"path":            "/custom/path/db.db",
@@ -45,18 +45,18 @@ func TestLoadConfigFromFile(t *testing.T) {
 			"verbose": true,
 		},
 	}
-	
+
 	data, err := json.MarshalIndent(testConfig, "", "  ")
 	require.NoError(t, err)
-	
+
 	err = os.WriteFile(configPath, data, 0644)
 	require.NoError(t, err)
-	
+
 	// Test loading
 	config := DefaultConfig()
 	err = loadConfigFromFile(config, configPath)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, "/custom/path/db.db", config.Database.Path)
 	assert.Equal(t, 20, config.Database.MaxConnections)
 	assert.Equal(t, "60s", config.Database.QueryTimeout)
@@ -72,10 +72,10 @@ func TestLoadConfigFromFileInvalidJSON(t *testing.T) {
 	// Create temporary config file with invalid JSON
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
-	
+
 	err := os.WriteFile(configPath, []byte("invalid json"), 0644)
 	require.NoError(t, err)
-	
+
 	config := DefaultConfig()
 	err = loadConfigFromFile(config, configPath)
 	assert.Error(t, err)
@@ -85,42 +85,36 @@ func TestLoadConfigFromFileInvalidJSON(t *testing.T) {
 func TestApplyEnvironmentOverrides(t *testing.T) {
 	// Set environment variables
 	envVars := map[string]string{
-		"GH_STAR_SEARCH_DB_PATH":                "/env/db/path.db",
-		"GH_STAR_SEARCH_DB_MAX_CONNECTIONS":     "15",
-		"GH_STAR_SEARCH_DB_QUERY_TIMEOUT":       "45s",
-		"GH_STAR_SEARCH_LLM_PROVIDER":           "anthropic",
-		"GH_STAR_SEARCH_LLM_MAX_TOKENS":         "4000",
-		"GH_STAR_SEARCH_LLM_TEMPERATURE":        "0.5",
-		"GH_STAR_SEARCH_GITHUB_RATE_LIMIT":      "10000",
-		"GH_STAR_SEARCH_GITHUB_RETRY_ATTEMPTS":  "5",
-		"GH_STAR_SEARCH_GITHUB_TIMEOUT":         "60s",
-		"GH_STAR_SEARCH_CACHE_DIR":              "/env/cache",
-		"GH_STAR_SEARCH_CACHE_MAX_SIZE_MB":      "1000",
-		"GH_STAR_SEARCH_CACHE_TTL_HOURS":        "48",
-		"GH_STAR_SEARCH_LOG_LEVEL":              "warn",
-		"GH_STAR_SEARCH_LOG_FORMAT":             "json",
-		"GH_STAR_SEARCH_LOG_OUTPUT":             "stderr",
-		"GH_STAR_SEARCH_LOG_FILE":               "/env/log/app.log",
-		"GH_STAR_SEARCH_DEBUG":                  "true",
-		"GH_STAR_SEARCH_VERBOSE":                "true",
+		"GH_STAR_SEARCH_DB_PATH":               "/env/db/path.db",
+		"GH_STAR_SEARCH_DB_MAX_CONNECTIONS":    "15",
+		"GH_STAR_SEARCH_DB_QUERY_TIMEOUT":      "45s",
+		"GH_STAR_SEARCH_GITHUB_RATE_LIMIT":     "10000",
+		"GH_STAR_SEARCH_GITHUB_RETRY_ATTEMPTS": "5",
+		"GH_STAR_SEARCH_GITHUB_TIMEOUT":        "60s",
+		"GH_STAR_SEARCH_CACHE_DIR":             "/env/cache",
+		"GH_STAR_SEARCH_CACHE_MAX_SIZE_MB":     "1000",
+		"GH_STAR_SEARCH_CACHE_TTL_HOURS":       "48",
+		"GH_STAR_SEARCH_LOG_LEVEL":             "warn",
+		"GH_STAR_SEARCH_LOG_FORMAT":            "json",
+		"GH_STAR_SEARCH_LOG_OUTPUT":            "stderr",
+		"GH_STAR_SEARCH_LOG_FILE":              "/env/log/app.log",
+		"GH_STAR_SEARCH_DEBUG":                 "true",
+		"GH_STAR_SEARCH_VERBOSE":               "true",
 	}
-	
+
 	// Set environment variables
 	for key, value := range envVars {
 		t.Setenv(key, value)
 	}
-	
+
 	config := DefaultConfig()
 	err := applyEnvironmentOverrides(config)
 	require.NoError(t, err)
-	
+
 	// Verify overrides were applied
 	assert.Equal(t, "/env/db/path.db", config.Database.Path)
 	assert.Equal(t, 15, config.Database.MaxConnections)
 	assert.Equal(t, "45s", config.Database.QueryTimeout)
-	assert.Equal(t, "anthropic", config.LLM.DefaultProvider)
-	assert.Equal(t, 4000, config.LLM.MaxTokens)
-	assert.Equal(t, 0.5, config.LLM.Temperature)
 	assert.Equal(t, 10000, config.GitHub.RateLimit)
 	assert.Equal(t, 5, config.GitHub.RetryAttempts)
 	assert.Equal(t, "60s", config.GitHub.Timeout)
@@ -137,7 +131,7 @@ func TestApplyEnvironmentOverrides(t *testing.T) {
 
 func TestApplyFlagOverrides(t *testing.T) {
 	config := DefaultConfig()
-	
+
 	overrides := map[string]interface{}{
 		"db-path":   "/flag/db/path.db",
 		"log-level": "error",
@@ -145,10 +139,10 @@ func TestApplyFlagOverrides(t *testing.T) {
 		"debug":     true,
 		"cache-dir": "/flag/cache",
 	}
-	
+
 	err := applyFlagOverrides(config, overrides)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, "/flag/db/path.db", config.Database.Path)
 	assert.Equal(t, "error", config.Logging.Level)
 	assert.True(t, config.Debug.Verbose)
@@ -158,9 +152,9 @@ func TestApplyFlagOverrides(t *testing.T) {
 
 func TestValidateConfig(t *testing.T) {
 	tests := []struct {
-		name        string
-		modifyConfig func(*Config)
-		expectError bool
+		name          string
+		modifyConfig  func(*Config)
+		expectError   bool
 		errorContains string
 	}{
 		{
@@ -175,7 +169,7 @@ func TestValidateConfig(t *testing.T) {
 			modifyConfig: func(c *Config) {
 				c.Logging.Level = "invalid"
 			},
-			expectError: true,
+			expectError:   true,
 			errorContains: "invalid log level",
 		},
 		{
@@ -183,7 +177,7 @@ func TestValidateConfig(t *testing.T) {
 			modifyConfig: func(c *Config) {
 				c.Logging.Format = "invalid"
 			},
-			expectError: true,
+			expectError:   true,
 			errorContains: "invalid log format",
 		},
 		{
@@ -191,7 +185,7 @@ func TestValidateConfig(t *testing.T) {
 			modifyConfig: func(c *Config) {
 				c.Logging.Output = "invalid"
 			},
-			expectError: true,
+			expectError:   true,
 			errorContains: "invalid log output",
 		},
 		{
@@ -199,7 +193,7 @@ func TestValidateConfig(t *testing.T) {
 			modifyConfig: func(c *Config) {
 				c.Database.QueryTimeout = "invalid"
 			},
-			expectError: true,
+			expectError:   true,
 			errorContains: "invalid database query timeout",
 		},
 		{
@@ -207,7 +201,7 @@ func TestValidateConfig(t *testing.T) {
 			modifyConfig: func(c *Config) {
 				c.GitHub.Timeout = "invalid"
 			},
-			expectError: true,
+			expectError:   true,
 			errorContains: "invalid GitHub timeout",
 		},
 		{
@@ -215,7 +209,7 @@ func TestValidateConfig(t *testing.T) {
 			modifyConfig: func(c *Config) {
 				c.Cache.CleanupFreq = "invalid"
 			},
-			expectError: true,
+			expectError:   true,
 			errorContains: "invalid cache cleanup frequency",
 		},
 		{
@@ -223,31 +217,15 @@ func TestValidateConfig(t *testing.T) {
 			modifyConfig: func(c *Config) {
 				c.Database.MaxConnections = -1
 			},
-			expectError: true,
+			expectError:   true,
 			errorContains: "database max connections must be positive",
-		},
-		{
-			name: "invalid max tokens",
-			modifyConfig: func(c *Config) {
-				c.LLM.MaxTokens = -1
-			},
-			expectError: true,
-			errorContains: "LLM max tokens must be positive",
-		},
-		{
-			name: "invalid temperature",
-			modifyConfig: func(c *Config) {
-				c.LLM.Temperature = 3.0
-			},
-			expectError: true,
-			errorContains: "LLM temperature must be between 0 and 2",
 		},
 		{
 			name: "invalid rate limit",
 			modifyConfig: func(c *Config) {
 				c.GitHub.RateLimit = -1
 			},
-			expectError: true,
+			expectError:   true,
 			errorContains: "GitHub rate limit must be positive",
 		},
 		{
@@ -255,16 +233,16 @@ func TestValidateConfig(t *testing.T) {
 			modifyConfig: func(c *Config) {
 				c.GitHub.RetryAttempts = -1
 			},
-			expectError: true,
+			expectError:   true,
 			errorContains: "GitHub retry attempts must be non-negative",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := DefaultConfig()
 			tt.modifyConfig(config)
-			
+
 			err := validateConfig(config)
 			if tt.expectError {
 				assert.Error(t, err)
@@ -305,7 +283,7 @@ func TestExpandPath(t *testing.T) {
 			expected: filepath.Join(os.Getenv("HOME"), "config/file.json"),
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := expandPath(tt.input)
@@ -330,14 +308,14 @@ func TestConfigExpandAllPaths(t *testing.T) {
 			File: "~/logs/app.log",
 		},
 	}
-	
+
 	config.ExpandAllPaths()
-	
+
 	homeDir := os.Getenv("HOME")
 	if homeDir == "" {
 		t.Skip("HOME environment variable not set")
 	}
-	
+
 	assert.Equal(t, filepath.Join(homeDir, "db/test.db"), config.Database.Path)
 	assert.Equal(t, filepath.Join(homeDir, "cache"), config.Cache.Directory)
 	assert.Equal(t, filepath.Join(homeDir, "logs/app.log"), config.Logging.File)
@@ -347,22 +325,22 @@ func TestSaveConfig(t *testing.T) {
 	// Use a temporary config path to avoid interference with other tests
 	tempConfigPath := filepath.Join(t.TempDir(), "test_config.json")
 	t.Setenv("GH_STAR_SEARCH_CONFIG", tempConfigPath)
-	
+
 	config := DefaultConfig()
 	config.Database.Path = "/custom/path"
 	config.Logging.Level = "debug"
-	
+
 	err := SaveConfig(config)
 	require.NoError(t, err)
-	
+
 	// Verify file was created and contains expected data
 	data, err := os.ReadFile(tempConfigPath)
 	require.NoError(t, err)
-	
+
 	var loadedConfig Config
 	err = json.Unmarshal(data, &loadedConfig)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, config.Database.Path, loadedConfig.Database.Path)
 	assert.Equal(t, config.Logging.Level, loadedConfig.Logging.Level)
 }
@@ -372,7 +350,7 @@ func TestLoadConfigWithOverrides(t *testing.T) {
 	originalConfigPath := os.Getenv("GH_STAR_SEARCH_CONFIG")
 	tempConfigPath := filepath.Join(t.TempDir(), "test_config.json")
 	t.Setenv("GH_STAR_SEARCH_CONFIG", tempConfigPath)
-	
+
 	// Restore original config path after test
 	defer func() {
 		if originalConfigPath != "" {
@@ -381,11 +359,11 @@ func TestLoadConfigWithOverrides(t *testing.T) {
 			os.Unsetenv("GH_STAR_SEARCH_CONFIG")
 		}
 	}()
-	
+
 	// Test with no config file and no overrides
 	config, err := LoadConfigWithOverrides(nil)
 	require.NoError(t, err)
-	
+
 	// Should return default config
 	defaultConfig := DefaultConfig()
 	assert.Equal(t, defaultConfig.Database.Path, config.Database.Path)
@@ -396,16 +374,16 @@ func TestMergeConfigs(t *testing.T) {
 	target := DefaultConfig()
 	source := &Config{
 		Database: DatabaseConfig{
-			Path: "/new/path",
+			Path:           "/new/path",
 			MaxConnections: 25,
 		},
 		Logging: LoggingConfig{
 			Level: "debug",
 		},
 	}
-	
+
 	mergeConfigs(target, source)
-	
+
 	assert.Equal(t, "/new/path", target.Database.Path)
 	assert.Equal(t, 25, target.Database.MaxConnections)
 	assert.Equal(t, "debug", target.Logging.Level)

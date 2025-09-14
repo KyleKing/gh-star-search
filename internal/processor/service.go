@@ -82,26 +82,9 @@ type GitHubClient interface {
 	GetRepositoryContent(ctx context.Context, repo github.Repository, paths []string) ([]github.Content, error)
 }
 
-// LLMService interface for content summarization
-type LLMService interface {
-	Summarize(ctx context.Context, prompt string, content string) (*SummaryResponse, error)
-}
-
-// SummaryResponse represents the response from LLM summarization
-type SummaryResponse struct {
-	Purpose      string   `json:"purpose"`
-	Technologies []string `json:"technologies"`
-	UseCases     []string `json:"use_cases"`
-	Features     []string `json:"features"`
-	Installation string   `json:"installation"`
-	Usage        string   `json:"usage"`
-	Confidence   float64  `json:"confidence"`
-}
-
 // serviceImpl implements the Service interface
 type serviceImpl struct {
 	githubClient GitHubClient
-	llmService   LLMService
 	cache        ContentCache
 }
 
@@ -112,18 +95,16 @@ type ContentCache interface {
 }
 
 // NewService creates a new processor service
-func NewService(githubClient GitHubClient, llmService LLMService) Service {
+func NewService(githubClient GitHubClient) Service {
 	return &serviceImpl{
 		githubClient: githubClient,
-		llmService:   llmService,
 	}
 }
 
 // NewServiceWithCache creates a new processor service with caching
-func NewServiceWithCache(githubClient GitHubClient, llmService LLMService, cache ContentCache) Service {
+func NewServiceWithCache(githubClient GitHubClient, cache ContentCache) Service {
 	return &serviceImpl{
 		githubClient: githubClient,
-		llmService:   llmService,
 		cache:        cache,
 	}
 }
@@ -162,7 +143,7 @@ func (s *serviceImpl) ExtractContent(ctx context.Context, repo github.Repository
 	// Try to get content from cache first
 	if s.cache != nil {
 		cacheKey := fmt.Sprintf("content:%s:%s", repo.FullName, repo.UpdatedAt.Format(time.RFC3339))
-		
+
 		if cachedData, err := s.cache.Get(ctx, cacheKey); err == nil {
 			var content []github.Content
 			if err := json.Unmarshal(cachedData, &content); err == nil {
@@ -195,39 +176,9 @@ func (s *serviceImpl) ExtractContent(ctx context.Context, repo github.Repository
 	return filteredContent, nil
 }
 
-// GenerateSummary generates a summary using the LLM service with fallback to basic analysis
+// GenerateSummary generates a basic summary from content chunks
 func (s *serviceImpl) GenerateSummary(ctx context.Context, chunks []ContentChunk) (*Summary, error) {
-	if s.llmService == nil {
-		// Fallback to basic summary if no LLM service available
-		return s.generateBasicSummary(chunks), nil
-	}
-
-	// Prepare content for LLM processing
-	content := s.prepareContentForLLM(chunks)
-	if content == "" {
-		// If no content to process, return basic summary
-		return s.generateBasicSummary(chunks), nil
-	}
-
-	// Use LLM service to generate summary
-	llmResponse, err := s.llmService.Summarize(ctx, "", content)
-	if err != nil {
-		// Fallback to basic summary on LLM error
-		fmt.Printf("LLM summarization failed, using fallback: %v\n", err)
-		return s.generateBasicSummary(chunks), nil
-	}
-
-	// Convert LLM response to our Summary format
-	summary := &Summary{
-		Purpose:      llmResponse.Purpose,
-		Technologies: llmResponse.Technologies,
-		UseCases:     llmResponse.UseCases,
-		Features:     llmResponse.Features,
-		Installation: llmResponse.Installation,
-		Usage:        llmResponse.Usage,
-	}
-
-	return summary, nil
+	return s.generateBasicSummary(chunks), nil
 }
 
 // extractAndChunkContent processes repository content into chunks

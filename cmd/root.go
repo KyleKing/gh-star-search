@@ -38,10 +38,10 @@ content from your starred repositories.`,
 
 func Execute() error {
 	ctx := context.Background()
-	
+
 	// Set up fallback logger in case initialization fails
 	logging.SetupFallbackLogger()
-	
+
 	err := rootCmd.ExecuteContext(ctx)
 	if err != nil {
 		// Handle structured errors with user-friendly messages
@@ -52,7 +52,7 @@ func Execute() error {
 		}
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -67,7 +67,6 @@ func init() {
 
 	// Add subcommands
 	rootCmd.AddCommand(syncCmd)
-	rootCmd.AddCommand(queryCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(infoCmd)
 	rootCmd.AddCommand(statsCmd)
@@ -78,7 +77,7 @@ func init() {
 func initializeGlobalConfig(cmd *cobra.Command) error {
 	// Prepare flag overrides
 	flagOverrides := make(map[string]interface{})
-	
+
 	if logLevel != "" {
 		flagOverrides["log-level"] = logLevel
 	}
@@ -122,12 +121,12 @@ func initializeGlobalConfig(cmd *cobra.Command) error {
 		"version": getVersion(),
 		"config":  cfg.Database.Path,
 	})
-	
+
 	if cfg.Debug.Enabled {
 		logger.Debug("Debug mode enabled")
 		logger.Debugf("Configuration loaded: %+v", cfg)
 	}
-	
+
 	logger.Info("gh-star-search starting")
 
 	// Store config in context for subcommands
@@ -140,29 +139,29 @@ func initializeGlobalConfig(cmd *cobra.Command) error {
 // printStructuredError prints a user-friendly error message
 func printStructuredError(err *errors.Error) {
 	fmt.Fprintf(os.Stderr, "Error: %s\n", err.Message)
-	
+
 	if err.Code != "" {
 		fmt.Fprintf(os.Stderr, "Code: %s\n", err.Code)
 	}
-	
+
 	if len(err.Context) > 0 {
 		fmt.Fprintf(os.Stderr, "Context:\n")
 		for k, v := range err.Context {
 			fmt.Fprintf(os.Stderr, "  %s: %v\n", k, v)
 		}
 	}
-	
+
 	if len(err.Suggestions) > 0 {
 		fmt.Fprintf(os.Stderr, "\nSuggestions:\n")
 		for _, suggestion := range err.Suggestions {
 			fmt.Fprintf(os.Stderr, "  • %s\n", suggestion)
 		}
 	}
-	
+
 	if err.Cause != nil && debug {
 		fmt.Fprintf(os.Stderr, "\nUnderlying error: %v\n", err.Cause)
 	}
-	
+
 	if err.Stack != "" && debug {
 		fmt.Fprintf(os.Stderr, "\nStack trace:\n%s\n", err.Stack)
 	}

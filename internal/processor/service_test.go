@@ -23,45 +23,9 @@ func (m *mockGitHubClient) GetRepositoryContent(_ context.Context, _ github.Repo
 	return m.content, nil
 }
 
-// mockLLMService implements LLMService for testing
-type mockLLMService struct {
-	response *SummaryResponse
-	err      error
-}
-
-func (m *mockLLMService) Summarize(_ context.Context, _ string, _ string) (*SummaryResponse, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-
-	if m.response != nil {
-		return m.response, nil
-	}
-
-	return &SummaryResponse{
-		Purpose:      "Mock summary purpose",
-		Technologies: []string{"Go", "Testing"},
-		UseCases:     []string{"Unit Testing"},
-		Features:     []string{"Mock Feature"},
-		Installation: "go get example.com/mock",
-		Usage:        "mock usage",
-		Confidence:   0.9,
-	}, nil
-}
-
 func TestNewService(t *testing.T) {
 	client := &mockGitHubClient{}
-	llmService := &mockLLMService{}
-	service := NewService(client, llmService)
-
-	if service == nil {
-		t.Fatal("NewService returned nil")
-	}
-}
-
-func TestNewServiceWithNilLLM(t *testing.T) {
-	client := &mockGitHubClient{}
-	service := NewService(client, nil)
+	service := NewService(client)
 
 	if service == nil {
 		t.Fatal("NewService returned nil")
@@ -347,8 +311,7 @@ Run go install.`))
 
 	// Create service with mock client
 	client := &mockGitHubClient{content: content}
-	llmService := &mockLLMService{}
-	service := NewService(client, llmService)
+	service := NewService(client)
 
 	// Process repository
 	ctx := context.Background()
@@ -392,8 +355,7 @@ func TestExtractContent(t *testing.T) {
 	}
 
 	client := &mockGitHubClient{content: content}
-	llmService := &mockLLMService{}
-	service := NewService(client, llmService)
+	service := NewService(client)
 
 	ctx := context.Background()
 	extracted, err := service.ExtractContent(ctx, repo)
