@@ -1,109 +1,127 @@
-# Implementation Plan
+# Implementation Plan (Simplified Architecture Update 2025-09-14)
 
-- [x] 1. Set up project structure and core interfaces
-  - Create Go module with proper directory structure following GitHub CLI extension patterns
-  - Define core interfaces for GitHub client, storage, processor, and query components
-  - Set up basic CLI command structure using cobra or similar CLI framework
-  - _Requirements: 3.1, 3.3_
+This plan supersedes the prior (legacy) task list to align with `new.md` and the updated design (`design.md`). Natural language → SQL parsing, LLM summarization, broad repository crawling, and chunk-level embeddings are removed or deferred. The focus now: minimal ingestion, deterministic transformers-based summaries, dual-mode (fuzzy/vector) search, and a Related engine with explainable scoring.
 
-- [x] 2. Implement GitHub API client with authentication
-  - Create GitHub client interface and implementation using go-gh library
-  - Implement repository fetching with pagination and rate limiting
-  - Add authentication integration with existing GitHub CLI credentials
-  - Write unit tests for GitHub client with mocked API responses
-  - _Requirements: 1.1, 1.8, 3.2_
+## Completed (Legacy Foundation)
+These foundational capabilities remain valid and are retained (no rework unless noted):
+- [x] Project structure & core interfaces (CLI skeleton, basic layering)
+- [x] GitHub client (starred repos, basic metadata fetch, auth)
+- [x] Initial DuckDB storage (baseline repo table)
+- [x] Sync command (incremental detection, hashing, parallel fetch basics)
+- [x] Repository management commands (`list`, `info`, `stats`, `clear`)
+- [x] Configuration & logging framework, error handling baseline
+- [x] Basic caching & performance primitives (parallelism, hashing)
 
-- [x] 3. Create DuckDB storage layer with schema
-  - Implement database connection and initialization logic
-  - Create repository and content_chunks table schemas with UUID primary keys and proper indexes
-  - Implement basic CRUD operations for repository storage using UUIDs instead of sequential integers
-  - Add database migration support for schema changes
-  - Write unit tests for storage operations
-  - _Requirements: 1.5, 6.1, 6.3_
+LLM, NL query parser, and wide content extraction pieces are now deprecated (see Changes section).
 
-- [x] 4. Build content extraction and processing pipeline
-  - Implement content extraction logic for README, docs, and code files
-  - Create content chunking algorithm with token limits and prioritization
-  - Add file type detection and content filtering logic
-  - Write unit tests for content extraction with sample repository data
-  - _Requirements: 1.3, 7.1, 7.2, 7.3, 7.6_
+## Phase 2 – Simplification & New Core Features (Pending)
+- [ ] 1. Remove Legacy NL & LLM Code
+   - Delete / archive `internal/llm/` and NL query parser code & references.
+   - Strip interactive SQL editing & confidence scoring paths.
+   - Ensure build passes after removal; add deprecation note in CHANGELOG (if present).
 
-- [x] 5. Integrate LLM service for content summarization
-  - Create LLM service interface supporting multiple providers (OpenAI, Anthropic, local)
-  - Implement content summarization with structured output parsing
-  - Add configuration management for LLM provider settings
-  - Implement error handling and fallback strategies for LLM failures
-  - Write unit tests for LLM integration with mocked responses
-  - _Requirements: 1.4, 7.4, 7.5_
+- [ ] 2. Storage Schema Update
+   - Add activity & metrics fields (issues/prs counts, commit activity, contributor/topic arrays, languages JSON, summary & embedding columns, related counts as derivable not stored).
+   - Remove / do not recreate `content_chunks` table (unless future re-enabled).
+   - Add `repo_embedding FLOAT[384]`, summary fields, `content_hash`.
+   - Provide lightweight migration: detect old schema -> prompt auto rebuild (delete DB) or run additive ALTERs if feasible.
 
-- [x] 6. Implement sync command with incremental updates
-  - Create sync command that fetches and processes starred repositories
-  - Implement incremental sync logic to detect new, updated, and removed repositories
-  - Add progress indicators and batch processing for large repository sets
-  - Implement content change detection using hashing
-  - Write integration tests for complete sync workflow
-  - _Requirements: 1.1, 1.2, 1.5, 1.6, 1.7, 4.1, 4.2, 4.3, 4.4, 6.1, 6.5_
+- [ ] 3. Minimal Content Extraction
+   - Fetch only: Description, main README, optional `docs/README.md`, optional single homepage URL text.
+   - Compute deterministic `content_hash` (ordered sources) for change detection (not auto-forcing summary regeneration).
 
-- [x] 7. Build natural language query parser
-  - Create query parser interface that converts natural language to DuckDB SQL
-  - Implement LLM-based query parsing with database schema context
-  - Add query validation and safety checks to prevent malicious SQL
-  - Implement query explanation and confidence scoring
-  - Write unit tests for query parsing with various natural language inputs
-  - _Requirements: 2.1, 2.3_
+- [ ] 4. Transformers-Based Summarization Pipeline
+   - Implement `Processor.Summarize` using configured Python `transformers` model (e.g., DistilBART) constrained to Description + README.
+   - Heuristic fallback (section parsing) if Python unavailable or disabled.
+   - Versioning & generator metadata recorded; gated by config.
 
-- [x] 8. Implement search and query execution
-  - Create query command that accepts natural language input
-  - Implement interactive query review and editing before execution
-  - Add result formatting and display with structured and unstructured data
-  - Implement search result ranking and relevance scoring
-  - Write integration tests for end-to-end query workflow
-  - _Requirements: 2.1, 2.2, 2.4, 2.5, 2.6_
+- [ ] 5. Optional Embedding Generation
+   - Single repository-level embedding over concatenated summary text (select key fields: purpose, features, usage).
+   - Provider abstraction (local model / remote API) with `Enabled` flag & dimensionality validation.
+   - Graceful fallback to fuzzy search if disabled or failure.
 
-- [x] 9. Add repository management commands
-  - Implement list command to display all repositories with basic information
-  - Create info command for detailed repository information display
-  - Add stats command showing database statistics and sync information
-  - Implement clear command with confirmation for database cleanup
-  - Write unit tests for all management commands
-  - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+- [ ] 6. Dual-Mode Search Engine
+   - Implement `Engine` with `ModeFuzzy` (BM25 / FTS) and `ModeVector` (cosine).
+   - Ranking boosts: star logarithmic (+small), recency decay; clamp final score ≤1.0.
+   - Track matched logical fields for explanation.
+   - Add configuration for default mode & min score.
 
-- [x] 10. Implement caching and performance optimizations
-  - Add local file caching for repository content with TTL management
-  - Implement database connection pooling and query optimization
-  - Add memory usage monitoring and garbage collection optimization
-  - Implement parallel processing for repository sync operations
-  - Write performance tests to validate optimization effectiveness
-  - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
+- [ ] 7. Related Engine
+   - Compute weighted score: SameOrg(0.30), Topics(0.25), SharedContrib(0.25), Vector(0.20) with renormalization when components missing.
+   - Explanation string assembly (top non-zero contributors).
+   - CLI integration via `related <repo>` command and `query --related` augmentation.
 
-- [x] 11. Add configuration management and error handling
-  - Create configuration file structure with default settings
-  - Implement environment variable and command-line flag overrides
-  - Add comprehensive error handling with user-friendly messages
-  - Implement logging and debug output options
-  - Write unit tests for configuration loading and error scenarios
-  - _Requirements: 3.5, 1.8, 4.5_
+- [ ] 8. Metrics Ingestion & Derivations
+   - Issues / PR counts (open + total) cached 7d.
+   - Commit activity aggregation (30d, 1y, total; handle 202 retry state with placeholders).
+   - Top 10 contributors (login + contributions); topics; languages (bytes → LOC estimate or raw).
+   - Related star counts (same org, shared contributor repos) computed on demand (not persisted).
 
-- [ ] 12. Create comprehensive test suite and documentation
-  - Write integration tests covering complete user workflows
-  - Add performance benchmarks for sync and query operations
-  - Create end-to-end tests with real GitHub repositories (using test accounts)
-  - Write user documentation and usage examples
-  - Add developer documentation for extending the system
-  - _Requirements: All requirements validation_
+- [ ] 9. Caching & Refresh Logic
+   - Implement configurable `metadata_stale_days` & `stats_stale_days` (if separate) else unified logic.
+   - Only refresh summaries when (missing | version mismatch | forced flag/config).
+   - Recompute embeddings only if summary changed or embedding missing.
+   - Parallel worker pool with backoff for rate-limited endpoints.
 
-- [ ] 13. Implement GitHub CLI extension packaging
-  - Create proper GitHub CLI extension manifest and metadata
-  - Set up cross-platform build pipeline for multiple architectures
-  - Implement installation and update mechanisms
-  - Add GitHub Actions workflow for automated releases
-  - Test extension installation and usage across different platforms
-  - _Requirements: 3.1, 3.4_
+- [ ] 10. Output Formatting (Long & Short Forms)
+   - Implement exact long-form spec (Lines: header link, Description, External link, Numbers, Commits, Age, License, Contributors, Topics, Languages, Related Stars, Last synced, Summary, planned placeholders).
+   - Short-form = first two lines + score + truncated description (80 chars) + primary language.
+   - Golden tests for deterministic formatting & unknown-value fallbacks ("?" / "-").
 
-- [ ] 14. Add advanced features and polish
-  - Implement fine-tuning options for sync operations with single repository testing
-  - Add model comparison functionality for LLM backend evaluation
-  - Implement advanced search features like filtering and sorting
-  - Add export functionality for search results
-  - Optimize user experience with better progress indicators and feedback
-  - _Requirements: 1.6, 1.7, 2.4_
+- [ ] 11. CLI Enhancements & Flags
+   - `--mode`, `--limit`, `--long/--short`, `--related` integration; validation & helpful messages for unsupported structured filters.
+   - Ensure default limit 10 (max 50) enforced uniformly.
+
+- [ ] 12. Configuration Model Refactor
+   - Add `SearchConfig`, `SummaryConfig`, `EmbeddingConfig`, `RefreshConfig` per design.
+   - Validate dimensions vs embedding provider; emit clear error if mismatch.
+   - Remove deprecated parser / LLM config fields.
+
+- [ ] 13. Python Integration Layer
+   - Detect Python & required `transformers` package; provide installation guidance on failure.
+   - Timeout & memory guard; structured errors surfaced as Summary fallback warnings.
+
+- [ ] 14. Testing Expansion
+   - Unit: search scoring, vector similarity, related weighting & renorm, summary fallback, refresh gating, formatting builder.
+   - Integration: sync (with & without embeddings), query (mode switch, score bounds), related deterministic outputs.
+   - Failure injection: missing commit stats, embedding failure.
+   - Performance: sync 500 repos (baseline target), query latency p50/p95 for both modes.
+
+- [ ] 15. CONTRIBUTING.md
+   - Architecture snapshot, endpoint usage & rate limits, caching strategy, summarization & embedding disclaimers, development workflow.
+
+- [ ] 16. Logging & Error Taxonomy Alignment
+   - Centralize error categories: GitHubAPI, Storage, Search, Summary, Embedding, Configuration, Validation, Related.
+   - Add structured warning for partial data (e.g., commit stats unready, embedding skipped).
+
+- [ ] 17. Packaging & Release (Carryover)
+   - GitHub CLI extension manifest, cross-platform build, release workflow, install/update validation.
+
+- [ ] 18. Performance & Resource Optimizations
+   - Batch/lazy fetch where possible; concurrency tuning; measure memory footprint for large star sets.
+
+- [ ] 19. Future Feature Gate Placeholders
+   - Stubs / TODO comments for: structured filtering, chunk embeddings, dependency metrics, LLM summaries, export, TUI.
+
+## Deferred / Future Work (Not in Current Scope)
+- Reintroduce optional LLM summarization.
+- Structured filters (stars, language, topic queries) & advanced grammar.
+- Chunk-level embeddings & hybrid reranking pipeline.
+- Dependency & dependent metrics (GitHub dependency graph).
+- Background incremental refresh scheduler.
+- TUI (Bubble Tea) interactive browser.
+- Migration engine (golang-migrate) once schema stabilizes.
+- Export functionality & advanced analytics.
+
+## Changes (vs Previous tasks.md)
+- Removed: Old Task 5 (LLM summarization) → replaced by new Task 4 (transformers) & Task 19 (future LLM reintroduction placeholder).
+- Removed: Old Task 7 (natural language query parser) and related interactive SQL editing (superseded by direct search Tasks 6 & 11).
+- Modified: Old Task 4 (broad content extraction & chunking) → narrowed to Task 3 (minimal extraction) with no chunk table.
+- Modified: Old Task 8 (search & query execution) → split into Tasks 6 (dual-mode engine) & 11 (CLI flags) with simplified scope.
+- Modified: Old Task 10 (caching/performance) → refined into Tasks 8 (metrics), 9 (refresh logic), 18 (performance tuning).
+- Modified: Old Task 12 (test suite & docs) → expanded across Tasks 14 (testing) & 15 (CONTRIBUTING.md).
+- Retained/Reframed: Old Task 13 (packaging) → Task 17; advanced polish elements of Old Task 14 moved to Deferred / Future Work or integrated into specific tasks (formatting, related, performance).
+- Added: New tasks for related engine (Task 7), output formatting spec compliance (Task 10), embedding optionalization (Task 5), Python integration safeguards (Task 13), error taxonomy (Task 16).
+
+## Progress Tracking Notes
+Mark tasks as completed directly here as work proceeds. If schema changes break backward compatibility, document manual migration steps in CONTRIBUTING.md and increment summary version.
