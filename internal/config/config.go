@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/kyleking/gh-star-search/internal/llm"
 )
@@ -15,6 +18,8 @@ type Config struct {
 	LLM      LLMConfig      `json:"llm"`
 	GitHub   GitHubConfig   `json:"github"`
 	Cache    CacheConfig    `json:"cache"`
+	Logging  LoggingConfig  `json:"logging"`
+	Debug    DebugConfig    `json:"debug"`
 }
 
 // DatabaseConfig represents database configuration
@@ -47,6 +52,26 @@ type CacheConfig struct {
 	CleanupFreq string `json:"cleanup_frequency"`
 }
 
+// LoggingConfig represents logging configuration
+type LoggingConfig struct {
+	Level      string `json:"level"`       // debug, info, warn, error
+	Format     string `json:"format"`      // text, json
+	Output     string `json:"output"`      // stdout, stderr, file
+	File       string `json:"file"`        // log file path when output is file
+	MaxSizeMB  int    `json:"max_size_mb"` // max log file size
+	MaxBackups int    `json:"max_backups"` // max number of backup files
+	MaxAgeDays int    `json:"max_age_days"` // max age of log files
+}
+
+// DebugConfig represents debug configuration
+type DebugConfig struct {
+	Enabled     bool   `json:"enabled"`
+	ProfilePort int    `json:"profile_port"`
+	MetricsPort int    `json:"metrics_port"`
+	Verbose     bool   `json:"verbose"`
+	TraceAPI    bool   `json:"trace_api"`
+}
+
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
@@ -77,37 +102,344 @@ func DefaultConfig() *Config {
 			TTLHours:    24,
 			CleanupFreq: "1h",
 		},
+		Logging: LoggingConfig{
+			Level:      "info",
+			Format:     "text",
+			Output:     "stdout",
+			File:       "~/.config/gh-star-search/logs/app.log",
+			MaxSizeMB:  10,
+			MaxBackups: 5,
+			MaxAgeDays: 30,
+		},
+		Debug: DebugConfig{
+			Enabled:     false,
+			ProfilePort: 6060,
+			MetricsPort: 8080,
+			Verbose:     false,
+			TraceAPI:    false,
+		},
 	}
 }
 
-// LoadConfig loads configuration from file or returns default config
+// LoadConfig loads configuration from file, environment variables, and command-line flags
 func LoadConfig() (*Config, error) {
-	configPath := getConfigPath()
+	return LoadConfigWithOverrides(nil)
+}
 
-	// If config file doesn't exist, return default config
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return DefaultConfig(), nil
+// LoadConfigWithOverrides loads configuration with optional command-line flag overrides
+func LoadConfigWithOverrides(flagOverrides map[string]interface{}) (*Config, error) {
+	// Start with default configuration
+	config := DefaultConfig()
+
+	// Load from config file if it exists
+	configPath := getConfigPath()
+	if _, err := os.Stat(configPath); err == nil {
+		if err := loadConfigFromFile(config, configPath); err != nil {
+			return nil, fmt.Errorf("failed to load config file: %w", err)
+		}
 	}
 
-	// Read config file
+	// Apply environment variable overrides
+	if err := applyEnvironmentOverrides(config); err != nil {
+		return nil, fmt.Errorf("failed to apply environment overrides: %w", err)
+	}
+
+	// Apply command-line flag overrides
+	if flagOverrides != nil {
+		if err := applyFlagOverrides(config, flagOverrides); err != nil {
+			return nil, fmt.Errorf("failed to apply flag overrides: %w", err)
+		}
+	}
+
+	// Validate configuration
+	if err := validateConfig(config); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	return config, nil
+}
+
+// loadConfigFromFile loads configuration from a JSON file
+func loadConfigFromFile(config *Config, configPath string) error {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
+		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	// Parse JSON
-	var config Config
-	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	// Parse JSON into a temporary struct to merge with defaults
+	var fileConfig Config
+	if err := json.Unmarshal(data, &fileConfig); err != nil {
+		return fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	// Fill in missing values with defaults
-	defaultConfig := DefaultConfig()
-	if config.LLM.DefaultProvider == "" {
-		config.LLM = defaultConfig.LLM
+	// Merge file config with defaults
+	mergeConfigs(config, &fileConfig)
+
+	return nil
+}
+
+// applyEnvironmentOverrides applies environment variable overrides to configuration
+func applyEnvironmentOverrides(config *Config) error {
+	// Database configuration
+	if val := os.Getenv("GH_STAR_SEARCH_DB_PATH"); val != "" {
+		config.Database.Path = val
+	}
+	if val := os.Getenv("GH_STAR_SEARCH_DB_MAX_CONNECTIONS"); val != "" {
+		if intVal, err := strconv.Atoi(val); err == nil {
+			config.Database.MaxConnections = intVal
+		}
+	}
+	if val := os.Getenv("GH_STAR_SEARCH_DB_QUERY_TIMEOUT"); val != "" {
+		config.Database.QueryTimeout = val
 	}
 
-	return &config, nil
+	// LLM configuration
+	if val := os.Getenv("GH_STAR_SEARCH_LLM_PROVIDER"); val != "" {
+		config.LLM.DefaultProvider = val
+	}
+	if val := os.Getenv("GH_STAR_SEARCH_LLM_MAX_TOKENS"); val != "" {
+		if intVal, err := strconv.Atoi(val); err == nil {
+			config.LLM.MaxTokens = intVal
+		}
+	}
+	if val := os.Getenv("GH_STAR_SEARCH_LLM_TEMPERATURE"); val != "" {
+		if floatVal, err := strconv.ParseFloat(val, 64); err == nil {
+			config.LLM.Temperature = floatVal
+		}
+	}
+
+	// GitHub configuration
+	if val := os.Getenv("GH_STAR_SEARCH_GITHUB_RATE_LIMIT"); val != "" {
+		if intVal, err := strconv.Atoi(val); err == nil {
+			config.GitHub.RateLimit = intVal
+		}
+	}
+	if val := os.Getenv("GH_STAR_SEARCH_GITHUB_RETRY_ATTEMPTS"); val != "" {
+		if intVal, err := strconv.Atoi(val); err == nil {
+			config.GitHub.RetryAttempts = intVal
+		}
+	}
+	if val := os.Getenv("GH_STAR_SEARCH_GITHUB_TIMEOUT"); val != "" {
+		config.GitHub.Timeout = val
+	}
+
+	// Cache configuration
+	if val := os.Getenv("GH_STAR_SEARCH_CACHE_DIR"); val != "" {
+		config.Cache.Directory = val
+	}
+	if val := os.Getenv("GH_STAR_SEARCH_CACHE_MAX_SIZE_MB"); val != "" {
+		if intVal, err := strconv.Atoi(val); err == nil {
+			config.Cache.MaxSizeMB = intVal
+		}
+	}
+	if val := os.Getenv("GH_STAR_SEARCH_CACHE_TTL_HOURS"); val != "" {
+		if intVal, err := strconv.Atoi(val); err == nil {
+			config.Cache.TTLHours = intVal
+		}
+	}
+
+	// Logging configuration
+	if val := os.Getenv("GH_STAR_SEARCH_LOG_LEVEL"); val != "" {
+		config.Logging.Level = val
+	}
+	if val := os.Getenv("GH_STAR_SEARCH_LOG_FORMAT"); val != "" {
+		config.Logging.Format = val
+	}
+	if val := os.Getenv("GH_STAR_SEARCH_LOG_OUTPUT"); val != "" {
+		config.Logging.Output = val
+	}
+	if val := os.Getenv("GH_STAR_SEARCH_LOG_FILE"); val != "" {
+		config.Logging.File = val
+	}
+
+	// Debug configuration
+	if val := os.Getenv("GH_STAR_SEARCH_DEBUG"); val != "" {
+		config.Debug.Enabled = strings.ToLower(val) == "true"
+	}
+	if val := os.Getenv("GH_STAR_SEARCH_VERBOSE"); val != "" {
+		config.Debug.Verbose = strings.ToLower(val) == "true"
+	}
+
+	return nil
+}
+
+// applyFlagOverrides applies command-line flag overrides to configuration
+func applyFlagOverrides(config *Config, overrides map[string]interface{}) error {
+	for key, value := range overrides {
+		switch key {
+		case "db-path":
+			if str, ok := value.(string); ok && str != "" {
+				config.Database.Path = str
+			}
+		case "log-level":
+			if str, ok := value.(string); ok && str != "" {
+				config.Logging.Level = str
+			}
+		case "verbose":
+			if b, ok := value.(bool); ok {
+				config.Debug.Verbose = b
+			}
+		case "debug":
+			if b, ok := value.(bool); ok {
+				config.Debug.Enabled = b
+			}
+		case "cache-dir":
+			if str, ok := value.(string); ok && str != "" {
+				config.Cache.Directory = str
+			}
+		}
+	}
+
+	return nil
+}
+
+// mergeConfigs merges source configuration into target configuration
+func mergeConfigs(target, source *Config) {
+	// Database
+	if source.Database.Path != "" {
+		target.Database.Path = source.Database.Path
+	}
+	if source.Database.MaxConnections > 0 {
+		target.Database.MaxConnections = source.Database.MaxConnections
+	}
+	if source.Database.QueryTimeout != "" {
+		target.Database.QueryTimeout = source.Database.QueryTimeout
+	}
+
+	// LLM
+	if source.LLM.DefaultProvider != "" {
+		target.LLM.DefaultProvider = source.LLM.DefaultProvider
+	}
+	if len(source.LLM.Providers) > 0 {
+		if target.LLM.Providers == nil {
+			target.LLM.Providers = make(map[string]llm.Config)
+		}
+		for k, v := range source.LLM.Providers {
+			target.LLM.Providers[k] = v
+		}
+	}
+	if source.LLM.MaxTokens > 0 {
+		target.LLM.MaxTokens = source.LLM.MaxTokens
+	}
+	if source.LLM.Temperature >= 0 {
+		target.LLM.Temperature = source.LLM.Temperature
+	}
+
+	// GitHub
+	if source.GitHub.RateLimit > 0 {
+		target.GitHub.RateLimit = source.GitHub.RateLimit
+	}
+	if source.GitHub.RetryAttempts > 0 {
+		target.GitHub.RetryAttempts = source.GitHub.RetryAttempts
+	}
+	if source.GitHub.Timeout != "" {
+		target.GitHub.Timeout = source.GitHub.Timeout
+	}
+
+	// Cache
+	if source.Cache.Directory != "" {
+		target.Cache.Directory = source.Cache.Directory
+	}
+	if source.Cache.MaxSizeMB > 0 {
+		target.Cache.MaxSizeMB = source.Cache.MaxSizeMB
+	}
+	if source.Cache.TTLHours > 0 {
+		target.Cache.TTLHours = source.Cache.TTLHours
+	}
+	if source.Cache.CleanupFreq != "" {
+		target.Cache.CleanupFreq = source.Cache.CleanupFreq
+	}
+
+	// Logging
+	if source.Logging.Level != "" {
+		target.Logging.Level = source.Logging.Level
+	}
+	if source.Logging.Format != "" {
+		target.Logging.Format = source.Logging.Format
+	}
+	if source.Logging.Output != "" {
+		target.Logging.Output = source.Logging.Output
+	}
+	if source.Logging.File != "" {
+		target.Logging.File = source.Logging.File
+	}
+	if source.Logging.MaxSizeMB > 0 {
+		target.Logging.MaxSizeMB = source.Logging.MaxSizeMB
+	}
+	if source.Logging.MaxBackups > 0 {
+		target.Logging.MaxBackups = source.Logging.MaxBackups
+	}
+	if source.Logging.MaxAgeDays > 0 {
+		target.Logging.MaxAgeDays = source.Logging.MaxAgeDays
+	}
+
+	// Debug
+	target.Debug.Enabled = source.Debug.Enabled
+	target.Debug.Verbose = source.Debug.Verbose
+	target.Debug.TraceAPI = source.Debug.TraceAPI
+	if source.Debug.ProfilePort > 0 {
+		target.Debug.ProfilePort = source.Debug.ProfilePort
+	}
+	if source.Debug.MetricsPort > 0 {
+		target.Debug.MetricsPort = source.Debug.MetricsPort
+	}
+}
+
+// validateConfig validates the configuration for common errors
+func validateConfig(config *Config) error {
+	// Validate log level
+	validLogLevels := map[string]bool{
+		"debug": true, "info": true, "warn": true, "error": true,
+	}
+	if !validLogLevels[strings.ToLower(config.Logging.Level)] {
+		return fmt.Errorf("invalid log level: %s (must be debug, info, warn, or error)", config.Logging.Level)
+	}
+
+	// Validate log format
+	validLogFormats := map[string]bool{
+		"text": true, "json": true,
+	}
+	if !validLogFormats[strings.ToLower(config.Logging.Format)] {
+		return fmt.Errorf("invalid log format: %s (must be text or json)", config.Logging.Format)
+	}
+
+	// Validate log output
+	validLogOutputs := map[string]bool{
+		"stdout": true, "stderr": true, "file": true,
+	}
+	if !validLogOutputs[strings.ToLower(config.Logging.Output)] {
+		return fmt.Errorf("invalid log output: %s (must be stdout, stderr, or file)", config.Logging.Output)
+	}
+
+	// Validate timeout durations
+	if _, err := time.ParseDuration(config.Database.QueryTimeout); err != nil {
+		return fmt.Errorf("invalid database query timeout: %s", config.Database.QueryTimeout)
+	}
+	if _, err := time.ParseDuration(config.GitHub.Timeout); err != nil {
+		return fmt.Errorf("invalid GitHub timeout: %s", config.GitHub.Timeout)
+	}
+	if _, err := time.ParseDuration(config.Cache.CleanupFreq); err != nil {
+		return fmt.Errorf("invalid cache cleanup frequency: %s", config.Cache.CleanupFreq)
+	}
+
+	// Validate numeric values
+	if config.Database.MaxConnections <= 0 {
+		return fmt.Errorf("database max connections must be positive: %d", config.Database.MaxConnections)
+	}
+	if config.LLM.MaxTokens <= 0 {
+		return fmt.Errorf("LLM max tokens must be positive: %d", config.LLM.MaxTokens)
+	}
+	if config.LLM.Temperature < 0 || config.LLM.Temperature > 2 {
+		return fmt.Errorf("LLM temperature must be between 0 and 2: %f", config.LLM.Temperature)
+	}
+	if config.GitHub.RateLimit <= 0 {
+		return fmt.Errorf("GitHub rate limit must be positive: %d", config.GitHub.RateLimit)
+	}
+	if config.GitHub.RetryAttempts < 0 {
+		return fmt.Errorf("GitHub retry attempts must be non-negative: %d", config.GitHub.RetryAttempts)
+	}
+
+	return nil
 }
 
 // SaveConfig saves configuration to file
@@ -135,9 +467,85 @@ func SaveConfig(config *Config) error {
 
 // getConfigPath returns the path to the configuration file
 func getConfigPath() string {
+	// Check for custom config path from environment
+	if configPath := os.Getenv("GH_STAR_SEARCH_CONFIG"); configPath != "" {
+		return expandPath(configPath)
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "./config.json"
 	}
 	return filepath.Join(homeDir, ".config", "gh-star-search", "config.json")
+}
+
+// expandPath expands ~ to home directory in file paths
+func expandPath(path string) string {
+	if !strings.HasPrefix(path, "~") {
+		return path
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+
+	if path == "~" {
+		return homeDir
+	}
+
+	if strings.HasPrefix(path, "~/") {
+		return filepath.Join(homeDir, path[2:])
+	}
+
+	return path
+}
+
+// ExpandAllPaths expands all paths in the configuration
+func (c *Config) ExpandAllPaths() {
+	c.Database.Path = expandPath(c.Database.Path)
+	c.Cache.Directory = expandPath(c.Cache.Directory)
+	c.Logging.File = expandPath(c.Logging.File)
+}
+
+// GetConfigDir returns the configuration directory
+func GetConfigDir() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ".config/gh-star-search"
+	}
+	return filepath.Join(homeDir, ".config", "gh-star-search")
+}
+
+// GetCacheDir returns the cache directory
+func GetCacheDir() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ".cache/gh-star-search"
+	}
+	return filepath.Join(homeDir, ".cache", "gh-star-search")
+}
+
+// GetLogDir returns the log directory
+func GetLogDir() string {
+	return filepath.Join(GetConfigDir(), "logs")
+}
+
+// EnsureDirectories creates necessary directories for the configuration
+func (c *Config) EnsureDirectories() error {
+	dirs := []string{
+		filepath.Dir(c.Database.Path),
+		c.Cache.Directory,
+		filepath.Dir(c.Logging.File),
+	}
+
+	for _, dir := range dirs {
+		if dir != "" && dir != "." {
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return fmt.Errorf("failed to create directory %s: %w", dir, err)
+			}
+		}
+	}
+
+	return nil
 }
