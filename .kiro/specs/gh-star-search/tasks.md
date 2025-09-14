@@ -51,7 +51,7 @@ LLM, NL query parser, and wide content extraction pieces are now deprecated (see
     - Create `internal/related/` package for related repository computation; compute weighted score: SameOrg(0.30), Topics(0.25), SharedContrib(0.25), Vector(0.20) with renormalization when components missing; explanation string assembly (top non-zero contributors); CLI integration via `related <repo>` command and `query --related` augmentation.
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 8.4_
 
-- [-] 7. Output Formatting (Long & Short Forms)
+- [x] 7. Output Formatting (Long & Short Forms)
     - Create `internal/formatter/` package for output rendering.
     - Implement exact long-form spec (Lines: header link, Description, External link, Numbers, Commits, Age, License, Contributors, Topics, Languages, Related Stars, Last synced, Summary, planned placeholders).
     - Short-form = first two lines of long-form + score + truncated description (80 chars) + primary language.

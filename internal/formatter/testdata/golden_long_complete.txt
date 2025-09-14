@@ -1,0 +1,15 @@
+hashicorp/terraform  (link: https://github.com/hashicorp/terraform)
+GitHub Description: Terraform enables you to safely and predictably create, change, and improve infrastructure
+GitHub External Description Link: https://www.terraform.io/
+Numbers: 1200/8500 open issues, 45/3200 open PRs, 42000 stars, 9500 forks
+Commits: 150 in last 30 days, 2400 in last year, 15000 total
+Age: 10 years ago
+License: MPL-2.0
+Top 10 Contributors: mitchellh (2500), apparentlymart (1800), jbardin (1200)
+GitHub Topics: terraform, infrastructure, iac, devops
+Languages: Go (8000), HCL (2000), Shell (100)
+Related Stars: ? in hashicorp, ? by top contributors
+Last synced: today
+Summary: Infrastructure as Code tool for building, changing, and versioning infrastructure. Features: declarative configuration, execution plans, resource graph. Usage: terraform init && terraform plan && terraform apply
+(PLANNED: dependencies count)
+(PLANNED: dependents count)
