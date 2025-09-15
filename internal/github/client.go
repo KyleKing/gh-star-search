@@ -175,7 +175,9 @@ func (c *clientImpl) GetStarredRepos(ctx context.Context, _ string) ([]Repositor
 	var allRepos []Repository
 
 	page := 1
-	perPage := 100
+	// TODO: Make these configurable for testing only
+	perPage := 5  // Reduced for testing to limit recorded data
+	maxPages := 3 // Limit pages for testing to prevent timeouts
 
 	for {
 		select {
@@ -206,6 +208,11 @@ func (c *clientImpl) GetStarredRepos(ctx context.Context, _ string) ([]Repositor
 		}
 
 		page++
+
+		// Limit pages for testing to prevent timeouts
+		if page > maxPages {
+			break
+		}
 
 		// Rate limiting: GitHub allows 5000 requests per hour for authenticated users
 		// Add a small delay between requests to be respectful

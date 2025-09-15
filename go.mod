@@ -23,6 +23,7 @@ require (
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
+	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
 	github.com/henvic/httpretty v0.1.4 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
@@ -48,5 +49,6 @@ require (
 	golang.org/x/text v0.29.0 // indirect
 	golang.org/x/tools v0.37.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
+	gopkg.in/dnaeon/go-vcr.v4 v4.0.5 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

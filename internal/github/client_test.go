@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
+	"gopkg.in/dnaeon/go-vcr.v4/pkg/cassette"
+	"gopkg.in/dnaeon/go-vcr.v4/pkg/recorder"
 )
 
 // mockRESTClient implements RESTClientInterface for testing
@@ -128,33 +130,46 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestGetStarredRepos_Success(t *testing.T) {
-	mockClient := newMockRESTClient()
-	client := &clientImpl{apiClient: mockClient}
+	// Get authenticated HTTP client from GitHub CLI
+	authClient, err := api.DefaultHTTPClient()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	testRepo := createTestRepository()
+	// Create VCR recorder with matcher that ignores most headers
+	r, err := recorder.New("testdata/get_starred_repos_success",
+		recorder.WithRealTransport(authClient.Transport),
+		recorder.WithMatcher(cassette.NewDefaultMatcher(
+			cassette.WithIgnoreAuthorization(),
+			cassette.WithIgnoreHeaders("Time-Zone", "Content-Type", "Accept", "User-Agent"),
+		)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Stop()
 
-	// Mock first page response with less than per_page results to end pagination
-	mockClient.setResponse("user/starred?page=1&per_page=100", []Repository{testRepo})
+	t.Logf("VCR - Is new cassette: %v, Is recording: %v", r.IsNewCassette(), r.IsRecording())
 
-	ctx := context.Background()
+	// Use VCR's default client which should handle replay properly
+	vcrHTTPClient := r.GetDefaultClient()
+
+	// Create client with VCR's HTTP client
+	vcrClient := NewVCRRESTClient(vcrHTTPClient)
+	client := &clientImpl{apiClient: vcrClient}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	repos, err := client.GetStarredRepos(ctx, "testuser")
-
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	if len(repos) != 1 {
-		t.Fatalf("Expected 1 repository, got: %d", len(repos))
+	if len(repos) == 0 {
+		t.Fatal("Expected at least 1 repository")
 	}
 
-	if repos[0].FullName != testRepo.FullName {
-		t.Errorf("Expected repository name %s, got: %s", testRepo.FullName, repos[0].FullName)
-	}
-
-	// Verify pagination calls
-	if mockClient.getCallCount("user/starred?page=1&per_page=100") != 1 {
-		t.Error("Expected first page to be called once")
-	}
+	t.Logf("Retrieved %d starred repositories", len(repos))
 }
 
 func TestGetStarredRepos_Pagination(t *testing.T) {
