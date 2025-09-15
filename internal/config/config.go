@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -148,85 +149,24 @@ func applyFlagOverrides(config *Config, overrides map[string]interface{}) error 
 
 // mergeConfigs merges source configuration into target configuration
 func mergeConfigs(target, source *Config) {
-	// Database
-	if source.Database.Path != "" {
-		target.Database.Path = source.Database.Path
+	var mergeValues func(t, s reflect.Value)
+	mergeValues = func(t, s reflect.Value) {
+		if t.Kind() != s.Kind() {
+			return
+		}
+
+		if t.Kind() == reflect.Struct {
+			for i := range s.NumField() {
+				mergeValues(t.Field(i), s.Field(i))
+			}
+		} else if s.Kind() == reflect.Bool {
+			t.Set(s)
+		} else if !s.IsZero() {
+			t.Set(s)
+		}
 	}
 
-	if source.Database.MaxConnections > 0 {
-		target.Database.MaxConnections = source.Database.MaxConnections
-	}
-
-	if source.Database.QueryTimeout != "" {
-		target.Database.QueryTimeout = source.Database.QueryTimeout
-	}
-
-	// Cache
-	if source.Cache.Directory != "" {
-		target.Cache.Directory = source.Cache.Directory
-	}
-
-	if source.Cache.MaxSizeMB > 0 {
-		target.Cache.MaxSizeMB = source.Cache.MaxSizeMB
-	}
-
-	if source.Cache.TTLHours > 0 {
-		target.Cache.TTLHours = source.Cache.TTLHours
-	}
-
-	if source.Cache.CleanupFreq != "" {
-		target.Cache.CleanupFreq = source.Cache.CleanupFreq
-	}
-
-	if source.Cache.MetadataStaleDays > 0 {
-		target.Cache.MetadataStaleDays = source.Cache.MetadataStaleDays
-	}
-
-	if source.Cache.StatsStaleDays > 0 {
-		target.Cache.StatsStaleDays = source.Cache.StatsStaleDays
-	}
-
-	// Logging
-	if source.Logging.Level != "" {
-		target.Logging.Level = source.Logging.Level
-	}
-
-	if source.Logging.Format != "" {
-		target.Logging.Format = source.Logging.Format
-	}
-
-	if source.Logging.Output != "" {
-		target.Logging.Output = source.Logging.Output
-	}
-
-	if source.Logging.File != "" {
-		target.Logging.File = source.Logging.File
-	}
-
-	if source.Logging.MaxSizeMB > 0 {
-		target.Logging.MaxSizeMB = source.Logging.MaxSizeMB
-	}
-
-	if source.Logging.MaxBackups > 0 {
-		target.Logging.MaxBackups = source.Logging.MaxBackups
-	}
-
-	if source.Logging.MaxAgeDays > 0 {
-		target.Logging.MaxAgeDays = source.Logging.MaxAgeDays
-	}
-
-	// Debug
-	target.Debug.Enabled = source.Debug.Enabled
-	target.Debug.Verbose = source.Debug.Verbose
-	target.Debug.TraceAPI = source.Debug.TraceAPI
-
-	if source.Debug.ProfilePort > 0 {
-		target.Debug.ProfilePort = source.Debug.ProfilePort
-	}
-
-	if source.Debug.MetricsPort > 0 {
-		target.Debug.MetricsPort = source.Debug.MetricsPort
-	}
+	mergeValues(reflect.ValueOf(target).Elem(), reflect.ValueOf(source).Elem())
 }
 
 // validateConfig validates the configuration for common errors
