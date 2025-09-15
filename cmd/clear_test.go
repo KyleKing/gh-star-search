@@ -72,7 +72,7 @@ func TestRunClear(t *testing.T) {
 			}
 
 			// Run the command with mock storage
-			err := RunClearWithStorage(context.Background(), tt.force, false, mockRepo)
+			err := RunClearWithStorage(context.Background(), tt.force, mockRepo)
 
 			// Restore stdout and get output
 			w.Close()

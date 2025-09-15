@@ -22,25 +22,19 @@ func ClearCommand() *cli.Command {
 				Aliases: []string{"f"},
 				Usage:   "Skip confirmation prompt",
 			},
-			&cli.BoolFlag{
-				Name:    "delete-file",
-				Aliases: []string{"d"},
-				Usage:   "Delete the database file after clearing data",
-			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			force := cmd.Bool("force")
-			deleteFile := cmd.Bool("delete-file")
-			return runClear(ctx, force, deleteFile)
+			return runClear(ctx, force)
 		},
 	}
 }
 
-func runClear(ctx context.Context, force bool, deleteFile bool) error {
-	return RunClearWithStorage(ctx, force, deleteFile, nil)
+func runClear(ctx context.Context, force bool) error {
+	return RunClearWithStorage(ctx, force, nil)
 }
 
-func RunClearWithStorage(ctx context.Context, force bool, deleteFile bool, repo storage.Repository) error {
+func RunClearWithStorage(ctx context.Context, force bool, repo storage.Repository) error {
 	// Initialize storage if not provided (for testing)
 	if repo == nil {
 		var err error
@@ -95,21 +89,7 @@ func RunClearWithStorage(ctx context.Context, force bool, deleteFile bool, repo 
 		return fmt.Errorf("failed to clear database: %w", err)
 	}
 
-	// Delete the database file if requested
-	if deleteFile {
-		cfg := getConfigFromContext(ctx)
-		dbPath := expandPath(cfg.Database.Path)
-
-		if err := os.Remove(dbPath); err != nil {
-			if !os.IsNotExist(err) {
-				return fmt.Errorf("failed to delete database file: %w", err)
-			}
-		}
-
-		fmt.Println("Database file deleted successfully.")
-	} else {
-		fmt.Println("Database cleared successfully.")
-	}
+	fmt.Println("Database cleared successfully.")
 
 	return nil
 }
