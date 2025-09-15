@@ -157,7 +157,10 @@ func runSync(ctx context.Context, cmd *cli.Command) error {
 	verbose := configFromContext.Logging.Level == "debug" || configFromContext.Debug.Enabled
 
 	// Load configuration
-	cfg := config.DefaultConfig()
+	cfg, err := config.LoadConfigWithOverrides(nil)
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
 
 	// Initialize services
 	syncService, err := initializeSyncService(cfg, verbose)
@@ -970,5 +973,11 @@ func getConfigFromContext(ctx context.Context) *config.Config {
 	if cfg, ok := ctx.Value(configContextKey).(*config.Config); ok {
 		return cfg
 	}
-	return config.DefaultConfig()
+
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		// Fallback to panic or log, but since it's a getter, perhaps return nil or handle
+		panic(fmt.Sprintf("failed to load config: %v", err))
+	}
+	return cfg
 }

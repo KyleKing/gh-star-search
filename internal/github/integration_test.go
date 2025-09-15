@@ -26,7 +26,7 @@ func TestCachedClientIntegration(t *testing.T) {
 	defer fileCache.Close()
 
 	// Create config
-	cfg := config.DefaultConfig()
+	cfg, _ := config.LoadConfig()
 	cfg.Cache.MetadataStaleDays = 365 // Very long TTL for testing
 	cfg.Cache.StatsStaleDays = 365    // Very long TTL for testing
 
@@ -202,7 +202,7 @@ func TestCacheInvalidation(t *testing.T) {
 	defer fileCache.Close()
 
 	// Create config
-	cfg := config.DefaultConfig()
+	cfg, _ := config.LoadConfig()
 
 	// Create cached client
 	cachedClient := NewCachedClient(client, fileCache, cfg)

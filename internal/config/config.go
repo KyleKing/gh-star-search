@@ -26,138 +26,76 @@ type Config struct {
 
 // DatabaseConfig represents database configuration
 type DatabaseConfig struct {
-	Path           string `json:"path" env:"DB_PATH"`
-	MaxConnections int    `json:"max_connections" env:"DB_MAX_CONNECTIONS"`
-	QueryTimeout   string `json:"query_timeout" env:"DB_QUERY_TIMEOUT"`
+	Path           string `json:"path" env:"DB_PATH" envDefault:"~/.config/gh-star-search/database.db"`
+	MaxConnections int    `json:"max_connections" env:"DB_MAX_CONNECTIONS" envDefault:"10"`
+	QueryTimeout   string `json:"query_timeout" env:"DB_QUERY_TIMEOUT" envDefault:"30s"`
 }
 
 // GitHubConfig represents GitHub API configuration
 type GitHubConfig struct {
-	RateLimit     int    `json:"rate_limit" env:"GITHUB_RATE_LIMIT"`
-	RetryAttempts int    `json:"retry_attempts" env:"GITHUB_RETRY_ATTEMPTS"`
-	Timeout       string `json:"timeout" env:"GITHUB_TIMEOUT"`
+	RateLimit     int    `json:"rate_limit" env:"GITHUB_RATE_LIMIT" envDefault:"5000"`
+	RetryAttempts int    `json:"retry_attempts" env:"GITHUB_RETRY_ATTEMPTS" envDefault:"3"`
+	Timeout       string `json:"timeout" env:"GITHUB_TIMEOUT" envDefault:"30s"`
 }
 
 // CacheConfig represents caching configuration
 type CacheConfig struct {
-	Directory         string `json:"directory" env:"CACHE_DIR"`
-	MaxSizeMB         int    `json:"max_size_mb" env:"CACHE_MAX_SIZE_MB"`
-	TTLHours          int    `json:"ttl_hours" env:"CACHE_TTL_HOURS"`
-	CleanupFreq       string `json:"cleanup_frequency" env:"CACHE_CLEANUP_FREQ"`
-	MetadataStaleDays int    `json:"metadata_stale_days" env:"CACHE_METADATA_STALE_DAYS"`
-	StatsStaleDays    int    `json:"stats_stale_days" env:"CACHE_STATS_STALE_DAYS"`
+	Directory         string `json:"directory" env:"CACHE_DIR" envDefault:"~/.cache/gh-star-search"`
+	MaxSizeMB         int    `json:"max_size_mb" env:"CACHE_MAX_SIZE_MB" envDefault:"500"`
+	TTLHours          int    `json:"ttl_hours" env:"CACHE_TTL_HOURS" envDefault:"24"`
+	CleanupFreq       string `json:"cleanup_frequency" env:"CACHE_CLEANUP_FREQ" envDefault:"1h"`
+	MetadataStaleDays int    `json:"metadata_stale_days" env:"CACHE_METADATA_STALE_DAYS" envDefault:"14"`
+	StatsStaleDays    int    `json:"stats_stale_days" env:"CACHE_STATS_STALE_DAYS" envDefault:"7"`
 }
 
 // LoggingConfig represents logging configuration
 type LoggingConfig struct {
-	Level      string `json:"level" env:"LOG_LEVEL"`               // debug, info, warn, error
-	Format     string `json:"format" env:"LOG_FORMAT"`             // text, json
-	Output     string `json:"output" env:"LOG_OUTPUT"`             // stdout, stderr, file
-	File       string `json:"file" env:"LOG_FILE"`                 // log file path when output is file
-	MaxSizeMB  int    `json:"max_size_mb" env:"LOG_MAX_SIZE_MB"`   // max log file size
-	MaxBackups int    `json:"max_backups" env:"LOG_MAX_BACKUPS"`   // max number of backup files
-	MaxAgeDays int    `json:"max_age_days" env:"LOG_MAX_AGE_DAYS"` // max age of log files
-	AddSource  bool   `json:"add_source" env:"LOG_ADD_SOURCE"`     // add source file and line info to logs
+	Level      string `json:"level" env:"LOG_LEVEL" envDefault:"info"`                                // debug, info, warn, error
+	Format     string `json:"format" env:"LOG_FORMAT" envDefault:"text"`                              // text, json
+	Output     string `json:"output" env:"LOG_OUTPUT" envDefault:"stdout"`                            // stdout, stderr, file
+	File       string `json:"file" env:"LOG_FILE" envDefault:"~/.config/gh-star-search/logs/app.log"` // log file path when output is file
+	MaxSizeMB  int    `json:"max_size_mb" env:"LOG_MAX_SIZE_MB" envDefault:"10"`                      // max log file size
+	MaxBackups int    `json:"max_backups" env:"LOG_MAX_BACKUPS" envDefault:"5"`                       // max number of backup files
+	MaxAgeDays int    `json:"max_age_days" env:"LOG_MAX_AGE_DAYS" envDefault:"30"`                    // max age of log files
+	AddSource  bool   `json:"add_source" env:"LOG_ADD_SOURCE" envDefault:"false"`                     // add source file and line info to logs
 }
 
 // DebugConfig represents debug configuration
 type DebugConfig struct {
-	Enabled     bool `json:"enabled" env:"DEBUG"`
-	ProfilePort int  `json:"profile_port" env:"DEBUG_PROFILE_PORT"`
-	MetricsPort int  `json:"metrics_port" env:"DEBUG_METRICS_PORT"`
-	Verbose     bool `json:"verbose" env:"VERBOSE"`
-	TraceAPI    bool `json:"trace_api" env:"DEBUG_TRACE_API"`
+	Enabled     bool `json:"enabled" env:"DEBUG" envDefault:"false"`
+	ProfilePort int  `json:"profile_port" env:"DEBUG_PROFILE_PORT" envDefault:"6060"`
+	MetricsPort int  `json:"metrics_port" env:"DEBUG_METRICS_PORT" envDefault:"8080"`
+	Verbose     bool `json:"verbose" env:"VERBOSE" envDefault:"false"`
+	TraceAPI    bool `json:"trace_api" env:"DEBUG_TRACE_API" envDefault:"false"`
 }
 
 // SearchConfig represents search configuration
 type SearchConfig struct {
-	DefaultMode string  `json:"default_mode" env:"SEARCH_DEFAULT_MODE"` // "fuzzy" or "vector"
-	MinScore    float64 `json:"min_score" env:"SEARCH_MIN_SCORE"`       // Minimum score threshold
+	DefaultMode string  `json:"default_mode" env:"SEARCH_DEFAULT_MODE" envDefault:"fuzzy"` // "fuzzy" or "vector"
+	MinScore    float64 `json:"min_score" env:"SEARCH_MIN_SCORE" envDefault:"0.0"`         // Minimum score threshold
 }
 
 // EmbeddingConfig represents embedding configuration
 type EmbeddingConfig struct {
-	Provider   string            `json:"provider" env:"EMBEDDINGS_PROVIDER"`     // "local" or "remote"
-	Model      string            `json:"model" env:"EMBEDDINGS_MODEL"`           // Model name/path
-	Dimensions int               `json:"dimensions" env:"EMBEDDINGS_DIMENSIONS"` // Expected embedding dimensions
-	Enabled    bool              `json:"enabled" env:"EMBEDDINGS_ENABLED"`       // Whether embeddings are enabled
-	Options    map[string]string `json:"options" env:"EMBEDDINGS_OPTIONS"`       // Provider-specific options
+	Provider   string            `json:"provider" env:"EMBEDDINGS_PROVIDER" envDefault:"local"`                            // "local" or "remote"
+	Model      string            `json:"model" env:"EMBEDDINGS_MODEL" envDefault:"sentence-transformers/all-MiniLM-L6-v2"` // Model name/path
+	Dimensions int               `json:"dimensions" env:"EMBEDDINGS_DIMENSIONS" envDefault:"384"`                          // Expected embedding dimensions
+	Enabled    bool              `json:"enabled" env:"EMBEDDINGS_ENABLED" envDefault:"false"`                              // Whether embeddings are enabled
+	Options    map[string]string `json:"options"`                                                                          // Provider-specific options
 }
 
 // SummaryConfig represents summarization configuration
 type SummaryConfig struct {
-	Version           int    `json:"version" env:"SUMMARY_VERSION"`                       // Summary format version
-	TransformersModel string `json:"transformers_model" env:"SUMMARY_TRANSFORMERS_MODEL"` // Python transformers model
-	Enabled           bool   `json:"enabled" env:"SUMMARY_ENABLED"`                       // Whether summarization is enabled
+	Version           int    `json:"version" env:"SUMMARY_VERSION" envDefault:"1"`                                         // Summary format version
+	TransformersModel string `json:"transformers_model" env:"SUMMARY_TRANSFORMERS_MODEL" envDefault:"distilbart-cnn-12-6"` // Python transformers model
+	Enabled           bool   `json:"enabled" env:"SUMMARY_ENABLED" envDefault:"true"`                                      // Whether summarization is enabled
 }
 
 // RefreshConfig represents refresh and caching configuration
 type RefreshConfig struct {
-	MetadataStaleDays int  `json:"metadata_stale_days" env:"REFRESH_METADATA_STALE_DAYS"` // Days before metadata refresh
-	StatsStaleDays    int  `json:"stats_stale_days" env:"REFRESH_STATS_STALE_DAYS"`       // Days before stats refresh
-	ForceSummary      bool `json:"force_summary" env:"REFRESH_FORCE_SUMMARY"`             // Force summary regeneration
-}
-
-// DefaultConfig returns the default configuration
-func DefaultConfig() *Config {
-	return &Config{
-		Database: DatabaseConfig{
-			Path:           "~/.config/gh-star-search/database.db",
-			MaxConnections: 10,
-			QueryTimeout:   "30s",
-		},
-		GitHub: GitHubConfig{
-			RateLimit:     5000,
-			RetryAttempts: 3,
-			Timeout:       "30s",
-		},
-		Cache: CacheConfig{
-			Directory:         "~/.cache/gh-star-search",
-			MaxSizeMB:         500,
-			TTLHours:          24,
-			CleanupFreq:       "1h",
-			MetadataStaleDays: 14,
-			StatsStaleDays:    7,
-		},
-		Logging: LoggingConfig{
-			Level:      "info",
-			Format:     "text",
-			Output:     "stdout",
-			File:       "~/.config/gh-star-search/logs/app.log",
-			MaxSizeMB:  10,
-			MaxBackups: 5,
-			MaxAgeDays: 30,
-			AddSource:  false,
-		},
-		Debug: DebugConfig{
-			Enabled:     false,
-			ProfilePort: 6060,
-			MetricsPort: 8080,
-			Verbose:     false,
-			TraceAPI:    false,
-		},
-		Search: SearchConfig{
-			DefaultMode: "fuzzy",
-			MinScore:    0.0,
-		},
-		Embeddings: EmbeddingConfig{
-			Provider:   "local",
-			Model:      "sentence-transformers/all-MiniLM-L6-v2",
-			Dimensions: 384,
-			Enabled:    false,
-			Options:    make(map[string]string),
-		},
-		Summary: SummaryConfig{
-			Version:           1,
-			TransformersModel: "distilbart-cnn-12-6",
-			Enabled:           true,
-		},
-		Refresh: RefreshConfig{
-			MetadataStaleDays: 14,
-			StatsStaleDays:    7,
-			ForceSummary:      false,
-		},
-	}
+	MetadataStaleDays int  `json:"metadata_stale_days" env:"REFRESH_METADATA_STALE_DAYS" envDefault:"14"` // Days before metadata refresh
+	StatsStaleDays    int  `json:"stats_stale_days" env:"REFRESH_STATS_STALE_DAYS" envDefault:"7"`        // Days before stats refresh
+	ForceSummary      bool `json:"force_summary" env:"REFRESH_FORCE_SUMMARY" envDefault:"false"`          // Force summary regeneration
 }
 
 // LoadConfig loads configuration from file, environment variables, and command-line flags
@@ -167,8 +105,8 @@ func LoadConfig() (*Config, error) {
 
 // LoadConfigWithOverrides loads configuration with optional command-line flag overrides
 func LoadConfigWithOverrides(flagOverrides map[string]interface{}) (*Config, error) {
-	// Start with default configuration
-	config := DefaultConfig()
+	// Start with empty configuration (defaults will be set by env.Parse)
+	config := &Config{}
 
 	// Load from config file if it exists
 	configPath := getConfigPath()
@@ -178,11 +116,16 @@ func LoadConfigWithOverrides(flagOverrides map[string]interface{}) (*Config, err
 		}
 	}
 
-	// Apply environment variable overrides using env library
+	// Apply environment variable overrides using env library (also sets defaults)
 	if err := env.ParseWithOptions(config, env.Options{
 		Prefix: "GH_STAR_SEARCH_",
 	}); err != nil {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
+	}
+
+	// Initialize maps that env cannot handle
+	if config.Embeddings.Options == nil {
+		config.Embeddings.Options = make(map[string]string)
 	}
 
 	// Apply command-line flag overrides
@@ -217,6 +160,26 @@ func loadConfigFromFile(config *Config, configPath string) error {
 	mergeConfigs(config, &fileConfig)
 
 	return nil
+}
+
+// parseInt parses string to int
+func parseInt(s string) (int, error) {
+	var result int
+	_, err := fmt.Sscanf(s, "%d", &result)
+
+	return result, err
+}
+
+// parseBool parses string to bool
+func parseBool(s string) (bool, error) {
+	switch strings.ToLower(s) {
+	case "true", "1", "yes", "on":
+		return true, nil
+	case "false", "0", "no", "off":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid boolean value: %s", s)
+	}
 }
 
 // applyFlagOverrides applies command-line flag overrides to configuration

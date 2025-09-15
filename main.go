@@ -75,6 +75,7 @@ content from your starred repositories.`,
 		} else {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}
+
 		os.Exit(1)
 	}
 }

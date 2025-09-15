@@ -71,7 +71,7 @@ func runQuery(ctx context.Context, cmd *cli.Command) error {
 	// Parse arguments
 	args := cmd.Args().Slice()
 	if len(args) != 1 {
-		return fmt.Errorf("expected exactly one search string argument")
+		return errors.New(errors.ErrTypeValidation, "expected exactly one search string argument")
 	}
 
 	// Validate query string

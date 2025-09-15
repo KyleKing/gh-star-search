@@ -39,6 +39,7 @@ func parseLogLevel(level string) slog.Level {
 func SetupLogger(cfg config.LoggingConfig) error {
 	// Set up output writer
 	var writer io.Writer
+
 	var file *os.File
 
 	switch strings.ToLower(cfg.Output) {
@@ -57,6 +58,7 @@ func SetupLogger(cfg config.LoggingConfig) error {
 		}
 
 		var err error
+
 		file, err = os.OpenFile(cfg.File, os.O_CREATE|os.O_WRONLY|os.O_APPEND, logFilePerm)
 		if err != nil {
 			return fmt.Errorf("failed to open log file: %w", err)
@@ -75,6 +77,7 @@ func SetupLogger(cfg config.LoggingConfig) error {
 
 	// Create handler based on format
 	var handler slog.Handler
+
 	switch cfg.Format {
 	case "json":
 		handler = slog.NewJSONHandler(writer, opts)

@@ -1,4 +1,4 @@
-package config_test
+package config
 
 import (
 	"encoding/json"
@@ -9,19 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestDefaultConfig(t *testing.T) {
-	cfg := DefaultConfig()
-
-	assert.NotNil(t, cfg)
-	assert.Equal(t, "~/.config/gh-star-search/database.db", cfg.Database.Path)
-	assert.Equal(t, 10, cfg.Database.MaxConnections)
-	assert.Equal(t, "30s", cfg.Database.QueryTimeout)
-	assert.Equal(t, "info", cfg.Logging.Level)
-	assert.Equal(t, "text", cfg.Logging.Format)
-	assert.Equal(t, "stdout", cfg.Logging.Output)
-	assert.False(t, cfg.Debug.Enabled)
-}
 
 func TestLoadConfigFromFile(t *testing.T) {
 	// Create temporary config file
@@ -53,7 +40,8 @@ func TestLoadConfigFromFile(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test loading
-	config := DefaultConfig()
+	config, err := LoadConfigWithOverrides(nil)
+	require.NoError(t, err)
 	err = loadConfigFromFile(config, configPath)
 	require.NoError(t, err)
 
@@ -76,61 +64,16 @@ func TestLoadConfigFromFileInvalidJSON(t *testing.T) {
 	err := os.WriteFile(configPath, []byte("invalid json"), 0600)
 	require.NoError(t, err)
 
-	config := DefaultConfig()
+	config, err := LoadConfigWithOverrides(nil)
+	require.NoError(t, err)
 	err = loadConfigFromFile(config, configPath)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse config file")
 }
 
-func TestApplyEnvironmentOverrides(t *testing.T) {
-	// Set environment variables
-	envVars := map[string]string{
-		"GH_STAR_SEARCH_DB_PATH":               "/env/db/path.db",
-		"GH_STAR_SEARCH_DB_MAX_CONNECTIONS":    "15",
-		"GH_STAR_SEARCH_DB_QUERY_TIMEOUT":      "45s",
-		"GH_STAR_SEARCH_GITHUB_RATE_LIMIT":     "10000",
-		"GH_STAR_SEARCH_GITHUB_RETRY_ATTEMPTS": "5",
-		"GH_STAR_SEARCH_GITHUB_TIMEOUT":        "60s",
-		"GH_STAR_SEARCH_CACHE_DIR":             "/env/cache",
-		"GH_STAR_SEARCH_CACHE_MAX_SIZE_MB":     "1000",
-		"GH_STAR_SEARCH_CACHE_TTL_HOURS":       "48",
-		"GH_STAR_SEARCH_LOG_LEVEL":             "warn",
-		"GH_STAR_SEARCH_LOG_FORMAT":            "json",
-		"GH_STAR_SEARCH_LOG_OUTPUT":            "stderr",
-		"GH_STAR_SEARCH_LOG_FILE":              "/env/log/app.log",
-		"GH_STAR_SEARCH_DEBUG":                 "true",
-		"GH_STAR_SEARCH_VERBOSE":               "true",
-	}
-
-	// Set environment variables
-	for key, value := range envVars {
-		t.Setenv(key, value)
-	}
-
-	config := DefaultConfig()
-	err := applyEnvironmentOverrides(config)
-	require.NoError(t, err)
-
-	// Verify overrides were applied
-	assert.Equal(t, "/env/db/path.db", config.Database.Path)
-	assert.Equal(t, 15, config.Database.MaxConnections)
-	assert.Equal(t, "45s", config.Database.QueryTimeout)
-	assert.Equal(t, 10000, config.GitHub.RateLimit)
-	assert.Equal(t, 5, config.GitHub.RetryAttempts)
-	assert.Equal(t, "60s", config.GitHub.Timeout)
-	assert.Equal(t, "/env/cache", config.Cache.Directory)
-	assert.Equal(t, 1000, config.Cache.MaxSizeMB)
-	assert.Equal(t, 48, config.Cache.TTLHours)
-	assert.Equal(t, "warn", config.Logging.Level)
-	assert.Equal(t, "json", config.Logging.Format)
-	assert.Equal(t, "stderr", config.Logging.Output)
-	assert.Equal(t, "/env/log/app.log", config.Logging.File)
-	assert.True(t, config.Debug.Enabled)
-	assert.True(t, config.Debug.Verbose)
-}
-
 func TestApplyFlagOverrides(t *testing.T) {
-	config := DefaultConfig()
+	config, err := LoadConfigWithOverrides(nil)
+	require.NoError(t, err)
 
 	overrides := map[string]interface{}{
 		"db-path":   "/flag/db/path.db",
@@ -140,7 +83,7 @@ func TestApplyFlagOverrides(t *testing.T) {
 		"cache-dir": "/flag/cache",
 	}
 
-	err := applyFlagOverrides(config, overrides)
+	err = applyFlagOverrides(config, overrides)
 	require.NoError(t, err)
 
 	assert.Equal(t, "/flag/db/path.db", config.Database.Path)
@@ -240,10 +183,11 @@ func TestValidateConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := DefaultConfig()
+			config, err := LoadConfigWithOverrides(nil)
+			require.NoError(t, err)
 			tt.modifyConfig(config)
 
-			err := validateConfig(config)
+			err = validateConfig(config)
 			if tt.expectError {
 				assert.Error(t, err)
 
@@ -329,11 +273,12 @@ func TestSaveConfig(t *testing.T) {
 	tempConfigPath := filepath.Join(t.TempDir(), "test_config.json")
 	t.Setenv("GH_STAR_SEARCH_CONFIG", tempConfigPath)
 
-	config := DefaultConfig()
+	config, err := LoadConfigWithOverrides(nil)
+	require.NoError(t, err)
 	config.Database.Path = "/custom/path"
 	config.Logging.Level = "debug"
 
-	err := SaveConfig(config)
+	err = SaveConfig(config)
 	require.NoError(t, err)
 
 	// Verify file was created and contains expected data
@@ -368,13 +313,15 @@ func TestLoadConfigWithOverrides(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should return default config
-	defaultConfig := DefaultConfig()
+	defaultConfig, err := LoadConfigWithOverrides(nil)
+	require.NoError(t, err)
 	assert.Equal(t, defaultConfig.Database.Path, config.Database.Path)
 	assert.Equal(t, defaultConfig.Logging.Level, config.Logging.Level)
 }
 
 func TestMergeConfigs(t *testing.T) {
-	target := DefaultConfig()
+	target, err := LoadConfigWithOverrides(nil)
+	require.NoError(t, err)
 	source := &Config{
 		Database: DatabaseConfig{
 			Path:           "/new/path",

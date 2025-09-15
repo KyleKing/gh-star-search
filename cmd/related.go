@@ -49,7 +49,7 @@ func runRelated(ctx context.Context, cmd *cli.Command) error {
 	// Parse arguments
 	args := cmd.Args().Slice()
 	if len(args) != 1 {
-		return fmt.Errorf("expected exactly one repository argument")
+		return errors.New(errors.ErrTypeValidation, "expected exactly one repository argument")
 	}
 
 	// Validate repository name

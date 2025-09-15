@@ -326,7 +326,7 @@ func TestSyncService_ProcessRepository(t *testing.T) {
 		githubClient: mockGitHub,
 		processor:    processorService,
 		storage:      repo,
-		config:       config.DefaultConfig(),
+		config:       func() *config.Config { cfg, _ := config.LoadConfig(); return cfg }(),
 		verbose:      true,
 	}
 
@@ -420,7 +420,7 @@ func TestSyncService_ProcessRepositoriesInBatches(t *testing.T) {
 		githubClient: mockGitHub,
 		processor:    processorService,
 		storage:      repo,
-		config:       config.DefaultConfig(),
+		config:       func() *config.Config { cfg, _ := config.LoadConfig(); return cfg }(),
 		verbose:      false,
 	}
 
