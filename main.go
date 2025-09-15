@@ -64,6 +64,7 @@ content from your starred repositories.`,
 			cmd.ClearCommand(),
 			cmd.QueryCommand(),
 			cmd.RelatedCommand(),
+			cmd.ConfigCommand(),
 		},
 	}
 

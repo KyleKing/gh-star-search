@@ -8,13 +8,7 @@ import (
 )
 
 // initializeStorage creates and initializes a storage repository
-func initializeStorage() (storage.Repository, error) {
-	// Load configuration
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
-	}
-
+func initializeStorage(cfg *config.Config) (storage.Repository, error) {
 	// Expand home directory in database path
 	dbPath := expandPath(cfg.Database.Path)
 

@@ -1075,6 +1075,7 @@ func getConfigFromContext(ctx context.Context) *config.Config {
 		return cfg
 	}
 
+	// Fallback to loading config directly
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		// Fallback to panic or log, but since it's a getter, perhaps return nil or handle

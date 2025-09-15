@@ -63,7 +63,8 @@ func RunListWithStorage(
 	if repo == nil {
 		var err error
 
-		repo, err = initializeStorage()
+		cfg := getConfigFromContext(ctx)
+		repo, err = initializeStorage(cfg)
 		if err != nil {
 			return fmt.Errorf("failed to initialize storage: %w", err)
 		}
