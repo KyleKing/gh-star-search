@@ -501,10 +501,14 @@ func TestFormatter_GoldenLongForm(t *testing.T) {
 			{Login: "apparentlymart", Contributions: 1800},
 			{Login: "jbardin", Contributions: 1200},
 		},
-		LicenseSPDXID:     "MPL-2.0",
-		Purpose:           "Infrastructure as Code tool for building, changing, and versioning infrastructure",
-		Technologies:      []string{"Go", "HCL", "Terraform"},
-		Features:          []string{"declarative configuration", "execution plans", "resource graph"},
+		LicenseSPDXID: "MPL-2.0",
+		Purpose:       "Infrastructure as Code tool for building, changing, and versioning infrastructure",
+		Technologies:  []string{"Go", "HCL", "Terraform"},
+		Features: []string{
+			"declarative configuration",
+			"execution plans",
+			"resource graph",
+		},
 		UsageInstructions: "terraform init && terraform plan && terraform apply",
 		SummaryGenerator:  "transformers:distilbart-cnn-12-6",
 	}
@@ -538,12 +542,18 @@ Summary: Infrastructure as Code tool for building, changing, and versioning infr
 
 	for i, expectedLine := range expectedLines {
 		// Skip time-dependent lines for this test
-		if strings.Contains(expectedLine, "Age:") || strings.Contains(expectedLine, "Last synced:") {
+		if strings.Contains(expectedLine, "Age:") ||
+			strings.Contains(expectedLine, "Last synced:") {
 			continue
 		}
 
 		if resultLines[i] != expectedLine {
-			t.Errorf("Line %d mismatch:\nExpected: %q\nGot:      %q", i+1, expectedLine, resultLines[i])
+			t.Errorf(
+				"Line %d mismatch:\nExpected: %q\nGot:      %q",
+				i+1,
+				expectedLine,
+				resultLines[i],
+			)
 		}
 	}
 }
@@ -589,10 +599,14 @@ func TestFormatter_GoldenFiles(t *testing.T) {
 					{Login: "apparentlymart", Contributions: 1800},
 					{Login: "jbardin", Contributions: 1200},
 				},
-				LicenseSPDXID:     "MPL-2.0",
-				Purpose:           "Infrastructure as Code tool for building, changing, and versioning infrastructure",
-				Technologies:      []string{"Go", "HCL", "Terraform"},
-				Features:          []string{"declarative configuration", "execution plans", "resource graph"},
+				LicenseSPDXID: "MPL-2.0",
+				Purpose:       "Infrastructure as Code tool for building, changing, and versioning infrastructure",
+				Technologies:  []string{"Go", "HCL", "Terraform"},
+				Features: []string{
+					"declarative configuration",
+					"execution plans",
+					"resource graph",
+				},
 				UsageInstructions: "terraform init && terraform plan && terraform apply",
 				SummaryGenerator:  "transformers:distilbart-cnn-12-6",
 			},
@@ -653,7 +667,12 @@ func TestFormatter_GoldenFiles(t *testing.T) {
 				}
 
 				if resultLines[i] != expectedLine {
-					t.Errorf("Line %d mismatch:\nExpected: %q\nGot:      %q", i+1, expectedLine, resultLines[i])
+					t.Errorf(
+						"Line %d mismatch:\nExpected: %q\nGot:      %q",
+						i+1,
+						expectedLine,
+						resultLines[i],
+					)
 				}
 			}
 		})

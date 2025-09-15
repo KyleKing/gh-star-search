@@ -23,7 +23,10 @@ type MockGitHubClient struct {
 	errors       map[string]error
 }
 
-func (m *MockGitHubClient) GetStarredRepos(_ context.Context, _ string) ([]github.Repository, error) {
+func (m *MockGitHubClient) GetStarredRepos(
+	_ context.Context,
+	_ string,
+) ([]github.Repository, error) {
 	if err, exists := m.errors["starred"]; exists {
 		return nil, err
 	}
@@ -31,7 +34,11 @@ func (m *MockGitHubClient) GetStarredRepos(_ context.Context, _ string) ([]githu
 	return m.starredRepos, nil
 }
 
-func (m *MockGitHubClient) GetRepositoryContent(_ context.Context, repo github.Repository, _ []string) ([]github.Content, error) {
+func (m *MockGitHubClient) GetRepositoryContent(
+	_ context.Context,
+	repo github.Repository,
+	_ []string,
+) ([]github.Content, error) {
 	if err, exists := m.errors[repo.FullName]; exists {
 		return nil, err
 	}
@@ -43,7 +50,10 @@ func (m *MockGitHubClient) GetRepositoryContent(_ context.Context, repo github.R
 	return []github.Content{}, nil
 }
 
-func (m *MockGitHubClient) GetRepositoryMetadata(ctx context.Context, repo github.Repository) (*github.Metadata, error) {
+func (m *MockGitHubClient) GetRepositoryMetadata(
+	_ context.Context,
+	repo github.Repository,
+) (*github.Metadata, error) {
 	if err, exists := m.errors[repo.FullName+"_metadata"]; exists {
 		return nil, err
 	}
@@ -55,7 +65,11 @@ func (m *MockGitHubClient) GetRepositoryMetadata(ctx context.Context, repo githu
 	return &github.Metadata{}, nil
 }
 
-func (m *MockGitHubClient) GetContributors(ctx context.Context, fullName string, topN int) ([]github.Contributor, error) {
+func (m *MockGitHubClient) GetContributors(
+	_ context.Context,
+	fullName string,
+	_ int,
+) ([]github.Contributor, error) {
 	if err, exists := m.errors[fullName+"_contributors"]; exists {
 		return nil, err
 	}
@@ -63,7 +77,7 @@ func (m *MockGitHubClient) GetContributors(ctx context.Context, fullName string,
 	return []github.Contributor{{Login: "testuser", Contributions: 10}}, nil
 }
 
-func (m *MockGitHubClient) GetTopics(ctx context.Context, fullName string) ([]string, error) {
+func (m *MockGitHubClient) GetTopics(_ context.Context, fullName string) ([]string, error) {
 	if err, exists := m.errors[fullName+"_topics"]; exists {
 		return nil, err
 	}
@@ -71,7 +85,10 @@ func (m *MockGitHubClient) GetTopics(ctx context.Context, fullName string) ([]st
 	return []string{"test", "mock"}, nil
 }
 
-func (m *MockGitHubClient) GetLanguages(ctx context.Context, fullName string) (map[string]int64, error) {
+func (m *MockGitHubClient) GetLanguages(
+	_ context.Context,
+	fullName string,
+) (map[string]int64, error) {
 	if err, exists := m.errors[fullName+"_languages"]; exists {
 		return nil, err
 	}
@@ -79,7 +96,10 @@ func (m *MockGitHubClient) GetLanguages(ctx context.Context, fullName string) (m
 	return map[string]int64{"Go": 12345}, nil
 }
 
-func (m *MockGitHubClient) GetCommitActivity(ctx context.Context, fullName string) (*github.CommitActivity, error) {
+func (m *MockGitHubClient) GetCommitActivity(
+	_ context.Context,
+	fullName string,
+) (*github.CommitActivity, error) {
 	if err, exists := m.errors[fullName+"_commits"]; exists {
 		return nil, err
 	}
@@ -90,7 +110,10 @@ func (m *MockGitHubClient) GetCommitActivity(ctx context.Context, fullName strin
 	}, nil
 }
 
-func (m *MockGitHubClient) GetPullCounts(ctx context.Context, fullName string) (open int, total int, err error) {
+func (m *MockGitHubClient) GetPullCounts(
+	_ context.Context,
+	fullName string,
+) (open int, total int, err error) {
 	if err, exists := m.errors[fullName+"_prs"]; exists {
 		return 0, 0, err
 	}
@@ -98,7 +121,10 @@ func (m *MockGitHubClient) GetPullCounts(ctx context.Context, fullName string) (
 	return 2, 10, nil
 }
 
-func (m *MockGitHubClient) GetIssueCounts(ctx context.Context, fullName string) (open int, total int, err error) {
+func (m *MockGitHubClient) GetIssueCounts(
+	_ context.Context,
+	fullName string,
+) (open int, total int, err error) {
 	if err, exists := m.errors[fullName+"_issues"]; exists {
 		return 0, 0, err
 	}
@@ -106,7 +132,7 @@ func (m *MockGitHubClient) GetIssueCounts(ctx context.Context, fullName string) 
 	return 3, 15, nil
 }
 
-func (m *MockGitHubClient) GetHomepageText(ctx context.Context, url string) (string, error) {
+func (m *MockGitHubClient) GetHomepageText(_ context.Context, url string) (string, error) {
 	if err, exists := m.errors["homepage_"+url]; exists {
 		return "", err
 	}

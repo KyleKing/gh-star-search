@@ -91,7 +91,12 @@ func (wp *WorkerPool) Execute(ctx context.Context, tasks []Task) []Result {
 }
 
 // worker processes tasks from the task channel
-func (wp *WorkerPool) worker(ctx context.Context, wg *sync.WaitGroup, taskChan <-chan Task, resultChan chan<- Result) {
+func (wp *WorkerPool) worker(
+	ctx context.Context,
+	wg *sync.WaitGroup,
+	taskChan <-chan Task,
+	resultChan chan<- Result,
+) {
 	defer wg.Done()
 
 	for {
@@ -225,7 +230,10 @@ func NewBatchExecutor(client Client, workers int, rateLimit int) *BatchExecutor 
 }
 
 // FetchRepositoryMetrics fetches metrics for multiple repositories in parallel
-func (be *BatchExecutor) FetchRepositoryMetrics(ctx context.Context, repos []Repository) map[string]*RepositoryMetrics {
+func (be *BatchExecutor) FetchRepositoryMetrics(
+	ctx context.Context,
+	repos []Repository,
+) map[string]*RepositoryMetrics {
 	tasks := make([]Task, 0, len(repos)*6) // 6 different metrics per repo
 
 	// Create tasks for each repository and metric type

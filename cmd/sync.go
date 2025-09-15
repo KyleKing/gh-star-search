@@ -45,9 +45,7 @@ intelligent search capabilities.`,
 				Usage:   "Force re-processing of all repositories",
 			},
 		},
-		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return runSync(ctx, cmd)
-		},
+		Action: runSync,
 	}
 }
 
@@ -331,7 +329,11 @@ type syncOperations struct {
 	toRemove []string
 }
 
-func (s *SyncService) determineSyncOperations(starredRepos []github.Repository, existingRepos map[string]*storage.StoredRepo, force bool) *syncOperations {
+func (s *SyncService) determineSyncOperations(
+	starredRepos []github.Repository,
+	existingRepos map[string]*storage.StoredRepo,
+	force bool,
+) *syncOperations {
 	ops := &syncOperations{
 		toAdd:    make([]github.Repository, 0),
 		toUpdate: make([]github.Repository, 0),
@@ -400,11 +402,17 @@ func (s *SyncService) getUpdateReason(repo github.Repository, existing *storage.
 	}
 
 	if repo.StargazersCount != existing.StargazersCount {
-		reasons = append(reasons, fmt.Sprintf("stars: %d → %d", existing.StargazersCount, repo.StargazersCount))
+		reasons = append(
+			reasons,
+			fmt.Sprintf("stars: %d → %d", existing.StargazersCount, repo.StargazersCount),
+		)
 	}
 
 	if repo.ForksCount != existing.ForksCount {
-		reasons = append(reasons, fmt.Sprintf("forks: %d → %d", existing.ForksCount, repo.ForksCount))
+		reasons = append(
+			reasons,
+			fmt.Sprintf("forks: %d → %d", existing.ForksCount, repo.ForksCount),
+		)
 	}
 
 	if repo.Size != existing.SizeKB {
@@ -463,7 +471,10 @@ func (s *SyncService) topicsEqual(a, b []string) bool {
 }
 
 // licenseChanged checks if license information has changed
-func (s *SyncService) licenseChanged(newLicense *github.License, existingName, existingSPDX string) bool {
+func (s *SyncService) licenseChanged(
+	newLicense *github.License,
+	existingName, existingSPDX string,
+) bool {
 	if newLicense == nil {
 		return existingName != "" || existingSPDX != ""
 	}
@@ -471,7 +482,9 @@ func (s *SyncService) licenseChanged(newLicense *github.License, existingName, e
 	return newLicense.Name != existingName || newLicense.SPDXID != existingSPDX
 }
 
-func (s *SyncService) getExistingRepositories(ctx context.Context) (map[string]*storage.StoredRepo, error) {
+func (s *SyncService) getExistingRepositories(
+	ctx context.Context,
+) (map[string]*storage.StoredRepo, error) {
 	existingMap := make(map[string]*storage.StoredRepo)
 
 	// Get all repositories from database (paginated)
@@ -503,7 +516,11 @@ func (s *SyncService) getExistingRepositories(ctx context.Context) (map[string]*
 	return existingMap, nil
 }
 
-func (s *SyncService) removeRepositories(ctx context.Context, toRemove []string, stats *SyncStats) error {
+func (s *SyncService) removeRepositories(
+	ctx context.Context,
+	toRemove []string,
+	stats *SyncStats,
+) error {
 	if len(toRemove) == 0 {
 		return nil
 	}
@@ -537,18 +554,45 @@ func (s *SyncService) removeRepositories(ctx context.Context, toRemove []string,
 	return nil
 }
 
-func (s *SyncService) processRepositoriesInBatches(ctx context.Context, repos []github.Repository, batchSize int, stats *SyncStats, operations *syncOperations) error {
-	return s.processRepositoriesInBatchesWithForceAndMonitor(ctx, repos, batchSize, stats, operations, false, nil)
+func (s *SyncService) processRepositoriesInBatches(
+	ctx context.Context,
+	repos []github.Repository,
+	batchSize int,
+	stats *SyncStats,
+	operations *syncOperations,
+) error {
+	return s.processRepositoriesInBatchesWithForceAndMonitor(
+		ctx,
+		repos,
+		batchSize,
+		stats,
+		operations,
+		false,
+		nil,
+	)
 }
 
-func (s *SyncService) processRepositoriesInBatchesWithForceAndMonitor(ctx context.Context, repos []github.Repository, batchSize int, stats *SyncStats, operations *syncOperations, forceUpdate bool, memMonitor interface{}) error {
+func (s *SyncService) processRepositoriesInBatchesWithForceAndMonitor(
+	ctx context.Context,
+	repos []github.Repository,
+	batchSize int,
+	stats *SyncStats,
+	operations *syncOperations,
+	forceUpdate bool,
+	_ interface{},
+) error {
 	if len(repos) == 0 {
 		return nil
 	}
 
 	totalBatches := (len(repos) + batchSize - 1) / batchSize
 
-	fmt.Printf("\nProcessing %d repositories in %d batches (batch size: %d)...\n", len(repos), totalBatches, batchSize)
+	fmt.Printf(
+		"\nProcessing %d repositories in %d batches (batch size: %d)...\n",
+		len(repos),
+		totalBatches,
+		batchSize,
+	)
 
 	// Create a map to track which repos are new vs updates for better progress reporting
 	isNewRepo := make(map[string]bool)
@@ -573,7 +617,10 @@ func (s *SyncService) processRepositoriesInBatchesWithForceAndMonitor(ctx contex
 
 		fmt.Printf("\n--- Batch %d/%d ---\n", batchNum, totalBatches)
 
-		progress := NewProgressTracker(len(batch), fmt.Sprintf("Processing batch %d/%d", batchNum, totalBatches))
+		progress := NewProgressTracker(
+			len(batch),
+			fmt.Sprintf("Processing batch %d/%d", batchNum, totalBatches),
+		)
 		progress.Start()
 
 		if err := s.processBatch(ctx, batch, stats, progress, isNewRepo, forceUpdate); err != nil {
@@ -593,7 +640,14 @@ func (s *SyncService) processRepositoriesInBatchesWithForceAndMonitor(ctx contex
 	return nil
 }
 
-func (s *SyncService) processBatch(ctx context.Context, batch []github.Repository, stats *SyncStats, progress *ProgressTracker, isNewRepo map[string]bool, forceUpdate bool) error {
+func (s *SyncService) processBatch(
+	ctx context.Context,
+	batch []github.Repository,
+	stats *SyncStats,
+	progress *ProgressTracker,
+	isNewRepo map[string]bool,
+	forceUpdate bool,
+) error {
 	// Determine optimal concurrency based on batch size and system resources
 	maxWorkers := s.calculateOptimalWorkers(len(batch))
 
@@ -675,7 +729,16 @@ func (s *SyncService) processBatch(ctx context.Context, batch []github.Repositor
 }
 
 // processWorker processes repositories in parallel
-func (s *SyncService) processWorker(ctx context.Context, jobs <-chan github.Repository, results chan<- *ProcessResult, errors chan<- error, wg *sync.WaitGroup, progress *ProgressTracker, isNewRepo map[string]bool, forceUpdate bool) {
+func (s *SyncService) processWorker(
+	ctx context.Context,
+	jobs <-chan github.Repository,
+	results chan<- *ProcessResult,
+	errors chan<- error,
+	wg *sync.WaitGroup,
+	progress *ProgressTracker,
+	isNewRepo map[string]bool,
+	forceUpdate bool,
+) {
 	defer wg.Done()
 
 	for {
@@ -690,7 +753,13 @@ func (s *SyncService) processWorker(ctx context.Context, jobs <-chan github.Repo
 			// Get existing repository to track changes
 			existing, _ := s.storage.GetRepository(ctx, repo.FullName)
 
-			result, err := s.processRepositoryWithChangeTrackingAndForce(ctx, repo, existing, false, forceUpdate)
+			result, err := s.processRepositoryWithChangeTrackingAndForce(
+				ctx,
+				repo,
+				existing,
+				false,
+				forceUpdate,
+			)
 			if err != nil {
 				s.logVerbose(fmt.Sprintf("Failed to process %s: %v", repo.FullName, err))
 				errors <- err
@@ -746,7 +815,11 @@ type ProcessResult struct {
 	IsNew           bool // Added for parallel processing tracking
 }
 
-func (s *SyncService) processRepository(ctx context.Context, repo github.Repository, showDetails bool) error {
+func (s *SyncService) processRepository(
+	ctx context.Context,
+	repo github.Repository,
+	showDetails bool,
+) error {
 	result, err := s.processRepositoryWithChangeTracking(ctx, repo, nil, showDetails)
 	if err != nil {
 		return err
@@ -757,11 +830,22 @@ func (s *SyncService) processRepository(ctx context.Context, repo github.Reposit
 	return nil
 }
 
-func (s *SyncService) processRepositoryWithChangeTracking(ctx context.Context, repo github.Repository, existing *storage.StoredRepo, showDetails bool) (*ProcessResult, error) {
+func (s *SyncService) processRepositoryWithChangeTracking(
+	ctx context.Context,
+	repo github.Repository,
+	existing *storage.StoredRepo,
+	showDetails bool,
+) (*ProcessResult, error) {
 	return s.processRepositoryWithChangeTrackingAndForce(ctx, repo, existing, showDetails, false)
 }
 
-func (s *SyncService) processRepositoryWithChangeTrackingAndForce(ctx context.Context, repo github.Repository, existing *storage.StoredRepo, showDetails bool, forceUpdate bool) (*ProcessResult, error) {
+func (s *SyncService) processRepositoryWithChangeTrackingAndForce(
+	ctx context.Context,
+	repo github.Repository,
+	existing *storage.StoredRepo,
+	showDetails bool,
+	forceUpdate bool,
+) (*ProcessResult, error) {
 	if showDetails {
 		fmt.Printf("Processing repository: %s\n", repo.FullName)
 	} else {
@@ -866,7 +950,10 @@ func (s *SyncService) processRepositoryWithChangeTrackingAndForce(ctx context.Co
 }
 
 // hasMetadataChanged checks if any metadata fields have changed
-func (s *SyncService) hasMetadataChanged(existing *storage.StoredRepo, processed *processor.ProcessedRepo) bool {
+func (s *SyncService) hasMetadataChanged(
+	existing *storage.StoredRepo,
+	processed *processor.ProcessedRepo,
+) bool {
 	return existing.StargazersCount != processed.Repository.StargazersCount ||
 		existing.ForksCount != processed.Repository.ForksCount ||
 		existing.SizeKB != processed.Repository.Size ||
@@ -877,9 +964,16 @@ func (s *SyncService) hasMetadataChanged(existing *storage.StoredRepo, processed
 }
 
 // logMetadataChanges logs detailed metadata changes for verbose output
-func (s *SyncService) logMetadataChanges(existing *storage.StoredRepo, processed *processor.ProcessedRepo) {
+func (s *SyncService) logMetadataChanges(
+	existing *storage.StoredRepo,
+	processed *processor.ProcessedRepo,
+) {
 	if existing.StargazersCount != processed.Repository.StargazersCount {
-		fmt.Printf("    Stars: %d → %d\n", existing.StargazersCount, processed.Repository.StargazersCount)
+		fmt.Printf(
+			"    Stars: %d → %d\n",
+			existing.StargazersCount,
+			processed.Repository.StargazersCount,
+		)
 	}
 
 	if existing.ForksCount != processed.Repository.ForksCount {
@@ -926,7 +1020,11 @@ func (s *SyncService) printSyncSummary(stats *SyncStats) {
 	}
 
 	// Success rate
-	successRate := float64(stats.ProcessedRepos) / float64(stats.ProcessedRepos+stats.ErrorRepos) * 100
+	successRate := float64(
+		stats.ProcessedRepos,
+	) / float64(
+		stats.ProcessedRepos+stats.ErrorRepos,
+	) * 100
 	if stats.ProcessedRepos+stats.ErrorRepos > 0 {
 		fmt.Printf("  Success rate: %.1f%%\n", successRate)
 	}
@@ -934,7 +1032,10 @@ func (s *SyncService) printSyncSummary(stats *SyncStats) {
 	fmt.Println(strings.Repeat("=", 60))
 
 	if stats.ErrorRepos > 0 {
-		fmt.Printf("⚠️  %d repositories failed to process. Check logs for details.\n", stats.ErrorRepos)
+		fmt.Printf(
+			"⚠️  %d repositories failed to process. Check logs for details.\n",
+			stats.ErrorRepos,
+		)
 	} else if stats.ProcessedRepos > 0 {
 		fmt.Printf("✅ All repositories processed successfully!\n")
 	} else {

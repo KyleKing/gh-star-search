@@ -200,7 +200,11 @@ func createTestRepositories() []processor.ProcessedRepo {
 			Summary: processor.Summary{
 				Purpose:      "JavaScript library for building user interfaces with component-based architecture",
 				Technologies: []string{"JavaScript", "JSX", "Virtual DOM"},
-				UseCases:     []string{"web applications", "single page applications", "mobile apps"},
+				UseCases: []string{
+					"web applications",
+					"single page applications",
+					"mobile apps",
+				},
 				Features:     []string{"component-based", "virtual DOM", "declarative"},
 				Installation: "npm install react",
 				Usage:        "Import React and create components using JSX",

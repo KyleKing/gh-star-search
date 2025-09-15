@@ -66,7 +66,11 @@ func TestDuckDBRepository(t *testing.T) {
 		}
 
 		if stored.Description != testRepo.Repository.Description {
-			t.Errorf("Expected description %s, got %s", testRepo.Repository.Description, stored.Description)
+			t.Errorf(
+				"Expected description %s, got %s",
+				testRepo.Repository.Description,
+				stored.Description,
+			)
 		}
 
 		if len(stored.Chunks) != 2 {
@@ -208,7 +212,8 @@ func TestDuckDBRepository(t *testing.T) {
 		// Verify chunks were also deleted (cascade)
 		var chunkCount int
 
-		err = repo.db.QueryRow("SELECT COUNT(*) FROM content_chunks WHERE repository_id = (SELECT id FROM repositories WHERE full_name = ?)", testRepo.Repository.FullName).Scan(&chunkCount)
+		err = repo.db.QueryRow("SELECT COUNT(*) FROM content_chunks WHERE repository_id = (SELECT id FROM repositories WHERE full_name = ?)", testRepo.Repository.FullName).
+			Scan(&chunkCount)
 		if err != nil {
 			// This is expected since the repository was deleted
 			_ = err // explicitly ignore the error

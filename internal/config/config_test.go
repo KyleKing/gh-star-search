@@ -67,7 +67,7 @@ func TestLoadConfigFromFileInvalidJSON(t *testing.T) {
 	config, err := LoadConfigWithOverrides(nil)
 	require.NoError(t, err)
 	err = loadConfigFromFile(config, configPath)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse config file")
 }
 
@@ -166,7 +166,7 @@ func TestValidateConfig(t *testing.T) {
 
 			err = validateConfig(config)
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 
 				if tt.errorContains != "" {
 					assert.Contains(t, err.Error(), tt.errorContains)

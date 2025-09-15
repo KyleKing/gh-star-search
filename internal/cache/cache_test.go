@@ -34,7 +34,11 @@ func TestFileCache_BasicOperations(t *testing.T) {
 	}
 
 	if string(retrieved) != string(data) {
-		t.Errorf("Retrieved data doesn't match. Expected: %s, Got: %s", string(data), string(retrieved))
+		t.Errorf(
+			"Retrieved data doesn't match. Expected: %s, Got: %s",
+			string(data),
+			string(retrieved),
+		)
 	}
 
 	// Test Delete

@@ -36,7 +36,13 @@ func TestWrap(t *testing.T) {
 
 func TestWrapf(t *testing.T) {
 	originalErr := errors.New("connection refused")
-	wrappedErr := Wrapf(originalErr, ErrTypeNetwork, "failed to connect to %s:%d", "localhost", 8080)
+	wrappedErr := Wrapf(
+		originalErr,
+		ErrTypeNetwork,
+		"failed to connect to %s:%d",
+		"localhost",
+		8080,
+	)
 
 	assert.Equal(t, ErrTypeNetwork, wrappedErr.Type)
 	assert.Equal(t, "failed to connect to localhost:8080", wrappedErr.Message)

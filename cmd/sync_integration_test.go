@@ -17,7 +17,11 @@ import (
 )
 
 // createTestSyncService creates a sync service for testing
-func createTestSyncService(githubClient github.Client, processor processor.Service, storage storage.Repository) *SyncService {
+func createTestSyncService(
+	githubClient github.Client,
+	processor processor.Service,
+	storage storage.Repository,
+) *SyncService {
 	cfg, _ := config.LoadConfig()
 
 	return &SyncService{

@@ -58,7 +58,11 @@ type FileCache struct {
 }
 
 // NewFileCache creates a new file-based cache
-func NewFileCache(directory string, maxSizeMB int, defaultTTL, cleanupFreq time.Duration) (*FileCache, error) {
+func NewFileCache(
+	directory string,
+	maxSizeMB int,
+	defaultTTL, cleanupFreq time.Duration,
+) (*FileCache, error) {
 	// Expand path if it starts with ~
 	if strings.HasPrefix(directory, "~/") {
 		home, err := os.UserHomeDir()

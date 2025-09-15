@@ -126,7 +126,11 @@ func initializeGlobalConfig(ctx context.Context, cmd *cli.Command) (context.Cont
 	cfg.ExpandAllPaths()
 
 	if err := cfg.EnsureDirectories(); err != nil {
-		return ctx, gherrors.Wrap(err, gherrors.ErrTypeFileSystem, "failed to create required directories")
+		return ctx, gherrors.Wrap(
+			err,
+			gherrors.ErrTypeFileSystem,
+			"failed to create required directories",
+		)
 	}
 
 	// Initialize logging with slog

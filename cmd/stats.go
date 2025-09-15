@@ -14,7 +14,7 @@ func StatsCommand() *cli.Command {
 		Name:        "stats",
 		Usage:       "Display database statistics",
 		Description: `Show statistics about the local database including total repositories, last sync time, and database size.`,
-		Action: func(ctx context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, _ *cli.Command) error {
 			return runStats(ctx)
 		},
 	}

@@ -60,7 +60,11 @@ func (c *CachedClient) GetStarredRepos(ctx context.Context, username string) ([]
 }
 
 // GetRepositoryContent fetches repository content with caching
-func (c *CachedClient) GetRepositoryContent(ctx context.Context, repo Repository, paths []string) ([]Content, error) {
+func (c *CachedClient) GetRepositoryContent(
+	ctx context.Context,
+	repo Repository,
+	paths []string,
+) ([]Content, error) {
 	cacheKey := fmt.Sprintf("content:%s:%v", repo.FullName, paths)
 	ttl := time.Duration(c.config.Cache.MetadataStaleDays) * 24 * time.Hour
 
@@ -84,7 +88,10 @@ func (c *CachedClient) GetRepositoryContent(ctx context.Context, repo Repository
 }
 
 // GetRepositoryMetadata fetches repository metadata with caching
-func (c *CachedClient) GetRepositoryMetadata(ctx context.Context, repo Repository) (*Metadata, error) {
+func (c *CachedClient) GetRepositoryMetadata(
+	ctx context.Context,
+	repo Repository,
+) (*Metadata, error) {
 	cacheKey := "metadata:" + repo.FullName
 	ttl := time.Duration(c.config.Cache.MetadataStaleDays) * 24 * time.Hour
 
@@ -108,7 +115,11 @@ func (c *CachedClient) GetRepositoryMetadata(ctx context.Context, repo Repositor
 }
 
 // GetContributors fetches contributors with stats-level caching
-func (c *CachedClient) GetContributors(ctx context.Context, fullName string, topN int) ([]Contributor, error) {
+func (c *CachedClient) GetContributors(
+	ctx context.Context,
+	fullName string,
+	topN int,
+) ([]Contributor, error) {
 	cacheKey := fmt.Sprintf("contributors:%s:%d", fullName, topN)
 	ttl := time.Duration(c.config.Cache.StatsStaleDays) * 24 * time.Hour
 
@@ -199,7 +210,10 @@ func (c *CachedClient) GetTopics(ctx context.Context, fullName string) ([]string
 }
 
 // GetLanguages fetches languages with metadata-level caching
-func (c *CachedClient) GetLanguages(ctx context.Context, fullName string) (map[string]int64, error) {
+func (c *CachedClient) GetLanguages(
+	ctx context.Context,
+	fullName string,
+) (map[string]int64, error) {
 	cacheKey := "languages:" + fullName
 	ttl := time.Duration(c.config.Cache.MetadataStaleDays) * 24 * time.Hour
 
@@ -236,7 +250,10 @@ func (c *CachedClient) GetLanguages(ctx context.Context, fullName string) (map[s
 }
 
 // GetCommitActivity fetches commit activity with stats-level caching
-func (c *CachedClient) GetCommitActivity(ctx context.Context, fullName string) (*CommitActivity, error) {
+func (c *CachedClient) GetCommitActivity(
+	ctx context.Context,
+	fullName string,
+) (*CommitActivity, error) {
 	cacheKey := "commits:" + fullName
 	ttl := time.Duration(c.config.Cache.StatsStaleDays) * 24 * time.Hour
 
@@ -260,7 +277,10 @@ func (c *CachedClient) GetCommitActivity(ctx context.Context, fullName string) (
 }
 
 // GetPullCounts fetches PR counts with stats-level caching
-func (c *CachedClient) GetPullCounts(ctx context.Context, fullName string) (open int, total int, err error) {
+func (c *CachedClient) GetPullCounts(
+	ctx context.Context,
+	fullName string,
+) (open int, total int, err error) {
 	cacheKey := "prs:" + fullName
 	ttl := time.Duration(c.config.Cache.StatsStaleDays) * 24 * time.Hour
 
@@ -299,7 +319,10 @@ func (c *CachedClient) GetPullCounts(ctx context.Context, fullName string) (open
 }
 
 // GetIssueCounts fetches issue counts with stats-level caching
-func (c *CachedClient) GetIssueCounts(ctx context.Context, fullName string) (open int, total int, err error) {
+func (c *CachedClient) GetIssueCounts(
+	ctx context.Context,
+	fullName string,
+) (open int, total int, err error) {
 	cacheKey := "issues:" + fullName
 	ttl := time.Duration(c.config.Cache.StatsStaleDays) * 24 * time.Hour
 
@@ -362,7 +385,11 @@ func (c *CachedClient) GetHomepageText(ctx context.Context, url string) (string,
 }
 
 // getCachedData retrieves and validates cached data
-func (c *CachedClient) getCachedData(ctx context.Context, key string, maxAge time.Duration) (interface{}, error) {
+func (c *CachedClient) getCachedData(
+	ctx context.Context,
+	key string,
+	maxAge time.Duration,
+) (interface{}, error) {
 	data, err := c.cache.Get(ctx, key)
 	if err != nil {
 		return nil, err
@@ -382,7 +409,13 @@ func (c *CachedClient) getCachedData(ctx context.Context, key string, maxAge tim
 }
 
 // setCachedData stores data in cache with metadata
-func (c *CachedClient) setCachedData(ctx context.Context, key string, data interface{}, ttl time.Duration, entryType string) {
+func (c *CachedClient) setCachedData(
+	ctx context.Context,
+	key string,
+	data interface{},
+	ttl time.Duration,
+	entryType string,
+) {
 	entry := CacheEntry{
 		Data:      data,
 		CachedAt:  time.Now(),

@@ -101,7 +101,7 @@ func TestSetupLoggerFileInvalidPath(t *testing.T) {
 	}
 
 	err := SetupLogger(cfg)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "log file path is required")
 }
 
@@ -193,7 +193,7 @@ func TestSetupLoggerWithContext(t *testing.T) {
 	assert.Contains(t, output, "key=value")
 }
 
-func TestSetupFallbackLogger(t *testing.T) {
+func TestSetupFallbackLogger(_ *testing.T) {
 	SetupFallbackLogger()
 
 	// Test that logging works
@@ -213,7 +213,7 @@ func TestLoggerMiddleware(t *testing.T) {
 	ctx := context.Background()
 
 	// Test successful operation
-	err := LoggerMiddleware(ctx, "test_operation", func(ctx context.Context) error {
+	err := LoggerMiddleware(ctx, "test_operation", func(_ context.Context) error {
 		return nil
 	})
 
@@ -238,7 +238,7 @@ func TestLoggerMiddlewareWithError(t *testing.T) {
 	testErr := assert.AnError
 
 	// Test failed operation
-	err := LoggerMiddleware(ctx, "test_operation", func(ctx context.Context) error {
+	err := LoggerMiddleware(ctx, "test_operation", func(_ context.Context) error {
 		return testErr
 	})
 

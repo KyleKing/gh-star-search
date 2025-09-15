@@ -15,7 +15,11 @@ type mockGitHubClient struct {
 	err     error
 }
 
-func (m *mockGitHubClient) GetRepositoryContent(_ context.Context, _ github.Repository, _ []string) ([]github.Content, error) {
+func (m *mockGitHubClient) GetRepositoryContent(
+	_ context.Context,
+	_ github.Repository,
+	_ []string,
+) ([]github.Content, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -81,7 +85,13 @@ func TestDeterminePriority(t *testing.T) {
 	for _, test := range tests {
 		result := service.determinePriority(test.contentType, test.path)
 		if result != test.expected {
-			t.Errorf("determinePriority(%q, %q) = %d, want %d", test.contentType, test.path, result, test.expected)
+			t.Errorf(
+				"determinePriority(%q, %q) = %d, want %d",
+				test.contentType,
+				test.path,
+				result,
+				test.expected,
+			)
 		}
 	}
 }
@@ -261,7 +271,10 @@ func TestChunkContent(t *testing.T) {
 	}
 
 	// Test large content (should be split into multiple chunks)
-	largeContent := strings.Repeat("This is a line of content that will be repeated many times.\n", 200)
+	largeContent := strings.Repeat(
+		"This is a line of content that will be repeated many times.\n",
+		200,
+	)
 	chunks = service.chunkContent(largeContent, "large.md", ContentTypeReadme, PriorityHigh)
 
 	if len(chunks) <= 1 {

@@ -14,47 +14,47 @@ import (
 // Config represents the application configuration
 type Config struct {
 	Database DatabaseConfig `json:"database" envPrefix:"GH_STAR_SEARCH_"`
-	Cache    CacheConfig    `json:"cache" envPrefix:"GH_STAR_SEARCH_"`
-	Logging  LoggingConfig  `json:"logging" envPrefix:"GH_STAR_SEARCH_"`
-	Debug    DebugConfig    `json:"debug" envPrefix:"GH_STAR_SEARCH_"`
+	Cache    CacheConfig    `json:"cache"    envPrefix:"GH_STAR_SEARCH_"`
+	Logging  LoggingConfig  `json:"logging"  envPrefix:"GH_STAR_SEARCH_"`
+	Debug    DebugConfig    `json:"debug"    envPrefix:"GH_STAR_SEARCH_"`
 }
 
 // DatabaseConfig represents database configuration
 type DatabaseConfig struct {
-	Path           string `json:"path" env:"DB_PATH" envDefault:"~/.config/gh-star-search/database.db"`
+	Path           string `json:"path"            env:"DB_PATH"            envDefault:"~/.config/gh-star-search/database.db"`
 	MaxConnections int    `json:"max_connections" env:"DB_MAX_CONNECTIONS" envDefault:"10"`
-	QueryTimeout   string `json:"query_timeout" env:"DB_QUERY_TIMEOUT" envDefault:"30s"`
+	QueryTimeout   string `json:"query_timeout"   env:"DB_QUERY_TIMEOUT"   envDefault:"30s"`
 }
 
 // CacheConfig represents caching configuration
 type CacheConfig struct {
-	Directory         string `json:"directory" env:"CACHE_DIR" envDefault:"~/.cache/gh-star-search"`
-	MaxSizeMB         int    `json:"max_size_mb" env:"CACHE_MAX_SIZE_MB" envDefault:"500"`
-	TTLHours          int    `json:"ttl_hours" env:"CACHE_TTL_HOURS" envDefault:"24"`
-	CleanupFreq       string `json:"cleanup_frequency" env:"CACHE_CLEANUP_FREQ" envDefault:"1h"`
+	Directory         string `json:"directory"           env:"CACHE_DIR"                 envDefault:"~/.cache/gh-star-search"`
+	MaxSizeMB         int    `json:"max_size_mb"         env:"CACHE_MAX_SIZE_MB"         envDefault:"500"`
+	TTLHours          int    `json:"ttl_hours"           env:"CACHE_TTL_HOURS"           envDefault:"24"`
+	CleanupFreq       string `json:"cleanup_frequency"   env:"CACHE_CLEANUP_FREQ"        envDefault:"1h"`
 	MetadataStaleDays int    `json:"metadata_stale_days" env:"CACHE_METADATA_STALE_DAYS" envDefault:"14"`
-	StatsStaleDays    int    `json:"stats_stale_days" env:"CACHE_STATS_STALE_DAYS" envDefault:"7"`
+	StatsStaleDays    int    `json:"stats_stale_days"    env:"CACHE_STATS_STALE_DAYS"    envDefault:"7"`
 }
 
 // LoggingConfig represents logging configuration
 type LoggingConfig struct {
-	Level      string `json:"level" env:"LOG_LEVEL" envDefault:"info"`                                // debug, info, warn, error
-	Format     string `json:"format" env:"LOG_FORMAT" envDefault:"text"`                              // text, json
-	Output     string `json:"output" env:"LOG_OUTPUT" envDefault:"stdout"`                            // stdout, stderr, file
-	File       string `json:"file" env:"LOG_FILE" envDefault:"~/.config/gh-star-search/logs/app.log"` // log file path when output is file
-	MaxSizeMB  int    `json:"max_size_mb" env:"LOG_MAX_SIZE_MB" envDefault:"10"`                      // max log file size
-	MaxBackups int    `json:"max_backups" env:"LOG_MAX_BACKUPS" envDefault:"5"`                       // max number of backup files
-	MaxAgeDays int    `json:"max_age_days" env:"LOG_MAX_AGE_DAYS" envDefault:"30"`                    // max age of log files
-	AddSource  bool   `json:"add_source" env:"LOG_ADD_SOURCE" envDefault:"false"`                     // add source file and line info to logs
+	Level      string `json:"level"        env:"LOG_LEVEL"        envDefault:"info"`                                  // debug, info, warn, error
+	Format     string `json:"format"       env:"LOG_FORMAT"       envDefault:"text"`                                  // text, json
+	Output     string `json:"output"       env:"LOG_OUTPUT"       envDefault:"stdout"`                                // stdout, stderr, file
+	File       string `json:"file"         env:"LOG_FILE"         envDefault:"~/.config/gh-star-search/logs/app.log"` // log file path when output is file
+	MaxSizeMB  int    `json:"max_size_mb"  env:"LOG_MAX_SIZE_MB"  envDefault:"10"`                                    // max log file size
+	MaxBackups int    `json:"max_backups"  env:"LOG_MAX_BACKUPS"  envDefault:"5"`                                     // max number of backup files
+	MaxAgeDays int    `json:"max_age_days" env:"LOG_MAX_AGE_DAYS" envDefault:"30"`                                    // max age of log files
+	AddSource  bool   `json:"add_source"   env:"LOG_ADD_SOURCE"   envDefault:"false"`                                 // add source file and line info to logs
 }
 
 // DebugConfig represents debug configuration
 type DebugConfig struct {
-	Enabled     bool `json:"enabled" env:"DEBUG" envDefault:"false"`
+	Enabled     bool `json:"enabled"      env:"DEBUG"              envDefault:"false"`
 	ProfilePort int  `json:"profile_port" env:"DEBUG_PROFILE_PORT" envDefault:"6060"`
 	MetricsPort int  `json:"metrics_port" env:"DEBUG_METRICS_PORT" envDefault:"8080"`
-	Verbose     bool `json:"verbose" env:"VERBOSE" envDefault:"false"`
-	TraceAPI    bool `json:"trace_api" env:"DEBUG_TRACE_API" envDefault:"false"`
+	Verbose     bool `json:"verbose"      env:"VERBOSE"            envDefault:"false"`
+	TraceAPI    bool `json:"trace_api"    env:"DEBUG_TRACE_API"    envDefault:"false"`
 }
 
 // LoadConfig loads configuration from file, environment variables, and command-line flags
@@ -114,26 +114,6 @@ func loadConfigFromFile(config *Config, configPath string) error {
 	mergeConfigs(config, &fileConfig)
 
 	return nil
-}
-
-// parseInt parses string to int
-func parseInt(s string) (int, error) {
-	var result int
-	_, err := fmt.Sscanf(s, "%d", &result)
-
-	return result, err
-}
-
-// parseBool parses string to bool
-func parseBool(s string) (bool, error) {
-	switch strings.ToLower(s) {
-	case "true", "1", "yes", "on":
-		return true, nil
-	case "false", "0", "no", "off":
-		return false, nil
-	default:
-		return false, fmt.Errorf("invalid boolean value: %s", s)
-	}
 }
 
 // applyFlagOverrides applies command-line flag overrides to configuration
@@ -256,7 +236,10 @@ func validateConfig(config *Config) error {
 		"debug": true, "info": true, "warn": true, "error": true,
 	}
 	if !validLogLevels[strings.ToLower(config.Logging.Level)] {
-		return fmt.Errorf("invalid log level: %s (must be debug, info, warn, or error)", config.Logging.Level)
+		return fmt.Errorf(
+			"invalid log level: %s (must be debug, info, warn, or error)",
+			config.Logging.Level,
+		)
 	}
 
 	// Validate log format
@@ -272,7 +255,10 @@ func validateConfig(config *Config) error {
 		"stdout": true, "stderr": true, "file": true,
 	}
 	if !validLogOutputs[strings.ToLower(config.Logging.Output)] {
-		return fmt.Errorf("invalid log output: %s (must be stdout, stderr, or file)", config.Logging.Output)
+		return fmt.Errorf(
+			"invalid log output: %s (must be stdout, stderr, or file)",
+			config.Logging.Output,
+		)
 	}
 
 	// Validate timeout durations
@@ -286,7 +272,10 @@ func validateConfig(config *Config) error {
 
 	// Validate numeric values
 	if config.Database.MaxConnections <= 0 {
-		return fmt.Errorf("database max connections must be positive: %d", config.Database.MaxConnections)
+		return fmt.Errorf(
+			"database max connections must be positive: %d",
+			config.Database.MaxConnections,
+		)
 	}
 
 	return nil

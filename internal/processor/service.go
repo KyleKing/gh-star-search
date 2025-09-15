@@ -20,7 +20,11 @@ import (
 
 // Service defines the interface for content processing operations
 type Service interface {
-	ProcessRepository(ctx context.Context, repo github.Repository, content []github.Content) (*ProcessedRepo, error)
+	ProcessRepository(
+		ctx context.Context,
+		repo github.Repository,
+		content []github.Content,
+	) (*ProcessedRepo, error)
 	ExtractContent(ctx context.Context, repo github.Repository) ([]github.Content, error)
 	GenerateSummary(ctx context.Context, chunks []ContentChunk) (*Summary, error)
 }
@@ -82,7 +86,11 @@ const (
 
 // GitHubClient interface for fetching repository content
 type GitHubClient interface {
-	GetRepositoryContent(ctx context.Context, repo github.Repository, paths []string) ([]github.Content, error)
+	GetRepositoryContent(
+		ctx context.Context,
+		repo github.Repository,
+		paths []string,
+	) ([]github.Content, error)
 }
 
 // serviceImpl implements the Service interface
@@ -113,7 +121,11 @@ func NewServiceWithCache(githubClient GitHubClient, cache ContentCache) Service 
 }
 
 // ProcessRepository processes a repository by extracting content and generating summaries
-func (s *serviceImpl) ProcessRepository(ctx context.Context, repo github.Repository, content []github.Content) (*ProcessedRepo, error) {
+func (s *serviceImpl) ProcessRepository(
+	ctx context.Context,
+	repo github.Repository,
+	content []github.Content,
+) (*ProcessedRepo, error) {
 	// Extract and chunk content
 	chunks, err := s.extractAndChunkContent(ctx, repo, content)
 	if err != nil {
@@ -142,7 +154,10 @@ func (s *serviceImpl) ProcessRepository(ctx context.Context, repo github.Reposit
 }
 
 // ExtractContent extracts relevant content from a repository with caching
-func (s *serviceImpl) ExtractContent(ctx context.Context, repo github.Repository) ([]github.Content, error) {
+func (s *serviceImpl) ExtractContent(
+	ctx context.Context,
+	repo github.Repository,
+) ([]github.Content, error) {
 	// Try to get content from cache first
 	if s.cache != nil {
 		cacheKey := fmt.Sprintf("content:%s:%s", repo.FullName, repo.UpdatedAt.Format(time.RFC3339))
@@ -185,7 +200,11 @@ func (s *serviceImpl) GenerateSummary(_ context.Context, chunks []ContentChunk) 
 }
 
 // extractAndChunkContent processes repository content into chunks
-func (s *serviceImpl) extractAndChunkContent(ctx context.Context, _ github.Repository, content []github.Content) ([]ContentChunk, error) {
+func (s *serviceImpl) extractAndChunkContent(
+	ctx context.Context,
+	_ github.Repository,
+	content []github.Content,
+) ([]ContentChunk, error) {
 	var allChunks []ContentChunk
 
 	totalTokens := 0
@@ -326,7 +345,8 @@ func (s *serviceImpl) determineContentType(path string) string {
 	}
 
 	// Changelog files
-	if strings.Contains(base, "changelog") || strings.Contains(base, "changes") || strings.Contains(base, "history") {
+	if strings.Contains(base, "changelog") || strings.Contains(base, "changes") ||
+		strings.Contains(base, "history") {
 		return ContentTypeChangelog
 	}
 
@@ -336,7 +356,17 @@ func (s *serviceImpl) determineContentType(path string) string {
 	}
 
 	// Package manifests
-	packageFiles := []string{"package.json", "cargo.toml", "go.mod", "setup.py", "pom.xml", "composer.json", "gemfile", "requirements.txt", "pyproject.toml"}
+	packageFiles := []string{
+		"package.json",
+		"cargo.toml",
+		"go.mod",
+		"setup.py",
+		"pom.xml",
+		"composer.json",
+		"gemfile",
+		"requirements.txt",
+		"pyproject.toml",
+	}
 	for _, pkg := range packageFiles {
 		if base == pkg {
 			return ContentTypePackage
@@ -352,7 +382,33 @@ func (s *serviceImpl) determineContentType(path string) string {
 	}
 
 	// Code files
-	codeExts := []string{".go", ".py", ".js", ".ts", ".java", ".c", ".cpp", ".h", ".hpp", ".rs", ".rb", ".php", ".cs", ".swift", ".kt", ".scala", ".clj", ".hs", ".ml", ".r", ".m", ".sh", ".bash", ".zsh", ".fish"}
+	codeExts := []string{
+		".go",
+		".py",
+		".js",
+		".ts",
+		".java",
+		".c",
+		".cpp",
+		".h",
+		".hpp",
+		".rs",
+		".rb",
+		".php",
+		".cs",
+		".swift",
+		".kt",
+		".scala",
+		".clj",
+		".hs",
+		".ml",
+		".r",
+		".m",
+		".sh",
+		".bash",
+		".zsh",
+		".fish",
+	}
 	for _, codeExt := range codeExts {
 		if ext == codeExt {
 			return ContentTypeCode
@@ -371,7 +427,8 @@ func (s *serviceImpl) determinePriority(contentType, path string) int {
 		return PriorityHigh
 	case ContentTypeDocs:
 		// Main documentation gets high priority
-		if strings.Contains(strings.ToLower(path), "index") || strings.Contains(strings.ToLower(path), "getting") {
+		if strings.Contains(strings.ToLower(path), "index") ||
+			strings.Contains(strings.ToLower(path), "getting") {
 			return PriorityHigh
 		}
 
@@ -379,7 +436,8 @@ func (s *serviceImpl) determinePriority(contentType, path string) int {
 	case ContentTypeCode:
 		// Main entry points get medium priority
 		base := strings.ToLower(filepath.Base(path))
-		if strings.Contains(base, "main") || strings.Contains(base, "index") || strings.Contains(base, "app") {
+		if strings.Contains(base, "main") || strings.Contains(base, "index") ||
+			strings.Contains(base, "app") {
 			return PriorityMedium
 		}
 
@@ -394,7 +452,10 @@ func (s *serviceImpl) determinePriority(contentType, path string) int {
 }
 
 // chunkContent splits content into manageable chunks
-func (s *serviceImpl) chunkContent(content, source, contentType string, priority int) []ContentChunk {
+func (s *serviceImpl) chunkContent(
+	content, source, contentType string,
+	priority int,
+) []ContentChunk {
 	var chunks []ContentChunk
 
 	// Estimate tokens (rough approximation: 1 token ≈ 4 characters)
@@ -494,7 +555,9 @@ func (s *serviceImpl) splitCodeContent(content string) []string {
 	var currentSection strings.Builder
 
 	// Simple heuristic: split on function/class definitions
-	functionRegex := regexp.MustCompile(`^(func|function|def|class|interface|type|struct|impl|fn)\s+`)
+	functionRegex := regexp.MustCompile(
+		`^(func|function|def|class|interface|type|struct|impl|fn)\s+`,
+	)
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -652,11 +715,14 @@ func (s *serviceImpl) generateBasicSummary(chunks []ContentChunk) *Summary {
 		if chunk.Type == ContentTypePackage {
 			// Extract technologies from package files
 			content := strings.ToLower(chunk.Content)
-			if strings.Contains(content, "javascript") || strings.Contains(content, "node") || strings.Contains(chunk.Source, "package.json") {
+			if strings.Contains(content, "javascript") || strings.Contains(content, "node") ||
+				strings.Contains(chunk.Source, "package.json") {
 				summary.Technologies = append(summary.Technologies, "JavaScript")
 			}
 
-			if strings.Contains(content, "python") || strings.Contains(content, "beautifulsoup") || strings.Contains(content, "django") || strings.Contains(content, "flask") {
+			if strings.Contains(content, "python") || strings.Contains(content, "beautifulsoup") ||
+				strings.Contains(content, "django") ||
+				strings.Contains(content, "flask") {
 				summary.Technologies = append(summary.Technologies, "Python")
 			}
 

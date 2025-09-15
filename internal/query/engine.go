@@ -67,7 +67,11 @@ func (e *SearchEngine) Search(ctx context.Context, q Query, opts SearchOptions) 
 }
 
 // searchFuzzy performs fuzzy text search with BM25-like scoring
-func (e *SearchEngine) searchFuzzy(ctx context.Context, query string, opts SearchOptions) ([]Result, error) {
+func (e *SearchEngine) searchFuzzy(
+	ctx context.Context,
+	query string,
+	opts SearchOptions,
+) ([]Result, error) {
 	// Get raw search results from storage layer
 	storageResults, err := e.repo.SearchRepositories(ctx, query)
 	if err != nil {
@@ -119,7 +123,11 @@ func (e *SearchEngine) searchFuzzy(ctx context.Context, query string, opts Searc
 }
 
 // searchVector performs vector similarity search
-func (e *SearchEngine) searchVector(ctx context.Context, query string, opts SearchOptions) ([]Result, error) {
+func (e *SearchEngine) searchVector(
+	ctx context.Context,
+	query string,
+	opts SearchOptions,
+) ([]Result, error) {
 	// TODO: Implement vector search with cosine similarity
 	// For now, fall back to fuzzy search
 	// This will be implemented when embedding functionality is added
@@ -210,7 +218,10 @@ func (e *SearchEngine) applyRankingBoosts(repo storage.StoredRepo, baseScore flo
 }
 
 // identifyMatchedFields identifies which logical fields matched the query
-func (e *SearchEngine) identifyMatchedFields(repo storage.StoredRepo, queryTerms []string) []string {
+func (e *SearchEngine) identifyMatchedFields(
+	repo storage.StoredRepo,
+	queryTerms []string,
+) []string {
 	var matchedFields []string
 
 	fieldMap := map[string]string{

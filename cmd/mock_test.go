@@ -28,15 +28,21 @@ func (m *MockRepository) UpdateRepository(_ context.Context, _ processor.Process
 	return nil
 }
 
-func (m *MockRepository) DeleteRepository(_ context.Context, fullName string) error {
+func (m *MockRepository) DeleteRepository(_ context.Context, _ string) error {
 	return nil
 }
 
-func (m *MockRepository) SearchRepositories(ctx context.Context, query string) ([]storage.SearchResult, error) {
+func (m *MockRepository) SearchRepositories(
+	_ context.Context,
+	_ string,
+) ([]storage.SearchResult, error) {
 	return nil, nil
 }
 
-func (m *MockRepository) GetRepository(ctx context.Context, fullName string) (*storage.StoredRepo, error) {
+func (m *MockRepository) GetRepository(
+	_ context.Context,
+	fullName string,
+) (*storage.StoredRepo, error) {
 	for _, repo := range m.repos {
 		if repo.FullName == fullName {
 			return &repo, nil
@@ -46,7 +52,10 @@ func (m *MockRepository) GetRepository(ctx context.Context, fullName string) (*s
 	return nil, fmt.Errorf("repository not found: %s", fullName)
 }
 
-func (m *MockRepository) ListRepositories(ctx context.Context, limit, offset int) ([]storage.StoredRepo, error) {
+func (m *MockRepository) ListRepositories(
+	_ context.Context,
+	limit, offset int,
+) ([]storage.StoredRepo, error) {
 	start := offset
 	if start >= len(m.repos) {
 		return []storage.StoredRepo{}, nil
@@ -60,7 +69,7 @@ func (m *MockRepository) ListRepositories(ctx context.Context, limit, offset int
 	return m.repos[start:end], nil
 }
 
-func (m *MockRepository) GetStats(ctx context.Context) (*storage.Stats, error) {
+func (m *MockRepository) GetStats(_ context.Context) (*storage.Stats, error) {
 	if m.stats != nil {
 		return m.stats, nil
 	}
@@ -75,7 +84,7 @@ func (m *MockRepository) GetStats(ctx context.Context) (*storage.Stats, error) {
 	}, nil
 }
 
-func (m *MockRepository) Clear(ctx context.Context) error {
+func (m *MockRepository) Clear(_ context.Context) error {
 	m.repos = []storage.StoredRepo{}
 	return nil
 }
@@ -85,22 +94,32 @@ func (m *MockRepository) Close() error {
 	return nil
 }
 
-func (m *MockRepository) GetRepositoriesNeedingMetricsUpdate(ctx context.Context, staleDays int) ([]string, error) {
+func (m *MockRepository) GetRepositoriesNeedingMetricsUpdate(
+	_ context.Context,
+	_ int,
+) ([]string, error) {
 	return []string{}, nil
 }
 
-func (m *MockRepository) GetRepositoriesNeedingSummaryUpdate(ctx context.Context, forceUpdate bool) ([]string, error) {
+func (m *MockRepository) GetRepositoriesNeedingSummaryUpdate(
+	_ context.Context,
+	_ bool,
+) ([]string, error) {
 	return []string{}, nil
 }
 
-func (m *MockRepository) InitializeWithPrompt(ctx context.Context, autoApprove bool) error {
+func (m *MockRepository) InitializeWithPrompt(_ context.Context, _ bool) error {
 	return nil
 }
 
-func (m *MockRepository) UpdateRepositoryEmbedding(ctx context.Context, fullName string, embedding []float32) error {
+func (m *MockRepository) UpdateRepositoryEmbedding(_ context.Context, _ string, _ []float32) error {
 	return nil
 }
 
-func (m *MockRepository) UpdateRepositoryMetrics(ctx context.Context, fullName string, metrics storage.RepositoryMetrics) error {
+func (m *MockRepository) UpdateRepositoryMetrics(
+	_ context.Context,
+	_ string,
+	_ storage.RepositoryMetrics,
+) error {
 	return nil
 }

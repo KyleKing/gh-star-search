@@ -194,7 +194,11 @@ func TestGetStarredRepos_Pagination(t *testing.T) {
 	}
 
 	if repos[100].FullName != testRepo2.FullName {
-		t.Errorf("Expected last repository name %s, got: %s", testRepo2.FullName, repos[100].FullName)
+		t.Errorf(
+			"Expected last repository name %s, got: %s",
+			testRepo2.FullName,
+			repos[100].FullName,
+		)
 	}
 }
 
@@ -217,7 +221,10 @@ func TestGetStarredRepos_Error(t *testing.T) {
 	}
 
 	if !containsStr(err.Error(), "failed to fetch starred repositories") {
-		t.Errorf("Expected error message to contain 'failed to fetch starred repositories', got: %s", err.Error())
+		t.Errorf(
+			"Expected error message to contain 'failed to fetch starred repositories', got: %s",
+			err.Error(),
+		)
 	}
 }
 
@@ -271,7 +278,10 @@ func TestGetRepositoryContent_FileNotFound(t *testing.T) {
 	testRepo := createTestRepository()
 
 	// Mock 404 error for non-existent file
-	mockClient.setError("repos/owner/repo/contents/nonexistent.md", &api.HTTPError{StatusCode: http.StatusNotFound})
+	mockClient.setError(
+		"repos/owner/repo/contents/nonexistent.md",
+		&api.HTTPError{StatusCode: http.StatusNotFound},
+	)
 
 	ctx := context.Background()
 	contents, err := client.GetRepositoryContent(ctx, testRepo, []string{"nonexistent.md"})
@@ -424,7 +434,10 @@ func TestGetRepositoryMetadata_NoReleases(t *testing.T) {
 	mockClient.setResponse("repos/owner/repo/contributors?per_page=10", contributorsResponse)
 
 	// Mock 404 for no releases
-	mockClient.setError("repos/owner/repo/releases/latest", &api.HTTPError{StatusCode: http.StatusNotFound})
+	mockClient.setError(
+		"repos/owner/repo/releases/latest",
+		&api.HTTPError{StatusCode: http.StatusNotFound},
+	)
 
 	ctx := context.Background()
 	metadata, err := client.GetRepositoryMetadata(ctx, testRepo)
@@ -486,7 +499,10 @@ func TestGetContributors_Success(t *testing.T) {
 	}
 
 	if contributors[0].Contributions != 100 {
-		t.Errorf("Expected first contributor contributions 100, got: %d", contributors[0].Contributions)
+		t.Errorf(
+			"Expected first contributor contributions 100, got: %d",
+			contributors[0].Contributions,
+		)
 	}
 }
 
@@ -589,7 +605,10 @@ func TestGetCommitActivity_StatsComputing(t *testing.T) {
 	client := &clientImpl{apiClient: mockClient}
 
 	// Mock 202 Accepted response (stats being computed)
-	mockClient.setError("repos/owner/repo/stats/commit_activity", &api.HTTPError{StatusCode: http.StatusAccepted})
+	mockClient.setError(
+		"repos/owner/repo/stats/commit_activity",
+		&api.HTTPError{StatusCode: http.StatusAccepted},
+	)
 
 	ctx := context.Background()
 	activity, err := client.GetCommitActivity(ctx, "owner/repo")
@@ -614,7 +633,10 @@ func TestGetPullCounts_Success(t *testing.T) {
 	openResult := SearchResult{TotalCount: 5, IncompleteResults: false}
 	totalResult := SearchResult{TotalCount: 25, IncompleteResults: false}
 
-	mockClient.setResponse("search/issues?q=repo:owner/repo+type:pr+state:open&per_page=1", openResult)
+	mockClient.setResponse(
+		"search/issues?q=repo:owner/repo+type:pr+state:open&per_page=1",
+		openResult,
+	)
 	mockClient.setResponse("search/issues?q=repo:owner/repo+type:pr&per_page=1", totalResult)
 
 	ctx := context.Background()
@@ -640,7 +662,10 @@ func TestGetIssueCounts_Success(t *testing.T) {
 	openResult := SearchResult{TotalCount: 8, IncompleteResults: false}
 	totalResult := SearchResult{TotalCount: 42, IncompleteResults: false}
 
-	mockClient.setResponse("search/issues?q=repo:owner/repo+type:issue+state:open&per_page=1", openResult)
+	mockClient.setResponse(
+		"search/issues?q=repo:owner/repo+type:issue+state:open&per_page=1",
+		openResult,
+	)
 	mockClient.setResponse("search/issues?q=repo:owner/repo+type:issue&per_page=1", totalResult)
 
 	ctx := context.Background()

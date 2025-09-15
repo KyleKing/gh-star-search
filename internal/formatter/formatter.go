@@ -88,8 +88,11 @@ func (f *Formatter) formatLong(repo storage.StoredRepo) string {
 	stars := f.formatInt(repo.StargazersCount)
 	forks := f.formatInt(repo.ForksCount)
 
-	lines = append(lines, fmt.Sprintf("Numbers: %s/%s open issues, %s/%s open PRs, %s stars, %s forks",
-		openIssues, totalIssues, openPRs, totalPRs, stars, forks))
+	lines = append(
+		lines,
+		fmt.Sprintf("Numbers: %s/%s open issues, %s/%s open PRs, %s stars, %s forks",
+			openIssues, totalIssues, openPRs, totalPRs, stars, forks),
+	)
 
 	// Line 5: Commits
 	commits30d := f.formatInt(repo.Commits30d)

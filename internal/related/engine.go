@@ -45,7 +45,11 @@ func NewEngine(repo storage.Repository) *EngineImpl {
 }
 
 // FindRelated finds repositories related to the given repository
-func (e *EngineImpl) FindRelated(ctx context.Context, repoFullName string, limit int) ([]Repository, error) {
+func (e *EngineImpl) FindRelated(
+	ctx context.Context,
+	repoFullName string,
+	limit int,
+) ([]Repository, error) {
 	// Get the target repository
 	targetRepo, err := e.repo.GetRepository(ctx, repoFullName)
 	if err != nil {
@@ -271,7 +275,10 @@ func (e *EngineImpl) calculateVectorSimilarityScore(target, candidate storage.St
 }
 
 // generateExplanation creates a human-readable explanation of the relationship
-func (e *EngineImpl) generateExplanation(components ScoreComponents, target, candidate storage.StoredRepo) string {
+func (e *EngineImpl) generateExplanation(
+	components ScoreComponents,
+	target, candidate storage.StoredRepo,
+) string {
 	var explanations []string
 
 	// Same org explanation
@@ -285,7 +292,10 @@ func (e *EngineImpl) generateExplanation(components ScoreComponents, target, can
 		sharedTopics := getSharedTopics(target.Topics, candidate.Topics)
 		if len(sharedTopics) > 0 {
 			if len(sharedTopics) == 1 {
-				explanations = append(explanations, fmt.Sprintf("shared topic (%s)", sharedTopics[0]))
+				explanations = append(
+					explanations,
+					fmt.Sprintf("shared topic (%s)", sharedTopics[0]),
+				)
 			} else if len(sharedTopics) <= 3 {
 				explanations = append(explanations, fmt.Sprintf("%d shared topics (%s)",
 					len(sharedTopics), strings.Join(sharedTopics, ", ")))
@@ -301,7 +311,10 @@ func (e *EngineImpl) generateExplanation(components ScoreComponents, target, can
 		sharedContribs := getSharedContributors(target.Contributors, candidate.Contributors)
 		if len(sharedContribs) > 0 {
 			if len(sharedContribs) == 1 {
-				explanations = append(explanations, fmt.Sprintf("shared contributor (%s)", sharedContribs[0]))
+				explanations = append(
+					explanations,
+					fmt.Sprintf("shared contributor (%s)", sharedContribs[0]),
+				)
 			} else if len(sharedContribs) <= 3 {
 				explanations = append(explanations, fmt.Sprintf("%d shared contributors (%s)",
 					len(sharedContribs), strings.Join(sharedContribs, ", ")))
@@ -314,7 +327,10 @@ func (e *EngineImpl) generateExplanation(components ScoreComponents, target, can
 
 	// Vector similarity explanation
 	if components.VectorSim > 0 {
-		explanations = append(explanations, fmt.Sprintf("high vector similarity (%.2f)", components.VectorSim))
+		explanations = append(
+			explanations,
+			fmt.Sprintf("high vector similarity (%.2f)", components.VectorSim),
+		)
 	}
 
 	if len(explanations) == 0 {

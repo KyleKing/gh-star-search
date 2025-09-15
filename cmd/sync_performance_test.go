@@ -89,7 +89,11 @@ func TestSyncService_ParallelProcessing(t *testing.T) {
 			avgDuration := duration / time.Duration(tt.numRepos)
 
 			if avgDuration > maxDurationPerRepo {
-				t.Errorf("Average processing time per repo (%v) exceeds maximum (%v)", avgDuration, maxDurationPerRepo)
+				t.Errorf(
+					"Average processing time per repo (%v) exceeds maximum (%v)",
+					avgDuration,
+					maxDurationPerRepo,
+				)
 			}
 		})
 	}
@@ -115,7 +119,12 @@ func TestSyncService_CalculateOptimalWorkers(t *testing.T) {
 		t.Run(fmt.Sprintf("batch_%d", tt.batchSize), func(t *testing.T) {
 			workers := syncService.calculateOptimalWorkers(tt.batchSize)
 			if workers != tt.expected {
-				t.Errorf("Expected %d workers for batch size %d, got %d", tt.expected, tt.batchSize, workers)
+				t.Errorf(
+					"Expected %d workers for batch size %d, got %d",
+					tt.expected,
+					tt.batchSize,
+					workers,
+				)
 			}
 
 			// Workers should never exceed CPU count or be less than 1
@@ -250,6 +259,8 @@ func TestCachePerformanceImpact(t *testing.T) {
 
 	// Cache should provide some improvement
 	if withCache >= withoutCache {
-		t.Logf("Cache didn't provide expected performance improvement (may be due to test overhead)")
+		t.Logf(
+			"Cache didn't provide expected performance improvement (may be due to test overhead)",
+		)
 	}
 }

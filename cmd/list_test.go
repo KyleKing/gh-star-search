@@ -107,7 +107,13 @@ func TestRunList(t *testing.T) {
 			}
 
 			// Run the command with mock storage
-			err := RunListWithStorage(context.Background(), tt.limit, tt.offset, tt.format, mockRepo)
+			err := RunListWithStorage(
+				context.Background(),
+				tt.limit,
+				tt.offset,
+				tt.format,
+				mockRepo,
+			)
 
 			// Restore stdout and get output
 			w.Close()

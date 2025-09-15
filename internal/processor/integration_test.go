@@ -96,7 +96,11 @@ func TestIntegrationContentExtraction(t *testing.T) {
 
 	// Verify processed repository
 	if processed.Repository.FullName != repo.FullName {
-		t.Errorf("Repository name mismatch: got %s, want %s", processed.Repository.FullName, repo.FullName)
+		t.Errorf(
+			"Repository name mismatch: got %s, want %s",
+			processed.Repository.FullName,
+			repo.FullName,
+		)
 	}
 
 	if len(processed.Chunks) == 0 {
@@ -205,7 +209,10 @@ func TestIntegrationContentExtractionWithLargeContent(t *testing.T) {
 
 	// Should create multiple chunks for large content
 	if len(processed.Chunks) <= 1 {
-		t.Errorf("Large content should be split into multiple chunks, got %d", len(processed.Chunks))
+		t.Errorf(
+			"Large content should be split into multiple chunks, got %d",
+			len(processed.Chunks),
+		)
 	}
 
 	// Verify total tokens don't exceed limit
@@ -225,7 +232,11 @@ func TestIntegrationContentExtractionWithLargeContent(t *testing.T) {
 		}
 	}
 
-	t.Logf("Large content split into %d chunks with %d total tokens", len(processed.Chunks), totalTokens)
+	t.Logf(
+		"Large content split into %d chunks with %d total tokens",
+		len(processed.Chunks),
+		totalTokens,
+	)
 }
 
 func TestIntegrationContentExtractionErrorHandling(t *testing.T) {

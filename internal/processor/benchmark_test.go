@@ -64,7 +64,10 @@ func BenchmarkChunkContent(b *testing.B) {
 	service := &serviceImpl{}
 
 	// Create large content for chunking
-	content := strings.Repeat("This is a line of content that will be chunked for performance testing.\n", 1000)
+	content := strings.Repeat(
+		"This is a line of content that will be chunked for performance testing.\n",
+		1000,
+	)
 
 	b.ResetTimer()
 
@@ -154,7 +157,10 @@ func BenchmarkSplitMarkdownContent(b *testing.B) {
 	content := ""
 	for i := range 50 {
 		content += "# Section " + string(rune('A'+i%26)) + "\n\n"
-		content += strings.Repeat("This is paragraph content with details and explanations.\n\n", 10)
+		content += strings.Repeat(
+			"This is paragraph content with details and explanations.\n\n",
+			10,
+		)
 		content += "## Subsection\n\n"
 		content += strings.Repeat("More detailed content in the subsection.\n\n", 5)
 	}

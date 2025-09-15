@@ -114,15 +114,39 @@ func TestWorkerPoolIntegration(t *testing.T) {
 	})
 
 	// Mock PR and issue counts
-	mockClient.setResponse("search/issues?q=repo:owner/repo1+type:pr+state:open&per_page=1", SearchResult{TotalCount: 2})
-	mockClient.setResponse("search/issues?q=repo:owner/repo1+type:pr&per_page=1", SearchResult{TotalCount: 10})
-	mockClient.setResponse("search/issues?q=repo:owner/repo1+type:issue+state:open&per_page=1", SearchResult{TotalCount: 3})
-	mockClient.setResponse("search/issues?q=repo:owner/repo1+type:issue&per_page=1", SearchResult{TotalCount: 15})
+	mockClient.setResponse(
+		"search/issues?q=repo:owner/repo1+type:pr+state:open&per_page=1",
+		SearchResult{TotalCount: 2},
+	)
+	mockClient.setResponse(
+		"search/issues?q=repo:owner/repo1+type:pr&per_page=1",
+		SearchResult{TotalCount: 10},
+	)
+	mockClient.setResponse(
+		"search/issues?q=repo:owner/repo1+type:issue+state:open&per_page=1",
+		SearchResult{TotalCount: 3},
+	)
+	mockClient.setResponse(
+		"search/issues?q=repo:owner/repo1+type:issue&per_page=1",
+		SearchResult{TotalCount: 15},
+	)
 
-	mockClient.setResponse("search/issues?q=repo:owner/repo2+type:pr+state:open&per_page=1", SearchResult{TotalCount: 1})
-	mockClient.setResponse("search/issues?q=repo:owner/repo2+type:pr&per_page=1", SearchResult{TotalCount: 5})
-	mockClient.setResponse("search/issues?q=repo:owner/repo2+type:issue+state:open&per_page=1", SearchResult{TotalCount: 0})
-	mockClient.setResponse("search/issues?q=repo:owner/repo2+type:issue&per_page=1", SearchResult{TotalCount: 2})
+	mockClient.setResponse(
+		"search/issues?q=repo:owner/repo2+type:pr+state:open&per_page=1",
+		SearchResult{TotalCount: 1},
+	)
+	mockClient.setResponse(
+		"search/issues?q=repo:owner/repo2+type:pr&per_page=1",
+		SearchResult{TotalCount: 5},
+	)
+	mockClient.setResponse(
+		"search/issues?q=repo:owner/repo2+type:issue+state:open&per_page=1",
+		SearchResult{TotalCount: 0},
+	)
+	mockClient.setResponse(
+		"search/issues?q=repo:owner/repo2+type:issue&per_page=1",
+		SearchResult{TotalCount: 2},
+	)
 
 	// Create batch executor
 	batchExecutor := NewBatchExecutor(client, 2, 10)
@@ -156,15 +180,26 @@ func TestWorkerPoolIntegration(t *testing.T) {
 
 	// Commit activity should indicate stats being computed (Total = -1)
 	if repo1Metrics.CommitActivity == nil || repo1Metrics.CommitActivity.Total != -1 {
-		t.Errorf("Expected commit activity total -1 (computing) for repo1, got: %v", repo1Metrics.CommitActivity)
+		t.Errorf(
+			"Expected commit activity total -1 (computing) for repo1, got: %v",
+			repo1Metrics.CommitActivity,
+		)
 	}
 
 	if repo1Metrics.OpenPRs != 2 || repo1Metrics.TotalPRs != 10 {
-		t.Errorf("Expected PRs 2/10 for repo1, got: %d/%d", repo1Metrics.OpenPRs, repo1Metrics.TotalPRs)
+		t.Errorf(
+			"Expected PRs 2/10 for repo1, got: %d/%d",
+			repo1Metrics.OpenPRs,
+			repo1Metrics.TotalPRs,
+		)
 	}
 
 	if repo1Metrics.OpenIssues != 3 || repo1Metrics.TotalIssues != 15 {
-		t.Errorf("Expected issues 3/15 for repo1, got: %d/%d", repo1Metrics.OpenIssues, repo1Metrics.TotalIssues)
+		t.Errorf(
+			"Expected issues 3/15 for repo1, got: %d/%d",
+			repo1Metrics.OpenIssues,
+			repo1Metrics.TotalIssues,
+		)
 	}
 
 	// Verify repo2 metrics
@@ -178,7 +213,10 @@ func TestWorkerPoolIntegration(t *testing.T) {
 	}
 
 	if repo2Metrics.Contributors[0].Login != "user2" {
-		t.Errorf("Expected contributor user2 for repo2, got: %s", repo2Metrics.Contributors[0].Login)
+		t.Errorf(
+			"Expected contributor user2 for repo2, got: %s",
+			repo2Metrics.Contributors[0].Login,
+		)
 	}
 
 	if repo2Metrics.CommitActivity == nil || repo2Metrics.CommitActivity.Total != 5 {
@@ -257,6 +295,9 @@ func TestCacheInvalidation(t *testing.T) {
 
 	// Verify API was called twice (once before invalidation, once after)
 	if mockClient.getCallCount("repos/owner/repo/topics") != 2 {
-		t.Errorf("Expected 2 API calls, got: %d", mockClient.getCallCount("repos/owner/repo/topics"))
+		t.Errorf(
+			"Expected 2 API calls, got: %d",
+			mockClient.getCallCount("repos/owner/repo/topics"),
+		)
 	}
 }

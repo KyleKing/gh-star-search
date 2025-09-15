@@ -58,9 +58,7 @@ Examples:
 				Usage:   "Include related repositories in results",
 			},
 		},
-		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return runQuery(ctx, cmd)
-		},
+		Action: runQuery,
 	}
 }
 
@@ -137,7 +135,8 @@ func runQuery(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Determine output format
-	longForm := queryLong || (!queryShort && len(results) <= 3) // Default to long for small result sets
+	longForm := queryLong ||
+		(!queryShort && len(results) <= 3) // Default to long for small result sets
 
 	// Display results
 	for i, result := range results {
@@ -162,7 +161,11 @@ func runQuery(ctx context.Context, cmd *cli.Command) error {
 		// Show related repos for the top result
 		topRepo := results[0].Repository.FullName
 
-		relatedRepos, err := relatedEngine.FindRelated(ctx, topRepo, 3) // Limit to 3 for query output
+		relatedRepos, err := relatedEngine.FindRelated(
+			ctx,
+			topRepo,
+			3,
+		) // Limit to 3 for query output
 		if err != nil {
 			slog.Warn("Failed to find related repositories",
 				slog.String("repo", topRepo),
@@ -198,8 +201,13 @@ func validateQuery(query string) error {
 	queryLower := strings.ToLower(query)
 	for _, pattern := range structuredPatterns {
 		if strings.Contains(queryLower, pattern) {
-			return errors.New(errors.ErrTypeValidation,
-				fmt.Sprintf("structured filters like '%s' are not yet supported. Use simple search terms instead.", pattern))
+			return errors.New(
+				errors.ErrTypeValidation,
+				fmt.Sprintf(
+					"structured filters like '%s' are not yet supported. Use simple search terms instead.",
+					pattern,
+				),
+			)
 		}
 	}
 

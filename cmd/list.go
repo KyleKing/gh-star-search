@@ -53,7 +53,12 @@ func runList(ctx context.Context, limit, offset int, format string) error {
 	return RunListWithStorage(ctx, limit, offset, format, nil)
 }
 
-func RunListWithStorage(ctx context.Context, limit, offset int, format string, repo storage.Repository) error {
+func RunListWithStorage(
+	ctx context.Context,
+	limit, offset int,
+	format string,
+	repo storage.Repository,
+) error {
 	// Initialize storage if not provided (for testing)
 	if repo == nil {
 		var err error

@@ -36,9 +36,7 @@ Examples:
 				Usage:   "Maximum number of related repositories to show (1-20)",
 			},
 		},
-		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return runRelated(ctx, cmd)
-		},
+		Action: runRelated,
 	}
 }
 

@@ -186,7 +186,10 @@ func (c *clientImpl) GetStarredRepos(ctx context.Context, _ string) ([]Repositor
 
 		var repos []Repository
 
-		err := c.apiClient.Get(fmt.Sprintf("user/starred?page=%d&per_page=%d", page, perPage), &repos)
+		err := c.apiClient.Get(
+			fmt.Sprintf("user/starred?page=%d&per_page=%d", page, perPage),
+			&repos,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch starred repositories (page %d): %w", page, err)
 		}
@@ -213,7 +216,11 @@ func (c *clientImpl) GetStarredRepos(ctx context.Context, _ string) ([]Repositor
 }
 
 // GetRepositoryContent fetches specific file contents from a repository
-func (c *clientImpl) GetRepositoryContent(ctx context.Context, repo Repository, paths []string) ([]Content, error) {
+func (c *clientImpl) GetRepositoryContent(
+	ctx context.Context,
+	repo Repository,
+	paths []string,
+) ([]Content, error) {
 	contents := make([]Content, 0, len(paths))
 
 	for _, path := range paths {
@@ -233,7 +240,12 @@ func (c *clientImpl) GetRepositoryContent(ctx context.Context, repo Repository, 
 				continue
 			}
 
-			return nil, fmt.Errorf("failed to fetch content for %s in %s: %w", path, repo.FullName, err)
+			return nil, fmt.Errorf(
+				"failed to fetch content for %s in %s: %w",
+				path,
+				repo.FullName,
+				err,
+			)
 		}
 
 		contents = append(contents, content)
@@ -246,7 +258,10 @@ func (c *clientImpl) GetRepositoryContent(ctx context.Context, repo Repository, 
 }
 
 // GetRepositoryMetadata fetches additional metadata for a repository
-func (c *clientImpl) GetRepositoryMetadata(ctx context.Context, repo Repository) (*Metadata, error) {
+func (c *clientImpl) GetRepositoryMetadata(
+	ctx context.Context,
+	repo Repository,
+) (*Metadata, error) {
 	metadata := &Metadata{}
 
 	// Fetch commit count from the default branch
@@ -272,7 +287,11 @@ func (c *clientImpl) GetRepositoryMetadata(ctx context.Context, repo Repository)
 }
 
 // fetchCommitCount gets the total number of commits in the default branch
-func (c *clientImpl) fetchCommitCount(ctx context.Context, repo Repository, metadata *Metadata) error {
+func (c *clientImpl) fetchCommitCount(
+	ctx context.Context,
+	repo Repository,
+	metadata *Metadata,
+) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -282,7 +301,10 @@ func (c *clientImpl) fetchCommitCount(ctx context.Context, repo Repository, meta
 	// Get commits from the default branch with per_page=1 to get total count from headers
 	var commits []map[string]interface{}
 
-	err := c.apiClient.Get(fmt.Sprintf("repos/%s/commits?sha=%s&per_page=1", repo.FullName, repo.DefaultBranch), &commits)
+	err := c.apiClient.Get(
+		fmt.Sprintf("repos/%s/commits?sha=%s&per_page=1", repo.FullName, repo.DefaultBranch),
+		&commits,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to fetch commit count: %w", err)
 	}
@@ -307,7 +329,11 @@ func (c *clientImpl) fetchCommitCount(ctx context.Context, repo Repository, meta
 }
 
 // fetchContributors gets the list of contributors for the repository
-func (c *clientImpl) fetchContributors(ctx context.Context, repo Repository, metadata *Metadata) error {
+func (c *clientImpl) fetchContributors(
+	ctx context.Context,
+	repo Repository,
+	metadata *Metadata,
+) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -316,7 +342,10 @@ func (c *clientImpl) fetchContributors(ctx context.Context, repo Repository, met
 
 	var contributors []map[string]interface{}
 
-	err := c.apiClient.Get(fmt.Sprintf("repos/%s/contributors?per_page=10", repo.FullName), &contributors)
+	err := c.apiClient.Get(
+		fmt.Sprintf("repos/%s/contributors?per_page=10", repo.FullName),
+		&contributors,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to fetch contributors: %w", err)
 	}
@@ -335,7 +364,11 @@ func (c *clientImpl) fetchContributors(ctx context.Context, repo Repository, met
 }
 
 // fetchLatestRelease gets the latest release information
-func (c *clientImpl) fetchLatestRelease(ctx context.Context, repo Repository, metadata *Metadata) error {
+func (c *clientImpl) fetchLatestRelease(
+	ctx context.Context,
+	repo Repository,
+	metadata *Metadata,
+) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -373,7 +406,11 @@ func (c *clientImpl) fetchLatestRelease(ctx context.Context, repo Repository, me
 }
 
 // GetContributors fetches the top N contributors for a repository
-func (c *clientImpl) GetContributors(ctx context.Context, fullName string, topN int) ([]Contributor, error) {
+func (c *clientImpl) GetContributors(
+	ctx context.Context,
+	fullName string,
+	topN int,
+) ([]Contributor, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -382,7 +419,10 @@ func (c *clientImpl) GetContributors(ctx context.Context, fullName string, topN 
 
 	var contributors []Contributor
 
-	err := c.apiClient.Get(fmt.Sprintf("repos/%s/contributors?per_page=%d", fullName, topN), &contributors)
+	err := c.apiClient.Get(
+		fmt.Sprintf("repos/%s/contributors?per_page=%d", fullName, topN),
+		&contributors,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch contributors for %s: %w", fullName, err)
 	}
@@ -429,7 +469,10 @@ func (c *clientImpl) GetLanguages(ctx context.Context, fullName string) (map[str
 }
 
 // GetCommitActivity fetches commit activity statistics for a repository
-func (c *clientImpl) GetCommitActivity(ctx context.Context, fullName string) (*CommitActivity, error) {
+func (c *clientImpl) GetCommitActivity(
+	ctx context.Context,
+	fullName string,
+) (*CommitActivity, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -465,7 +508,10 @@ func (c *clientImpl) GetCommitActivity(ctx context.Context, fullName string) (*C
 }
 
 // GetPullCounts fetches pull request counts for a repository
-func (c *clientImpl) GetPullCounts(ctx context.Context, fullName string) (open int, total int, err error) {
+func (c *clientImpl) GetPullCounts(
+	ctx context.Context,
+	fullName string,
+) (open int, total int, err error) {
 	select {
 	case <-ctx.Done():
 		return 0, 0, ctx.Err()
@@ -475,7 +521,10 @@ func (c *clientImpl) GetPullCounts(ctx context.Context, fullName string) (open i
 	// Get open PRs
 	var openResult SearchResult
 
-	err = c.apiClient.Get(fmt.Sprintf("search/issues?q=repo:%s+type:pr+state:open&per_page=1", fullName), &openResult)
+	err = c.apiClient.Get(
+		fmt.Sprintf("search/issues?q=repo:%s+type:pr+state:open&per_page=1", fullName),
+		&openResult,
+	)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to fetch open PR count for %s: %w", fullName, err)
 	}
@@ -485,7 +534,10 @@ func (c *clientImpl) GetPullCounts(ctx context.Context, fullName string) (open i
 	// Get total PRs (open + closed)
 	var totalResult SearchResult
 
-	err = c.apiClient.Get(fmt.Sprintf("search/issues?q=repo:%s+type:pr&per_page=1", fullName), &totalResult)
+	err = c.apiClient.Get(
+		fmt.Sprintf("search/issues?q=repo:%s+type:pr&per_page=1", fullName),
+		&totalResult,
+	)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to fetch total PR count for %s: %w", fullName, err)
 	}
@@ -496,7 +548,10 @@ func (c *clientImpl) GetPullCounts(ctx context.Context, fullName string) (open i
 }
 
 // GetIssueCounts fetches issue counts for a repository
-func (c *clientImpl) GetIssueCounts(ctx context.Context, fullName string) (open int, total int, err error) {
+func (c *clientImpl) GetIssueCounts(
+	ctx context.Context,
+	fullName string,
+) (open int, total int, err error) {
 	select {
 	case <-ctx.Done():
 		return 0, 0, ctx.Err()
@@ -506,7 +561,10 @@ func (c *clientImpl) GetIssueCounts(ctx context.Context, fullName string) (open 
 	// Get open issues (excluding PRs)
 	var openResult SearchResult
 
-	err = c.apiClient.Get(fmt.Sprintf("search/issues?q=repo:%s+type:issue+state:open&per_page=1", fullName), &openResult)
+	err = c.apiClient.Get(
+		fmt.Sprintf("search/issues?q=repo:%s+type:issue+state:open&per_page=1", fullName),
+		&openResult,
+	)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to fetch open issue count for %s: %w", fullName, err)
 	}
@@ -516,7 +574,10 @@ func (c *clientImpl) GetIssueCounts(ctx context.Context, fullName string) (open 
 	// Get total issues (open + closed, excluding PRs)
 	var totalResult SearchResult
 
-	err = c.apiClient.Get(fmt.Sprintf("search/issues?q=repo:%s+type:issue&per_page=1", fullName), &totalResult)
+	err = c.apiClient.Get(
+		fmt.Sprintf("search/issues?q=repo:%s+type:issue&per_page=1", fullName),
+		&totalResult,
+	)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to fetch total issue count for %s: %w", fullName, err)
 	}

@@ -97,7 +97,12 @@ func TestEngineImpl_CalculateTopicOverlapScore(t *testing.T) {
 			score := engine.calculateTopicOverlapScore(target, candidate)
 
 			if score < tt.expectedMin || score > tt.expectedMax {
-				t.Errorf("Expected score between %f and %f, got %f", tt.expectedMin, tt.expectedMax, score)
+				t.Errorf(
+					"Expected score between %f and %f, got %f",
+					tt.expectedMin,
+					tt.expectedMax,
+					score,
+				)
 			}
 		})
 	}
@@ -154,7 +159,12 @@ func TestEngineImpl_CalculateSharedContribScore(t *testing.T) {
 			score := engine.calculateSharedContribScore(target, candidate)
 
 			if score < tt.expectedMin || score > tt.expectedMax {
-				t.Errorf("Expected score between %f and %f, got %f", tt.expectedMin, tt.expectedMax, score)
+				t.Errorf(
+					"Expected score between %f and %f, got %f",
+					tt.expectedMin,
+					tt.expectedMax,
+					score,
+				)
 			}
 		})
 	}
@@ -290,7 +300,13 @@ func TestGetSharedTopics(t *testing.T) {
 			result := getSharedTopics(tt.topics1, tt.topics2)
 
 			if len(result) != len(tt.expected) {
-				t.Errorf("Expected %d shared topics, got %d: %v", len(tt.expected), len(result), result)
+				t.Errorf(
+					"Expected %d shared topics, got %d: %v",
+					len(tt.expected),
+					len(result),
+					result,
+				)
+
 				return
 			}
 

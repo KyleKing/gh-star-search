@@ -258,7 +258,12 @@ func TestSortAndRankResults(t *testing.T) {
 
 	for i, result := range sorted {
 		if result.Repository.FullName != expectedOrder[i] {
-			t.Errorf("Expected %s at position %d, got %s", expectedOrder[i], i, result.Repository.FullName)
+			t.Errorf(
+				"Expected %s at position %d, got %s",
+				expectedOrder[i],
+				i,
+				result.Repository.FullName,
+			)
 		}
 
 		if result.Rank != i+1 {

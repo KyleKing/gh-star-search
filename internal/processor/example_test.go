@@ -13,7 +13,11 @@ import (
 // mockClient implements the GitHubClient interface for examples
 type mockClient struct{}
 
-func (m *mockClient) GetRepositoryContent(_ context.Context, repo github.Repository, paths []string) ([]github.Content, error) {
+func (m *mockClient) GetRepositoryContent(
+	_ context.Context,
+	_ github.Repository,
+	_ []string,
+) ([]github.Content, error) {
 	// Return sample content for demonstration
 	readmeContent := `# Example Project
 
