@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -9,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/kyleking/gh-star-search/internal/errors"
-	"github.com/kyleking/gh-star-search/internal/logging"
 	"github.com/kyleking/gh-star-search/internal/query"
 	"github.com/kyleking/gh-star-search/internal/related"
 	"github.com/kyleking/gh-star-search/internal/storage"
@@ -52,7 +52,6 @@ func init() {
 
 func runQuery(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	logger := logging.GetLogger()
 
 	// Get configuration
 	cfg, err := GetConfigFromContext(cmd)
@@ -83,7 +82,10 @@ func runQuery(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, errors.ErrTypeDatabase, "failed to initialize database schema")
 	}
 
-	logger.Debugf("Executing query: %s (mode: %s, limit: %d)", queryString, queryMode, queryLimit)
+	slog.Debug("Executing query",
+		slog.String("query", queryString),
+		slog.String("mode", queryMode),
+		slog.Int("limit", queryLimit))
 
 	// Initialize search engine
 	searchEngine := query.NewSearchEngine(repo)
@@ -140,7 +142,9 @@ func runQuery(cmd *cobra.Command, args []string) error {
 
 		relatedRepos, err := relatedEngine.FindRelated(ctx, topRepo, 3) // Limit to 3 for query output
 		if err != nil {
-			logger.Warnf("Failed to find related repositories: %v", err)
+			slog.Warn("Failed to find related repositories",
+				slog.String("repo", topRepo),
+				slog.String("error", err.Error()))
 		} else if len(relatedRepos) > 0 {
 			fmt.Printf("Repositories related to %s:\n", topRepo)
 

@@ -2,12 +2,12 @@ package logging
 
 import (
 	"bytes"
-	"encoding/json"
+	"context"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,41 +15,22 @@ import (
 	"github.com/kyleking/gh-star-search/internal/config"
 )
 
-const (
-	testLogLevelUnknown = 999
-	testFormatText      = "text"
-	testFormatJSON      = "json"
-	testLevelInfo       = "info"
-	testLevelWarn       = "warn"
-	testLevelDebug      = "debug"
-	testOutputFile      = "file"
-	testMessage         = "test message"
-	testWarnMessage     = "warn message"
-	testErrorMessage    = "error message"
-	testOperation       = "test_operation"
-	testNewline         = "\n"
-	testLevelWarnUpper  = "WARN"
-	testLevelErrorUpper = "ERROR"
-	testLevelInfoUpper  = "INFO"
-	testLevelDebugUpper = "DEBUG"
-)
-
 func TestParseLogLevel(t *testing.T) {
 	tests := []struct {
 		input    string
-		expected LogLevel
+		expected slog.Level
 	}{
-		{"debug", DebugLevel},
-		{"DEBUG", DebugLevel},
-		{"info", InfoLevel},
-		{"INFO", InfoLevel},
-		{"warn", WarnLevel},
-		{"WARN", WarnLevel},
-		{"warning", WarnLevel},
-		{"error", ErrorLevel},
-		{"ERROR", ErrorLevel},
-		{"invalid", InfoLevel}, // default
-		{"", InfoLevel},        // default
+		{"debug", slog.LevelDebug},
+		{"DEBUG", slog.LevelDebug},
+		{"info", slog.LevelInfo},
+		{"INFO", slog.LevelInfo},
+		{"warn", slog.LevelWarn},
+		{"WARN", slog.LevelWarn},
+		{"warning", slog.LevelWarn},
+		{"error", slog.LevelError},
+		{"ERROR", slog.LevelError},
+		{"invalid", slog.LevelInfo}, // default
+		{"", slog.LevelInfo},        // default
 	}
 
 	for _, tt := range tests {
@@ -60,60 +41,35 @@ func TestParseLogLevel(t *testing.T) {
 	}
 }
 
-func TestLogLevelString(t *testing.T) {
-	tests := []struct {
-		level    LogLevel
-		expected string
-	}{
-		{DebugLevel, "DEBUG"},
-		{InfoLevel, "INFO"},
-		{WarnLevel, "WARN"},
-		{ErrorLevel, "ERROR"},
-		{LogLevel(999), "UNKNOWN"}, // 999 is an invalid log level for testing
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.expected, func(t *testing.T) {
-			assert.Equal(t, tt.expected, tt.level.String())
-		})
-	}
-}
-
-func TestNewLoggerStdout(t *testing.T) {
+func TestSetupLoggerStdout(t *testing.T) {
 	cfg := config.LoggingConfig{
 		Level:  "info",
 		Format: "text",
 		Output: "stdout",
 	}
 
-	logger, err := NewLogger(cfg)
+	err := SetupLogger(cfg)
 	require.NoError(t, err)
-	require.NotNil(t, logger)
 
-	assert.Equal(t, InfoLevel, logger.level)
-	assert.Equal(t, "text", logger.format)
-	assert.Equal(t, os.Stdout, logger.output)
-	assert.Nil(t, logger.file)
+	// Test logging
+	slog.Info("test message")
 }
 
-func TestNewLoggerStderr(t *testing.T) {
+func TestSetupLoggerStderr(t *testing.T) {
 	cfg := config.LoggingConfig{
 		Level:  "debug",
 		Format: "json",
 		Output: "stderr",
 	}
 
-	logger, err := NewLogger(cfg)
+	err := SetupLogger(cfg)
 	require.NoError(t, err)
-	require.NotNil(t, logger)
 
-	assert.Equal(t, DebugLevel, logger.level)
-	assert.Equal(t, "json", logger.format)
-	assert.Equal(t, os.Stderr, logger.output)
-	assert.True(t, logger.showCaller)
+	// Test logging with fields
+	slog.Info("test message", "key", "value")
 }
 
-func TestNewLoggerFile(t *testing.T) {
+func TestSetupLoggerFile(t *testing.T) {
 	tempDir := t.TempDir()
 	logFile := filepath.Join(tempDir, "test.log")
 
@@ -124,19 +80,19 @@ func TestNewLoggerFile(t *testing.T) {
 		File:   logFile,
 	}
 
-	logger, err := NewLogger(cfg)
+	err := SetupLogger(cfg)
 	require.NoError(t, err)
-	require.NotNil(t, logger)
 
-	assert.Equal(t, WarnLevel, logger.level)
-	assert.Equal(t, "text", logger.format)
-	assert.NotNil(t, logger.file)
+	// Test logging
+	slog.Warn("test warning message")
 
-	// Clean up
-	logger.Close()
+	// Verify file was written
+	content, err := os.ReadFile(logFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "test warning message")
 }
 
-func TestNewLoggerFileInvalidPath(t *testing.T) {
+func TestSetupLoggerFileInvalidPath(t *testing.T) {
 	cfg := config.LoggingConfig{
 		Level:  "info",
 		Format: "text",
@@ -144,122 +100,49 @@ func TestNewLoggerFileInvalidPath(t *testing.T) {
 		File:   "",
 	}
 
-	logger, err := NewLogger(cfg)
+	err := SetupLogger(cfg)
 	assert.Error(t, err)
-	assert.Nil(t, logger)
 	assert.Contains(t, err.Error(), "log file path is required")
 }
 
-func TestNewLoggerInvalidOutput(t *testing.T) {
+func TestSetupLoggerInvalidOutput(t *testing.T) {
 	cfg := config.LoggingConfig{
 		Level:  "info",
 		Format: "text",
 		Output: "invalid",
 	}
 
-	logger, err := NewLogger(cfg)
+	err := SetupLogger(cfg)
 	require.Error(t, err)
-	assert.Nil(t, logger)
 	assert.Contains(t, err.Error(), "invalid log output")
 }
 
-func TestLoggerWithField(t *testing.T) {
+func TestSetupLoggerWithFields(t *testing.T) {
 	var buf bytes.Buffer
 
-	logger := &Logger{
-		level:  InfoLevel,
-		format: "json",
-		output: &buf,
-		fields: make(map[string]any),
-	}
+	// Create a logger that writes to our buffer
+	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
+	logger := slog.New(handler)
 
-	newLogger := logger.WithField("key", "value")
+	// Test With()
+	newLogger := logger.With("key", "value")
 	newLogger.Info("test message")
 
-	var entry LogEntry
-	err := json.Unmarshal(buf.Bytes(), &entry)
-	require.NoError(t, err)
-
-	assert.Equal(t, "test message", entry.Message)
-	assert.Equal(t, "value", entry.Fields["key"])
+	output := buf.String()
+	assert.Contains(t, output, "test message")
+	assert.Contains(t, output, "key=value")
 }
 
-func TestLoggerWithFields(t *testing.T) {
+func TestSetupLoggerLevels(t *testing.T) {
 	var buf bytes.Buffer
 
-	logger := &Logger{
-		level:  InfoLevel,
-		format: "json",
-		output: &buf,
-		fields: make(map[string]any),
-	}
-
-	fields := map[string]any{
-		"key1": "value1",
-		"key2": 42,
-		"key3": true,
-	}
-
-	newLogger := logger.WithFields(fields)
-	newLogger.Info("test message")
-
-	var entry LogEntry
-	err := json.Unmarshal(buf.Bytes(), &entry)
-	require.NoError(t, err)
-
-	assert.Equal(t, "test message", entry.Message)
-	assert.Equal(t, "value1", entry.Fields["key1"])
-	assert.Equal(t, float64(42), entry.Fields["key2"])
-	// JSON unmarshals numbers as float64
-	assert.Equal(t, true, entry.Fields["key3"])
-}
-
-func TestLoggerWithError(t *testing.T) {
-	var buf bytes.Buffer
-
-	logger := &Logger{
-		level:  InfoLevel,
-		format: "json",
-		output: &buf,
-		fields: make(map[string]any),
-	}
-
-	testErr := assert.AnError
-	newLogger := logger.WithError(testErr)
-	newLogger.Info("test message")
-
-	var entry LogEntry
-	err := json.Unmarshal(buf.Bytes(), &entry)
-	require.NoError(t, err)
-
-	assert.Equal(t, "test message", entry.Message)
-	assert.Equal(t, testErr.Error(), entry.Fields["error"])
-}
-
-func TestLoggerWithErrorNil(t *testing.T) {
-	var buf bytes.Buffer
-
-	logger := &Logger{
-		level:  InfoLevel,
-		format: "json",
-		output: &buf,
-		fields: make(map[string]any),
-	}
-
-	newLogger := logger.WithError(nil)
-	assert.Equal(t, logger, newLogger)
-	// Should return same logger when error is nil
-}
-
-func TestLoggerLevels(t *testing.T) {
-	var buf bytes.Buffer
-
-	logger := &Logger{
-		level:  WarnLevel,
-		format: "json",
-		output: &buf,
-		fields: make(map[string]any),
-	}
+	// Create logger with Warn level
+	handler := slog.NewJSONHandler(&buf, &slog.HandlerOptions{
+		Level: slog.LevelWarn,
+	})
+	logger := slog.New(handler)
 
 	// These should not be logged (below threshold)
 	logger.Debug("debug message")
@@ -274,240 +157,95 @@ func TestLoggerLevels(t *testing.T) {
 
 	// Should only have 2 lines (warn and error)
 	assert.Len(t, lines, 2)
-
-	// Check warn message
-	var warnEntry LogEntry
-	err := json.Unmarshal([]byte(lines[0]), &warnEntry)
-	require.NoError(t, err)
-	assert.Equal(t, "WARN", warnEntry.Level)
-	assert.Equal(t, "warn message", warnEntry.Message)
-
-	// Check error message
-	var errorEntry LogEntry
-	err = json.Unmarshal([]byte(lines[1]), &errorEntry)
-	require.NoError(t, err)
-	assert.Equal(t, "ERROR", errorEntry.Level)
-	assert.Equal(t, "error message", errorEntry.Message)
+	assert.Contains(t, lines[0], "warn message")
+	assert.Contains(t, lines[1], "error message")
 }
 
-func TestLoggerFormattedMessages(t *testing.T) {
+func TestSetupLoggerFormattedMessages(t *testing.T) {
 	var buf bytes.Buffer
 
-	logger := &Logger{
-		level:  InfoLevel,
-		format: "json",
-		output: &buf,
-		fields: make(map[string]any),
-	}
+	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
+	logger := slog.New(handler)
 
-	logger.Infof("formatted message: %s %d", "test", 42)
-
-	var entry LogEntry
-	err := json.Unmarshal(buf.Bytes(), &entry)
-	require.NoError(t, err)
-
-	assert.Equal(t, "formatted message: test 42", entry.Message)
-}
-
-func TestLoggerErrorWithErr(t *testing.T) {
-	var buf bytes.Buffer
-
-	logger := &Logger{
-		level:  InfoLevel,
-		format: "json",
-		output: &buf,
-		fields: make(map[string]any),
-	}
-
-	testErr := assert.AnError
-	logger.ErrorWithErr("operation failed", testErr)
-
-	var entry LogEntry
-	err := json.Unmarshal(buf.Bytes(), &entry)
-	require.NoError(t, err)
-
-	assert.Equal(t, "operation failed", entry.Message)
-	assert.Equal(t, testErr.Error(), entry.Error)
-}
-
-func TestLoggerTextFormat(t *testing.T) {
-	var buf bytes.Buffer
-
-	logger := &Logger{
-		level:      InfoLevel,
-		format:     "text",
-		output:     &buf,
-		fields:     map[string]interface{}{"key": "value"},
-		showCaller: false,
-	}
-
-	logger.Info("test message")
+	logger.Info("formatted message", "value1", "test", "value2", 42)
 
 	output := buf.String()
-	assert.Contains(t, output, "INFO")
-	assert.Contains(t, output, "test message")
+	assert.Contains(t, output, "formatted message")
+	assert.Contains(t, output, "value1=test")
+	assert.Contains(t, output, "value2=42")
+}
+
+func TestSetupLoggerWithContext(t *testing.T) {
+	var buf bytes.Buffer
+
+	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
+	logger := slog.New(handler)
+
+	ctx := context.Background()
+	logger.InfoContext(ctx, "test message with context", "key", "value")
+
+	output := buf.String()
+	assert.Contains(t, output, "test message with context")
 	assert.Contains(t, output, "key=value")
 }
 
-func TestLoggerTextFormatWithCaller(t *testing.T) {
-	var buf bytes.Buffer
+func TestSetupFallbackLogger(t *testing.T) {
+	SetupFallbackLogger()
 
-	logger := &Logger{
-		level:      InfoLevel,
-		format:     "text",
-		output:     &buf,
-		fields:     make(map[string]any),
-		showCaller: true,
-	}
-
-	logger.Info("test message")
-
-	output := buf.String()
-	assert.Contains(t, output, "INFO")
-	assert.Contains(t, output, "test message")
-	assert.Contains(t, output, "logger_test.go:")
-}
-
-func TestLoggerClose(t *testing.T) {
-	tempDir := t.TempDir()
-	logFile := filepath.Join(tempDir, "test.log")
-
-	cfg := config.LoggingConfig{
-		Level:  "info",
-		Format: "text",
-		Output: "file",
-		File:   logFile,
-	}
-
-	logger, err := NewLogger(cfg)
-	require.NoError(t, err)
-
-	logger.Info("test message")
-
-	err = logger.Close()
-	require.NoError(t, err)
-
-	// Verify file was written
-	content, err := os.ReadFile(logFile)
-	require.NoError(t, err)
-	assert.Contains(t, string(content), "test message")
-}
-
-func TestInitializeLogger(t *testing.T) {
-	cfg := config.LoggingConfig{
-		Level:  "debug",
-		Format: "json",
-		Output: "stderr",
-	}
-
-	err := InitializeLogger(cfg)
-	assert.NoError(t, err)
-
-	// Test that global functions work
-	Info("test global info")
-	Debug("test global debug")
-
-	// Clean up
-	if logger := GetLogger(); logger != nil {
-		_ = logger.Close()
-	}
-}
-
-func TestGlobalLoggingFunctions(t *testing.T) {
-	var buf bytes.Buffer
-
-	// Set up global logger
-	globalLogger = &Logger{
-		level:  InfoLevel,
-		format: "json",
-		output: &buf,
-		fields: make(map[string]any),
-	}
-
-	Info("info message")
-	Warn("warn message")
-	Error("error message")
-
-	output := buf.String()
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	assert.Len(t, lines, 3)
-
-	// Verify each message
-	for i, expectedLevel := range []string{"INFO", "WARN", "ERROR"} {
-		var entry LogEntry
-		err := json.Unmarshal([]byte(lines[i]), &entry)
-		require.NoError(t, err)
-		assert.Equal(t, expectedLevel, entry.Level)
-	}
+	// Test that logging works
+	slog.Info("fallback test message")
 }
 
 func TestLoggerMiddleware(t *testing.T) {
 	var buf bytes.Buffer
 
-	globalLogger = &Logger{
-		level:  DebugLevel,
-		format: "json",
-		output: &buf,
-		fields: make(map[string]any),
-	}
+	// Set up logger that writes to buffer
+	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{
+		Level:     slog.LevelDebug,
+		AddSource: true,
+	})
+	slog.SetDefault(slog.New(handler))
+
+	ctx := context.Background()
 
 	// Test successful operation
-	err := LoggerMiddleware("test_operation", func() error {
-		time.Sleep(1 * time.Millisecond) // Small delay to test duration
+	err := LoggerMiddleware(ctx, "test_operation", func(ctx context.Context) error {
 		return nil
 	})
 
 	require.NoError(t, err)
 
 	output := buf.String()
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	assert.Len(t, lines, 2) // Start and completion messages
-
-	// Check start message
-	var startEntry LogEntry
-	err = json.Unmarshal([]byte(lines[0]), &startEntry)
-	require.NoError(t, err)
-	assert.Equal(t, "DEBUG", startEntry.Level)
-	assert.Contains(t, startEntry.Message, "Starting operation")
-	assert.Equal(t, "test_operation", startEntry.Fields["operation"])
-
-	// Check completion message
-	var endEntry LogEntry
-	err = json.Unmarshal([]byte(lines[1]), &endEntry)
-	require.NoError(t, err)
-	assert.Equal(t, "DEBUG", endEntry.Level)
-	assert.Contains(t, endEntry.Message, "Operation completed successfully")
-	assert.NotNil(t, endEntry.Fields["duration"])
+	assert.Contains(t, output, "Starting operation")
+	assert.Contains(t, output, "Operation completed successfully")
+	assert.Contains(t, output, "test_operation")
 }
 
 func TestLoggerMiddlewareWithError(t *testing.T) {
 	var buf bytes.Buffer
 
-	globalLogger = &Logger{
-		level:  DebugLevel,
-		format: "json",
-		output: &buf,
-		fields: make(map[string]any),
-	}
+	// Set up logger that writes to buffer
+	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+	slog.SetDefault(slog.New(handler))
 
+	ctx := context.Background()
 	testErr := assert.AnError
 
 	// Test failed operation
-	err := LoggerMiddleware("test_operation", func() error {
+	err := LoggerMiddleware(ctx, "test_operation", func(ctx context.Context) error {
 		return testErr
 	})
 
 	assert.Equal(t, testErr, err)
 
 	output := buf.String()
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	assert.Len(t, lines, 2) // Start and error messages
-
-	// Check error message
-	var errorEntry LogEntry
-	err = json.Unmarshal([]byte(lines[1]), &errorEntry)
-	require.NoError(t, err)
-	assert.Equal(t, "ERROR", errorEntry.Level)
-	assert.Contains(t, errorEntry.Message, "Operation failed")
-	assert.Equal(t, testErr.Error(), errorEntry.Error)
+	assert.Contains(t, output, "Starting operation")
+	assert.Contains(t, output, "Operation failed")
+	assert.Contains(t, output, testErr.Error())
 }

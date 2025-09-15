@@ -56,6 +56,7 @@ type LoggingConfig struct {
 	MaxSizeMB  int    `json:"max_size_mb"`  // max log file size
 	MaxBackups int    `json:"max_backups"`  // max number of backup files
 	MaxAgeDays int    `json:"max_age_days"` // max age of log files
+	AddSource  bool   `json:"add_source"`   // add source file and line info to logs
 }
 
 // DebugConfig represents debug configuration
@@ -125,6 +126,7 @@ func DefaultConfig() *Config {
 			MaxSizeMB:  10,
 			MaxBackups: 5,
 			MaxAgeDays: 30,
+			AddSource:  false,
 		},
 		Debug: DebugConfig{
 			Enabled:     false,

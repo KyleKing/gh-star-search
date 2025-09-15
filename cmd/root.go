@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -126,23 +127,20 @@ func initializeGlobalConfig(cmd *cobra.Command) error {
 		return gherrors.Wrap(err, gherrors.ErrTypeFileSystem, "failed to create required directories")
 	}
 
-	// Initialize logging
-	if err := logging.InitializeLogger(cfg.Logging); err != nil {
+	// Initialize logging with slog
+	if err := logging.SetupLogger(cfg.Logging); err != nil {
 		return gherrors.Wrap(err, gherrors.ErrTypeConfig, "failed to initialize logging")
 	}
 
-	// Log startup information
-	logger := logging.WithFields(map[string]interface{}{
-		"version": getVersion(),
-		"config":  cfg.Database.Path,
-	})
+	// Log startup information using slog
+	slog.Info("gh-star-search starting",
+		slog.String("version", getVersion()),
+		slog.String("config", cfg.Database.Path))
 
 	if cfg.Debug.Enabled {
-		logger.Debug("Debug mode enabled")
-		logger.Debugf("Configuration loaded: %+v", cfg)
+		slog.Debug("Debug mode enabled")
+		slog.Debug("Configuration loaded", slog.Any("config", cfg))
 	}
-
-	logger.Info("gh-star-search starting")
 
 	// Store config in context for subcommands
 	ctx := context.WithValue(cmd.Context(), configContextKey, cfg)

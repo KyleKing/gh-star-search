@@ -2,12 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/kyleking/gh-star-search/internal/errors"
-	"github.com/kyleking/gh-star-search/internal/logging"
 	"github.com/kyleking/gh-star-search/internal/related"
 	"github.com/kyleking/gh-star-search/internal/storage"
 )
@@ -43,7 +43,6 @@ func init() {
 
 func runRelated(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	logger := logging.GetLogger()
 
 	// Get configuration
 	cfg, err := GetConfigFromContext(cmd)
@@ -81,7 +80,9 @@ func runRelated(cmd *cobra.Command, args []string) error {
 			fmt.Sprintf("repository '%s' not found in your starred repositories", repoFullName))
 	}
 
-	logger.Debugf("Finding repositories related to: %s", repoFullName)
+	slog.Debug("Finding repositories related to",
+		slog.String("repo", repoFullName),
+		slog.Int("limit", relatedLimit))
 
 	// Initialize related engine
 	relatedEngine := related.NewEngine(repo)
