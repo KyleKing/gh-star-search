@@ -139,14 +139,7 @@ func TestValidateConfig(t *testing.T) {
 			expectError:   true,
 			errorContains: "invalid database query timeout",
 		},
-		{
-			name: "invalid GitHub timeout",
-			modifyConfig: func(c *Config) {
-				c.GitHub.Timeout = "invalid"
-			},
-			expectError:   true,
-			errorContains: "invalid GitHub timeout",
-		},
+
 		{
 			name: "invalid cache cleanup frequency",
 			modifyConfig: func(c *Config) {
@@ -162,22 +155,6 @@ func TestValidateConfig(t *testing.T) {
 			},
 			expectError:   true,
 			errorContains: "database max connections must be positive",
-		},
-		{
-			name: "invalid rate limit",
-			modifyConfig: func(c *Config) {
-				c.GitHub.RateLimit = -1
-			},
-			expectError:   true,
-			errorContains: "GitHub rate limit must be positive",
-		},
-		{
-			name: "invalid retry attempts",
-			modifyConfig: func(c *Config) {
-				c.GitHub.RetryAttempts = -1
-			},
-			expectError:   true,
-			errorContains: "GitHub retry attempts must be non-negative",
 		},
 	}
 
@@ -275,6 +252,7 @@ func TestSaveConfig(t *testing.T) {
 
 	config, err := LoadConfigWithOverrides(nil)
 	require.NoError(t, err)
+
 	config.Database.Path = "/custom/path"
 	config.Logging.Level = "debug"
 
@@ -322,6 +300,7 @@ func TestLoadConfigWithOverrides(t *testing.T) {
 func TestMergeConfigs(t *testing.T) {
 	target, err := LoadConfigWithOverrides(nil)
 	require.NoError(t, err)
+
 	source := &Config{
 		Database: DatabaseConfig{
 			Path:           "/new/path",

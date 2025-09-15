@@ -979,5 +979,6 @@ func getConfigFromContext(ctx context.Context) *config.Config {
 		// Fallback to panic or log, but since it's a getter, perhaps return nil or handle
 		panic(fmt.Sprintf("failed to load config: %v", err))
 	}
+
 	return cfg
 }

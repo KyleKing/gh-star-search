@@ -13,15 +13,10 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Database   DatabaseConfig  `json:"database" envPrefix:"GH_STAR_SEARCH_"`
-	GitHub     GitHubConfig    `json:"github" envPrefix:"GH_STAR_SEARCH_"`
-	Cache      CacheConfig     `json:"cache" envPrefix:"GH_STAR_SEARCH_"`
-	Logging    LoggingConfig   `json:"logging" envPrefix:"GH_STAR_SEARCH_"`
-	Debug      DebugConfig     `json:"debug" envPrefix:"GH_STAR_SEARCH_"`
-	Search     SearchConfig    `json:"search" envPrefix:"GH_STAR_SEARCH_"`
-	Embeddings EmbeddingConfig `json:"embeddings" envPrefix:"GH_STAR_SEARCH_"`
-	Summary    SummaryConfig   `json:"summary" envPrefix:"GH_STAR_SEARCH_"`
-	Refresh    RefreshConfig   `json:"refresh" envPrefix:"GH_STAR_SEARCH_"`
+	Database DatabaseConfig `json:"database" envPrefix:"GH_STAR_SEARCH_"`
+	Cache    CacheConfig    `json:"cache" envPrefix:"GH_STAR_SEARCH_"`
+	Logging  LoggingConfig  `json:"logging" envPrefix:"GH_STAR_SEARCH_"`
+	Debug    DebugConfig    `json:"debug" envPrefix:"GH_STAR_SEARCH_"`
 }
 
 // DatabaseConfig represents database configuration
@@ -29,13 +24,6 @@ type DatabaseConfig struct {
 	Path           string `json:"path" env:"DB_PATH" envDefault:"~/.config/gh-star-search/database.db"`
 	MaxConnections int    `json:"max_connections" env:"DB_MAX_CONNECTIONS" envDefault:"10"`
 	QueryTimeout   string `json:"query_timeout" env:"DB_QUERY_TIMEOUT" envDefault:"30s"`
-}
-
-// GitHubConfig represents GitHub API configuration
-type GitHubConfig struct {
-	RateLimit     int    `json:"rate_limit" env:"GITHUB_RATE_LIMIT" envDefault:"5000"`
-	RetryAttempts int    `json:"retry_attempts" env:"GITHUB_RETRY_ATTEMPTS" envDefault:"3"`
-	Timeout       string `json:"timeout" env:"GITHUB_TIMEOUT" envDefault:"30s"`
 }
 
 // CacheConfig represents caching configuration
@@ -69,35 +57,6 @@ type DebugConfig struct {
 	TraceAPI    bool `json:"trace_api" env:"DEBUG_TRACE_API" envDefault:"false"`
 }
 
-// SearchConfig represents search configuration
-type SearchConfig struct {
-	DefaultMode string  `json:"default_mode" env:"SEARCH_DEFAULT_MODE" envDefault:"fuzzy"` // "fuzzy" or "vector"
-	MinScore    float64 `json:"min_score" env:"SEARCH_MIN_SCORE" envDefault:"0.0"`         // Minimum score threshold
-}
-
-// EmbeddingConfig represents embedding configuration
-type EmbeddingConfig struct {
-	Provider   string            `json:"provider" env:"EMBEDDINGS_PROVIDER" envDefault:"local"`                            // "local" or "remote"
-	Model      string            `json:"model" env:"EMBEDDINGS_MODEL" envDefault:"sentence-transformers/all-MiniLM-L6-v2"` // Model name/path
-	Dimensions int               `json:"dimensions" env:"EMBEDDINGS_DIMENSIONS" envDefault:"384"`                          // Expected embedding dimensions
-	Enabled    bool              `json:"enabled" env:"EMBEDDINGS_ENABLED" envDefault:"false"`                              // Whether embeddings are enabled
-	Options    map[string]string `json:"options"`                                                                          // Provider-specific options
-}
-
-// SummaryConfig represents summarization configuration
-type SummaryConfig struct {
-	Version           int    `json:"version" env:"SUMMARY_VERSION" envDefault:"1"`                                         // Summary format version
-	TransformersModel string `json:"transformers_model" env:"SUMMARY_TRANSFORMERS_MODEL" envDefault:"distilbart-cnn-12-6"` // Python transformers model
-	Enabled           bool   `json:"enabled" env:"SUMMARY_ENABLED" envDefault:"true"`                                      // Whether summarization is enabled
-}
-
-// RefreshConfig represents refresh and caching configuration
-type RefreshConfig struct {
-	MetadataStaleDays int  `json:"metadata_stale_days" env:"REFRESH_METADATA_STALE_DAYS" envDefault:"14"` // Days before metadata refresh
-	StatsStaleDays    int  `json:"stats_stale_days" env:"REFRESH_STATS_STALE_DAYS" envDefault:"7"`        // Days before stats refresh
-	ForceSummary      bool `json:"force_summary" env:"REFRESH_FORCE_SUMMARY" envDefault:"false"`          // Force summary regeneration
-}
-
 // LoadConfig loads configuration from file, environment variables, and command-line flags
 func LoadConfig() (*Config, error) {
 	return LoadConfigWithOverrides(nil)
@@ -121,11 +80,6 @@ func LoadConfigWithOverrides(flagOverrides map[string]interface{}) (*Config, err
 		Prefix: "GH_STAR_SEARCH_",
 	}); err != nil {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
-	}
-
-	// Initialize maps that env cannot handle
-	if config.Embeddings.Options == nil {
-		config.Embeddings.Options = make(map[string]string)
 	}
 
 	// Apply command-line flag overrides
@@ -227,19 +181,6 @@ func mergeConfigs(target, source *Config) {
 		target.Database.QueryTimeout = source.Database.QueryTimeout
 	}
 
-	// GitHub
-	if source.GitHub.RateLimit > 0 {
-		target.GitHub.RateLimit = source.GitHub.RateLimit
-	}
-
-	if source.GitHub.RetryAttempts > 0 {
-		target.GitHub.RetryAttempts = source.GitHub.RetryAttempts
-	}
-
-	if source.GitHub.Timeout != "" {
-		target.GitHub.Timeout = source.GitHub.Timeout
-	}
-
 	// Cache
 	if source.Cache.Directory != "" {
 		target.Cache.Directory = source.Cache.Directory
@@ -306,55 +247,6 @@ func mergeConfigs(target, source *Config) {
 	if source.Debug.MetricsPort > 0 {
 		target.Debug.MetricsPort = source.Debug.MetricsPort
 	}
-
-	// Search
-	if source.Search.DefaultMode != "" {
-		target.Search.DefaultMode = source.Search.DefaultMode
-	}
-
-	if source.Search.MinScore > 0 {
-		target.Search.MinScore = source.Search.MinScore
-	}
-
-	// Embeddings
-	if source.Embeddings.Provider != "" {
-		target.Embeddings.Provider = source.Embeddings.Provider
-	}
-
-	if source.Embeddings.Model != "" {
-		target.Embeddings.Model = source.Embeddings.Model
-	}
-
-	if source.Embeddings.Dimensions > 0 {
-		target.Embeddings.Dimensions = source.Embeddings.Dimensions
-	}
-
-	target.Embeddings.Enabled = source.Embeddings.Enabled
-	if source.Embeddings.Options != nil {
-		target.Embeddings.Options = source.Embeddings.Options
-	}
-
-	// Summary
-	if source.Summary.Version > 0 {
-		target.Summary.Version = source.Summary.Version
-	}
-
-	if source.Summary.TransformersModel != "" {
-		target.Summary.TransformersModel = source.Summary.TransformersModel
-	}
-
-	target.Summary.Enabled = source.Summary.Enabled
-
-	// Refresh
-	if source.Refresh.MetadataStaleDays > 0 {
-		target.Refresh.MetadataStaleDays = source.Refresh.MetadataStaleDays
-	}
-
-	if source.Refresh.StatsStaleDays > 0 {
-		target.Refresh.StatsStaleDays = source.Refresh.StatsStaleDays
-	}
-
-	target.Refresh.ForceSummary = source.Refresh.ForceSummary
 }
 
 // validateConfig validates the configuration for common errors
@@ -388,10 +280,6 @@ func validateConfig(config *Config) error {
 		return fmt.Errorf("invalid database query timeout: %s", config.Database.QueryTimeout)
 	}
 
-	if _, err := time.ParseDuration(config.GitHub.Timeout); err != nil {
-		return fmt.Errorf("invalid GitHub timeout: %s", config.GitHub.Timeout)
-	}
-
 	if _, err := time.ParseDuration(config.Cache.CleanupFreq); err != nil {
 		return fmt.Errorf("invalid cache cleanup frequency: %s", config.Cache.CleanupFreq)
 	}
@@ -399,14 +287,6 @@ func validateConfig(config *Config) error {
 	// Validate numeric values
 	if config.Database.MaxConnections <= 0 {
 		return fmt.Errorf("database max connections must be positive: %d", config.Database.MaxConnections)
-	}
-
-	if config.GitHub.RateLimit <= 0 {
-		return fmt.Errorf("GitHub rate limit must be positive: %d", config.GitHub.RateLimit)
-	}
-
-	if config.GitHub.RetryAttempts < 0 {
-		return fmt.Errorf("GitHub retry attempts must be non-negative: %d", config.GitHub.RetryAttempts)
 	}
 
 	return nil
