@@ -52,14 +52,6 @@ func ExampleDuckDBRepository() {
 				SPDXID: "MIT",
 			},
 		},
-		Summary: processor.Summary{
-			Purpose:      "A command-line tool for managing awesome projects",
-			Technologies: []string{"Go", "Cobra", "DuckDB"},
-			UseCases:     []string{"Project management", "CLI automation"},
-			Features:     []string{"Fast search", "Local storage", "Cross-platform"},
-			Installation: "go install github.com/example/awesome-project@latest",
-			Usage:        "awesome-project [command] [flags]",
-		},
 		Chunks: []processor.ContentChunk{
 			{
 				Source:   "README.md",

@@ -11,4 +11,4 @@ Languages: -
 Related Stars: ? in user, ? by top contributors
 Last synced: ?
 (PLANNED: dependencies count)
-(PLANNED: dependents count)
+(PLANNED: 'used by' count)

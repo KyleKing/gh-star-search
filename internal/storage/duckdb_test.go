@@ -73,8 +73,8 @@ func TestDuckDBRepository(t *testing.T) {
 			)
 		}
 
-		if len(stored.Chunks) != 2 {
-			t.Errorf("Expected 2 chunks, got %d", len(stored.Chunks))
+		if len(stored.Chunks) != 0 {
+			t.Errorf("Expected 0 chunks, got %d", len(stored.Chunks))
 		}
 	})
 
@@ -85,7 +85,7 @@ func TestDuckDBRepository(t *testing.T) {
 		// Modify test data
 		updatedRepo := testRepo
 		updatedRepo.Repository.Description = "Updated description"
-		updatedRepo.Summary.Purpose = "Updated purpose"
+
 		updatedRepo.Chunks = []processor.ContentChunk{
 			{
 				Source:   "README.md",
@@ -109,10 +109,6 @@ func TestDuckDBRepository(t *testing.T) {
 
 		if stored.Description != "Updated description" {
 			t.Errorf("Expected updated description, got %s", stored.Description)
-		}
-
-		if stored.Purpose != "Updated purpose" {
-			t.Errorf("Expected updated purpose, got %s", stored.Purpose)
 		}
 
 		if len(stored.Chunks) != 1 {
@@ -360,14 +356,6 @@ func createTestProcessedRepo() processor.ProcessedRepo {
 				Name:   "MIT License",
 				SPDXID: "MIT",
 			},
-		},
-		Summary: processor.Summary{
-			Purpose:      "This is a test repository for unit testing",
-			Technologies: []string{"Go", "DuckDB", "Testing"},
-			UseCases:     []string{"Unit testing", "Integration testing"},
-			Features:     []string{"Database operations", "Migration support"},
-			Installation: "go get github.com/user/test-repo",
-			Usage:        "Run tests with go test",
 		},
 		Chunks: []processor.ContentChunk{
 			{

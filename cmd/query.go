@@ -315,17 +315,12 @@ func displayLongFormResult(rank int, result query.Result, _ bool) {
 	lastSynced := formatAge(repo.LastSynced)
 	fmt.Printf("Last synced: %s\n", lastSynced)
 
-	// Summary (if available)
-	if repo.Purpose != "" {
-		fmt.Printf("Summary: %s\n", repo.Purpose)
-	}
-
 	// Score
 	fmt.Printf("Score: %.2f\n", result.Score)
 
 	// Planned placeholders
 	fmt.Printf("(PLANNED: dependencies count)\n")
-	fmt.Printf("(PLANNED: dependents count)\n")
+	fmt.Printf("(PLANNED: 'used by' count)\n")
 }
 
 // displayShortFormResult displays a search result in short format

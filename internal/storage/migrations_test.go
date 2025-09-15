@@ -94,36 +94,6 @@ func TestNewSchemaFields(t *testing.T) {
 	if !columnExists {
 		t.Error("Expected open_issues_open column to exist after migration")
 	}
-
-	// Test embedding column
-	err = repo.db.QueryRowContext(ctx, `
-		SELECT COUNT(*) > 0 
-		FROM information_schema.columns 
-		WHERE table_name = 'repositories' AND column_name = 'repo_embedding'
-	`).Scan(&columnExists)
-
-	if err != nil {
-		t.Fatalf("Failed to check embedding column existence: %v", err)
-	}
-
-	if !columnExists {
-		t.Error("Expected repo_embedding column to exist after migration")
-	}
-
-	// Test summary fields
-	err = repo.db.QueryRowContext(ctx, `
-		SELECT COUNT(*) > 0 
-		FROM information_schema.columns 
-		WHERE table_name = 'repositories' AND column_name = 'summary_version'
-	`).Scan(&columnExists)
-
-	if err != nil {
-		t.Fatalf("Failed to check summary_version column existence: %v", err)
-	}
-
-	if !columnExists {
-		t.Error("Expected summary_version column to exist after migration")
-	}
 }
 
 func TestRepositoryMetricsUpdate(t *testing.T) {
@@ -156,11 +126,6 @@ func TestRepositoryMetricsUpdate(t *testing.T) {
 	// repos can be empty slice, that's fine
 	t.Logf("Found %d repositories needing metrics update", len(repos))
 
-	// Test GetRepositoriesNeedingSummaryUpdate
-	repos, err = repo.GetRepositoriesNeedingSummaryUpdate(ctx, false)
-	if err != nil {
-		t.Fatalf("Failed to get repositories needing summary update: %v", err)
-	}
 	// repos can be empty slice, that's fine
 	t.Logf("Found %d repositories needing summary update", len(repos))
 

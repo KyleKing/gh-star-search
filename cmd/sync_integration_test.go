@@ -441,8 +441,8 @@ func TestSyncSpecificRepository(t *testing.T) {
 		t.Errorf("Expected StargazersCount 42, got %d", stored.StargazersCount)
 	}
 
-	if len(stored.Chunks) == 0 {
-		t.Error("Expected content chunks to be stored")
+	if len(stored.Chunks) != 0 {
+		t.Error("Expected no content chunks to be stored")
 	}
 
 	// Test syncing non-existent repository

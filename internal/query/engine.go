@@ -225,12 +225,9 @@ func (e *SearchEngine) identifyMatchedFields(
 	var matchedFields []string
 
 	fieldMap := map[string]string{
-		"name":         repo.FullName,
-		"description":  repo.Description,
-		"purpose":      repo.Purpose,
-		"technologies": strings.Join(repo.Technologies, " "),
-		"features":     strings.Join(repo.Features, " "),
-		"topics":       strings.Join(repo.Topics, " "),
+		"name":        repo.FullName,
+		"description": repo.Description,
+		"topics":      strings.Join(repo.Topics, " "),
 	}
 
 	for field, content := range fieldMap {
@@ -257,12 +254,6 @@ func (e *SearchEngine) getFieldContent(repo storage.StoredRepo, field string) st
 		return repo.FullName
 	case "description":
 		return repo.Description
-	case "purpose":
-		return repo.Purpose
-	case "technologies":
-		return strings.Join(repo.Technologies, " ")
-	case "features":
-		return strings.Join(repo.Features, " ")
 	case "topics":
 		return strings.Join(repo.Topics, " ")
 	case "contributors":

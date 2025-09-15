@@ -10,6 +10,5 @@ GitHub Topics: terraform, infrastructure, iac, devops
 Languages: Go (8000), HCL (2000), Shell (100)
 Related Stars: ? in hashicorp, ? by top contributors
 Last synced: today
-Summary: Infrastructure as Code tool for building, changing, and versioning infrastructure. Features: declarative configuration, execution plans, resource graph. Usage: terraform init && terraform plan && terraform apply
 (PLANNED: dependencies count)
-(PLANNED: dependents count)
+(PLANNED: 'used by' count)

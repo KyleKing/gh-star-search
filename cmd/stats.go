@@ -30,6 +30,7 @@ func runStatsWithStorage(ctx context.Context, repo storage.Repository) error {
 		var err error
 
 		cfg := getConfigFromContext(ctx)
+
 		repo, err = initializeStorage(cfg)
 		if err != nil {
 			return fmt.Errorf("failed to initialize storage: %w", err)

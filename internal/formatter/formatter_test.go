@@ -40,18 +40,9 @@ func TestFormatter_FormatResult(t *testing.T) {
 			{Login: "alice", Contributions: 150},
 			{Login: "bob", Contributions: 75},
 		},
-		LicenseName:              "MIT License",
-		LicenseSPDXID:            "MIT",
-		Purpose:                  "A comprehensive testing framework for Go applications",
-		Technologies:             []string{"Go", "Cobra", "Testing"},
-		UseCases:                 []string{"unit testing", "integration testing"},
-		Features:                 []string{"fast execution", "detailed reports"},
-		InstallationInstructions: "go install github.com/testorg/test-repo@latest",
-		UsageInstructions:        "Run 'test-repo --help' for usage information",
-		SummaryGeneratedAt:       &time.Time{},
-		SummaryVersion:           1,
-		SummaryGenerator:         "transformers:distilbart-cnn-12-6",
-		ContentHash:              "abc123def456",
+		LicenseName:   "MIT License",
+		LicenseSPDXID: "MIT",
+		ContentHash:   "abc123def456",
 	}
 
 	result := query.Result{
@@ -80,9 +71,8 @@ func TestFormatter_FormatResult(t *testing.T) {
 				"Top 10 Contributors: alice (150), bob (75)",
 				"GitHub Topics: golang, cli, testing",
 				"Languages: Go (200), Shell (10)",
-				"Summary: A comprehensive testing framework for Go applications. Features: fast execution, detailed reports. Usage: Run 'test-repo --help' for usage information",
 				"(PLANNED: dependencies count)",
-				"(PLANNED: dependents count)",
+				"(PLANNED: 'used by' count)",
 			},
 		},
 		{
@@ -413,61 +403,6 @@ func TestFormatter_formatInt(t *testing.T) {
 	}
 }
 
-func TestFormatter_formatSummary(t *testing.T) {
-	formatter := NewFormatter()
-
-	tests := []struct {
-		name     string
-		repo     storage.StoredRepo
-		expected string
-	}{
-		{
-			name:     "empty summary fields",
-			repo:     storage.StoredRepo{},
-			expected: "-",
-		},
-		{
-			name: "purpose only",
-			repo: storage.StoredRepo{
-				Purpose: "A testing framework",
-			},
-			expected: "A testing framework",
-		},
-		{
-			name: "features only",
-			repo: storage.StoredRepo{
-				Features: []string{"fast", "reliable"},
-			},
-			expected: "Features: fast, reliable",
-		},
-		{
-			name: "usage only",
-			repo: storage.StoredRepo{
-				UsageInstructions: "Run with --help",
-			},
-			expected: "Usage: Run with --help",
-		},
-		{
-			name: "all fields",
-			repo: storage.StoredRepo{
-				Purpose:           "A testing framework",
-				Features:          []string{"fast", "reliable"},
-				UsageInstructions: "Run with --help",
-			},
-			expected: "A testing framework. Features: fast, reliable. Usage: Run with --help",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatter.formatSummary(tt.repo)
-			if result != tt.expected {
-				t.Errorf("Expected %q, got %q", tt.expected, result)
-			}
-		})
-	}
-}
-
 // Golden test for complete long-form output
 func TestFormatter_GoldenLongForm(t *testing.T) {
 	formatter := NewFormatter()
@@ -502,15 +437,6 @@ func TestFormatter_GoldenLongForm(t *testing.T) {
 			{Login: "jbardin", Contributions: 1200},
 		},
 		LicenseSPDXID: "MPL-2.0",
-		Purpose:       "Infrastructure as Code tool for building, changing, and versioning infrastructure",
-		Technologies:  []string{"Go", "HCL", "Terraform"},
-		Features: []string{
-			"declarative configuration",
-			"execution plans",
-			"resource graph",
-		},
-		UsageInstructions: "terraform init && terraform plan && terraform apply",
-		SummaryGenerator:  "transformers:distilbart-cnn-12-6",
 	}
 
 	expected := `hashicorp/terraform  (link: https://github.com/hashicorp/terraform)
@@ -525,9 +451,8 @@ GitHub Topics: terraform, infrastructure, iac, devops
 Languages: Go (8000), HCL (2000), Shell (100)
 Related Stars: ? in hashicorp, ? by top contributors
 Last synced: today
-Summary: Infrastructure as Code tool for building, changing, and versioning infrastructure. Features: declarative configuration, execution plans, resource graph. Usage: terraform init && terraform plan && terraform apply
 (PLANNED: dependencies count)
-(PLANNED: dependents count)`
+(PLANNED: 'used by' count)`
 
 	result := formatter.FormatRepository(repo, FormatLong)
 
@@ -600,15 +525,6 @@ func TestFormatter_GoldenFiles(t *testing.T) {
 					{Login: "jbardin", Contributions: 1200},
 				},
 				LicenseSPDXID: "MPL-2.0",
-				Purpose:       "Infrastructure as Code tool for building, changing, and versioning infrastructure",
-				Technologies:  []string{"Go", "HCL", "Terraform"},
-				Features: []string{
-					"declarative configuration",
-					"execution plans",
-					"resource graph",
-				},
-				UsageInstructions: "terraform init && terraform plan && terraform apply",
-				SummaryGenerator:  "transformers:distilbart-cnn-12-6",
 			},
 			format:     FormatLong,
 			goldenFile: "testdata/golden_long_complete.txt",

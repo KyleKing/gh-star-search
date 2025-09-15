@@ -40,6 +40,7 @@ func RunClearWithStorage(ctx context.Context, force bool, repo storage.Repositor
 		var err error
 
 		cfg := getConfigFromContext(ctx)
+
 		repo, err = initializeStorage(cfg)
 		if err != nil {
 			return fmt.Errorf("failed to initialize storage: %w", err)

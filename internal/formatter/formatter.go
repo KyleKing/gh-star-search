@@ -142,15 +142,9 @@ func (f *Formatter) formatLong(repo storage.StoredRepo) string {
 	lastSynced := f.humanizeAge(repo.LastSynced)
 	lines = append(lines, "Last synced: "+lastSynced)
 
-	// Line 13: Summary (optional)
-	if repo.Purpose != "" || len(repo.Features) > 0 || repo.UsageInstructions != "" {
-		summary := f.formatSummary(repo)
-		lines = append(lines, "Summary: "+summary)
-	}
-
 	// Line 14-15: Planned placeholders
 	lines = append(lines, "(PLANNED: dependencies count)")
-	lines = append(lines, "(PLANNED: dependents count)")
+	lines = append(lines, "(PLANNED: 'used by' count)")
 
 	return strings.Join(lines, "\n")
 }
@@ -330,28 +324,4 @@ func (f *Formatter) formatRelatedStars(repo storage.StoredRepo) string {
 	// For now, return placeholder values
 	orgName := strings.Split(repo.FullName, "/")[0]
 	return fmt.Sprintf("? in %s, ? by top contributors", orgName)
-}
-
-// formatSummary formats the summary from various summary fields
-func (f *Formatter) formatSummary(repo storage.StoredRepo) string {
-	var parts []string
-
-	if repo.Purpose != "" {
-		parts = append(parts, repo.Purpose)
-	}
-
-	if len(repo.Features) > 0 {
-		features := strings.Join(repo.Features, ", ")
-		parts = append(parts, "Features: "+features)
-	}
-
-	if repo.UsageInstructions != "" {
-		parts = append(parts, "Usage: "+repo.UsageInstructions)
-	}
-
-	if len(parts) == 0 {
-		return "-"
-	}
-
-	return strings.Join(parts, ". ")
 }

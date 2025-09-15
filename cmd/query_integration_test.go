@@ -161,14 +161,6 @@ func createTestRepositories() []processor.ProcessedRepo {
 					SPDXID: "MIT",
 				},
 			},
-			Summary: processor.Summary{
-				Purpose:      "Fast HTTP web framework for Go with middleware support",
-				Technologies: []string{"Go", "HTTP", "JSON"},
-				UseCases:     []string{"web development", "API development", "microservices"},
-				Features:     []string{"fast routing", "middleware", "JSON validation"},
-				Installation: "go get github.com/gin-gonic/gin",
-				Usage:        "Create router with gin.Default() and define routes",
-			},
 			Chunks: []processor.ContentChunk{
 				{
 					Source:   "README.md",
@@ -197,18 +189,6 @@ func createTestRepositories() []processor.ProcessedRepo {
 					SPDXID: "MIT",
 				},
 			},
-			Summary: processor.Summary{
-				Purpose:      "JavaScript library for building user interfaces with component-based architecture",
-				Technologies: []string{"JavaScript", "JSX", "Virtual DOM"},
-				UseCases: []string{
-					"web applications",
-					"single page applications",
-					"mobile apps",
-				},
-				Features:     []string{"component-based", "virtual DOM", "declarative"},
-				Installation: "npm install react",
-				Usage:        "Import React and create components using JSX",
-			},
 			Chunks: []processor.ContentChunk{
 				{
 					Source:   "README.md",
@@ -236,14 +216,6 @@ func createTestRepositories() []processor.ProcessedRepo {
 					Name:   "BSD 3-Clause License",
 					SPDXID: "BSD-3-Clause",
 				},
-			},
-			Summary: processor.Summary{
-				Purpose:      "Open source programming language that makes it easy to build simple, reliable, and efficient software",
-				Technologies: []string{"Go", "Compiler", "Runtime"},
-				UseCases:     []string{"system programming", "web development", "cloud computing"},
-				Features:     []string{"garbage collection", "concurrency", "static typing"},
-				Installation: "Download from golang.org",
-				Usage:        "Write Go programs and compile with go build",
 			},
 			Chunks: []processor.ContentChunk{
 				{

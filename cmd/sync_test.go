@@ -395,17 +395,8 @@ func TestSyncService_ProcessRepository(t *testing.T) {
 		t.Errorf("Expected StargazersCount 42, got %d", stored.StargazersCount)
 	}
 
-	expectedPurpose := "This is a test repository for unit testing purposes. It contains various test files and examples to validate the functionality of the system."
-	if stored.Purpose != expectedPurpose {
-		t.Errorf("Expected Purpose '%s', got '%s'", expectedPurpose, stored.Purpose)
-	}
-
-	if len(stored.Technologies) != 2 {
-		t.Errorf("Expected 2 technologies, got %d", len(stored.Technologies))
-	}
-
-	if len(stored.Chunks) == 0 {
-		t.Error("Expected content chunks to be stored")
+	if len(stored.Chunks) != 0 {
+		t.Error("Expected no content chunks to be stored")
 	}
 }
 

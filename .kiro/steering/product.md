@@ -35,7 +35,7 @@ Each related match includes a brief reason label (e.g., "topic: ai", "shared con
 ### Output Formats
 Two display modes:
 - Short form: first two lines (link and GitHub description)
-- Long form: standardized multi-line block including description, external link (if any), issue/PR metrics, commit activity, age, license, top contributors, topics, languages, related counts, last sync, optional summary, and planned future metrics (dependency counts, dependents).
+- Long form: standardized multi-line block including description, external link (if any), issue/PR metrics, commit activity, age, license, top contributors, topics, languages, related counts, last sync, optional summary, and planned future metrics (dependency counts, 'used by').
 
 ### Sync & Caching
 - Metadata refreshed only if `last_synced` older than configurable threshold (default 14 days)
@@ -52,7 +52,7 @@ If no LLM is configured, a local non-LLM summarization (Python `transformers`) i
 - Vector search quality depends on chosen local embedding model (TBD in tech spec)
 
 ### Planned (Not Yet Implemented)
-- Dependency & dependents metrics
+- Dependency & 'used by' metrics
 - Optional LLM-enhanced summarization & query expansion
 - Interactive TUI (Bubble Tea) exploration
 - Advanced structured filters (languages, stars, activity ranges)

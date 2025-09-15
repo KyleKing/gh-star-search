@@ -36,6 +36,7 @@ func RunInfoWithStorage(ctx context.Context, repoName string, repo storage.Repos
 		var err error
 
 		cfg := getConfigFromContext(ctx)
+
 		repo, err = initializeStorage(cfg)
 		if err != nil {
 			return fmt.Errorf("failed to initialize storage: %w", err)
@@ -73,38 +74,6 @@ func RunInfoWithStorage(ctx context.Context, repoName string, repo storage.Repos
 
 	if len(storedRepo.Topics) > 0 {
 		fmt.Printf("Topics: %s\n", strings.Join(storedRepo.Topics, ", "))
-	}
-
-	if len(storedRepo.Technologies) > 0 {
-		fmt.Printf("Technologies: %s\n", strings.Join(storedRepo.Technologies, ", "))
-	}
-
-	if storedRepo.Purpose != "" {
-		fmt.Printf("\nPurpose:\n%s\n", storedRepo.Purpose)
-	}
-
-	if len(storedRepo.UseCases) > 0 {
-		fmt.Printf("\nUse Cases:\n")
-
-		for _, useCase := range storedRepo.UseCases {
-			fmt.Printf("  • %s\n", useCase)
-		}
-	}
-
-	if len(storedRepo.Features) > 0 {
-		fmt.Printf("\nFeatures:\n")
-
-		for _, feature := range storedRepo.Features {
-			fmt.Printf("  • %s\n", feature)
-		}
-	}
-
-	if storedRepo.InstallationInstructions != "" {
-		fmt.Printf("\nInstallation:\n%s\n", storedRepo.InstallationInstructions)
-	}
-
-	if storedRepo.UsageInstructions != "" {
-		fmt.Printf("\nUsage:\n%s\n", storedRepo.UsageInstructions)
 	}
 
 	if len(storedRepo.Chunks) > 0 {

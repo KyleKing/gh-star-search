@@ -292,7 +292,7 @@ Related Stars: <count_same_org> in <org>, <count_shared_contrib> by top contribu
 Last synced: <humanized (now - last_synced)>
 Summary: <summary purpose/combined> (optional if available)
 (PLANNED: dependencies count)
-(PLANNED: dependents count)
+(PLANNED: 'used by' count)
 ```
 
 Short-form: first two lines of long-form + truncated description (80 chars) + score: `<rank>. <full_name>  ⭐ <stars>  <language primary>  Updated <rel>  Score:<x.xx>`.

@@ -87,7 +87,7 @@ Related Stars: <count_same_org> in <org>, <count_shared_contrib> by top contribu
 Last synced: <humanized (now - last_synced)>
 Summary: <purpose/combined summary> (optional)
 (PLANNED: dependencies count)
-(PLANNED: dependents count)
+(PLANNED: 'used by' count)
 ```
 
 ### Short-form

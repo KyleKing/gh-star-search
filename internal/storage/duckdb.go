@@ -446,11 +446,6 @@ func (r *DuckDBRepository) ListRepositories(
 		   COALESCE(languages, '{}') as languages,
 		   COALESCE(contributors, '[]') as contributors,
 		   license_name, license_spdx_id,
-		   purpose, technologies, use_cases, features,
-		   installation_instructions, usage_instructions,
-		   summary_generated_at,
-		   COALESCE(summary_version, 1) as summary_version,
-		   COALESCE(summary_generator, 'heuristic') as summary_generator,
 		   content_hash
 	FROM repositories
 	ORDER BY stargazers_count DESC, full_name
@@ -467,8 +462,6 @@ func (r *DuckDBRepository) ListRepositories(
 	for rows.Next() {
 		var repo StoredRepo
 
-		var technologiesJSON, useCasesJSON, featuresJSON string
-
 		var languagesData, contributorsData interface{}
 
 		var topicsData interface{}
@@ -481,9 +474,6 @@ func (r *DuckDBRepository) ListRepositories(
 			&repo.Commits30d, &repo.Commits1y, &repo.CommitsTotal,
 			&topicsData, &languagesData, &contributorsData,
 			&repo.LicenseName, &repo.LicenseSPDXID,
-			&repo.Purpose, &technologiesJSON, &useCasesJSON, &featuresJSON,
-			&repo.InstallationInstructions, &repo.UsageInstructions,
-			&repo.SummaryGeneratedAt, &repo.SummaryVersion, &repo.SummaryGenerator,
 			&repo.ContentHash,
 		)
 		if err != nil {
@@ -516,18 +506,6 @@ func (r *DuckDBRepository) ListRepositories(
 			if topicsBytes, err := json.Marshal(topicsData); err == nil {
 				_ = json.Unmarshal(topicsBytes, &repo.Topics)
 			}
-		}
-
-		if technologiesJSON != "" {
-			_ = json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
-		}
-
-		if useCasesJSON != "" {
-			_ = json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
-		}
-
-		if featuresJSON != "" {
-			_ = json.Unmarshal([]byte(featuresJSON), &repo.Features)
 		}
 
 		repos = append(repos, repo)
@@ -606,15 +584,11 @@ func (r *DuckDBRepository) executeTextSearch(
 	searchQuery := `
 	SELECT r.id, r.full_name, r.description, r.language, r.stargazers_count, r.forks_count, r.size_kb,
 		   r.created_at, r.updated_at, r.last_synced, r.topics_array, r.license_name, r.license_spdx_id,
-		   r.purpose, r.technologies, r.use_cases, r.features, r.installation_instructions,
-		   r.usage_instructions, r.content_hash,
+		   r.content_hash,
 		   CAST(1.0 AS DOUBLE) as score
 	FROM repositories r
 	WHERE r.full_name ILIKE ?
 		OR r.description ILIKE ?
-		OR r.purpose ILIKE ?
-		OR r.installation_instructions ILIKE ?
-		OR r.usage_instructions ILIKE ?
 		OR EXISTS (
 			SELECT 1 FROM content_chunks c
 			WHERE c.repository_id = r.id AND c.content ILIKE ?
@@ -627,9 +601,6 @@ func (r *DuckDBRepository) executeTextSearch(
 	rows, err := r.db.QueryContext(
 		ctx,
 		searchQuery,
-		searchTerm,
-		searchTerm,
-		searchTerm,
 		searchTerm,
 		searchTerm,
 		searchTerm,
@@ -649,15 +620,12 @@ func (r *DuckDBRepository) executeTextSearch(
 
 		var topicsData interface{}
 
-		var technologiesJSON, useCasesJSON, featuresJSON string
-
 		err := rows.Scan(
 			&repo.ID, &repo.FullName, &repo.Description, &repo.Language,
 			&repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,
 			&repo.CreatedAt, &repo.UpdatedAt, &repo.LastSynced,
 			&topicsData, &repo.LicenseName, &repo.LicenseSPDXID,
-			&repo.Purpose, &technologiesJSON, &useCasesJSON, &featuresJSON,
-			&repo.InstallationInstructions, &repo.UsageInstructions, &repo.ContentHash,
+			&repo.ContentHash,
 			&score,
 		)
 		if err != nil {
@@ -669,18 +637,6 @@ func (r *DuckDBRepository) executeTextSearch(
 			if topicsBytes, err := json.Marshal(topicsData); err == nil {
 				_ = json.Unmarshal(topicsBytes, &repo.Topics)
 			}
-		}
-
-		if technologiesJSON != "" {
-			_ = json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
-		}
-
-		if useCasesJSON != "" {
-			_ = json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
-		}
-
-		if featuresJSON != "" {
-			_ = json.Unmarshal([]byte(featuresJSON), &repo.Features)
 		}
 
 		// Create matches based on which fields matched
@@ -750,12 +706,6 @@ func (r *DuckDBRepository) mapRowToRepository(
 		}
 	}
 
-	if val, ok := columnMap["purpose"]; ok && val != nil {
-		if s, ok := val.(string); ok {
-			repo.Purpose = s
-		}
-	}
-
 	// Handle score if present
 	if val, ok := columnMap["score"]; ok && val != nil {
 		if f, ok := val.(float64); ok {
@@ -798,31 +748,12 @@ func (r *DuckDBRepository) findMatches(repo StoredRepo, query string) []Match {
 		})
 	}
 
-	if strings.Contains(strings.ToLower(repo.Purpose), queryLower) {
-		matches = append(matches, Match{
-			Field:   "purpose",
-			Content: truncateForMatch(repo.Purpose, queryLower),
-			Score:   0.9,
-		})
-	}
-
 	if strings.Contains(strings.ToLower(repo.Language), queryLower) {
 		matches = append(matches, Match{
 			Field:   "language",
 			Content: repo.Language,
 			Score:   0.7,
 		})
-	}
-
-	// Check technologies
-	for _, tech := range repo.Technologies {
-		if strings.Contains(strings.ToLower(tech), queryLower) {
-			matches = append(matches, Match{
-				Field:   "technologies",
-				Content: tech,
-				Score:   0.8,
-			})
-		}
 	}
 
 	// Check topics

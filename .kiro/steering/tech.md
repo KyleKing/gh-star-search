@@ -56,7 +56,7 @@
 - Potential memory monitoring hooks for large batch operations
 
 ## Deferred / Planned
-- Dependency & dependents metrics ingestion
+- Dependency & 'used by' metrics ingestion
 - Advanced structured filters (language, stars range)
 - Interactive TUI (Bubble Tea) once core flows stabilized
 - LLM integration reactivation with provider abstraction

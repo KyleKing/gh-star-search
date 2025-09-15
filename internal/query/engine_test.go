@@ -11,12 +11,9 @@ func TestSearchEngine_CalculateFuzzyScore(t *testing.T) {
 
 	// Test repository
 	repo := storage.StoredRepo{
-		FullName:     "facebook/react",
-		Description:  "A declarative, efficient, and flexible JavaScript library for building user interfaces",
-		Purpose:      "JavaScript library for building user interfaces with component-based architecture",
-		Technologies: []string{"JavaScript", "JSX", "Virtual DOM"},
-		Features:     []string{"component-based", "virtual DOM", "declarative"},
-		Topics:       []string{"javascript", "react", "frontend", "ui"},
+		FullName:    "facebook/react",
+		Description: "A declarative, efficient, and flexible JavaScript library for building user interfaces",
+		Topics:      []string{"javascript", "react", "frontend", "ui"},
 	}
 
 	tests := []struct {
@@ -37,7 +34,7 @@ func TestSearchEngine_CalculateFuzzyScore(t *testing.T) {
 		{
 			name:        "technology match",
 			queryTerms:  []string{"jsx"},
-			expectScore: true,
+			expectScore: false, // Technologies field removed, so no match expected
 		},
 		{
 			name:        "no match",
@@ -121,12 +118,9 @@ func TestSearchEngine_IdentifyMatchedFields(t *testing.T) {
 	engine := &SearchEngine{}
 
 	repo := storage.StoredRepo{
-		FullName:     "facebook/react",
-		Description:  "A JavaScript library",
-		Purpose:      "Building user interfaces",
-		Technologies: []string{"JavaScript", "JSX"},
-		Features:     []string{"component-based"},
-		Topics:       []string{"javascript", "frontend"},
+		FullName:    "facebook/react",
+		Description: "A JavaScript library",
+		Topics:      []string{"javascript", "frontend"},
 	}
 
 	tests := []struct {
@@ -142,12 +136,12 @@ func TestSearchEngine_IdentifyMatchedFields(t *testing.T) {
 		{
 			name:           "description match",
 			queryTerms:     []string{"javascript"},
-			expectedFields: []string{"description", "technologies", "topics"},
+			expectedFields: []string{"description", "topics"},
 		},
 		{
 			name:           "multiple matches",
 			queryTerms:     []string{"javascript", "component"},
-			expectedFields: []string{"description", "technologies", "features", "topics"},
+			expectedFields: []string{"description", "topics"},
 		},
 		{
 			name:           "no matches",
