@@ -1,27 +1,24 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	"github.com/kyleking/gh-star-search/internal/errors"
 	"github.com/kyleking/gh-star-search/internal/related"
 	"github.com/kyleking/gh-star-search/internal/storage"
+	"github.com/urfave/cli/v3"
 )
 
-var (
-	relatedLimit int
-)
-
-var relatedCmd = &cobra.Command{
-	Use:   "related <repository>",
-	Short: "Find repositories related to the specified repository",
-	Long: `Find repositories related to the specified repository based on:
+func RelatedCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "related",
+		Usage: "Find repositories related to the specified repository",
+		Description: `Find repositories related to the specified repository based on:
 - Same organization
-- Shared GitHub topics  
+- Shared GitHub topics
 - Shared contributors
 - Vector similarity (if embeddings available)
 
@@ -30,24 +27,29 @@ The repository should be specified in owner/name format (e.g., "facebook/react")
 Examples:
   gh star-search related facebook/react
   gh star-search related --limit 3 golang/go`,
-	Args: cobra.ExactArgs(1),
-	RunE: runRelated,
+		ArgsUsage: "<repository>",
+		Flags: []cli.Flag{
+			&cli.IntFlag{
+				Name:    "limit",
+				Aliases: []string{"l"},
+				Value:   5,
+				Usage:   "Maximum number of related repositories to show (1-20)",
+			},
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return runRelated(ctx, cmd)
+		},
+	}
 }
 
-func init() {
-	relatedCmd.Flags().IntVar(&relatedLimit, "limit", 5, "Maximum number of related repositories to show (1-20)")
-
-	// Add to root command
-	rootCmd.AddCommand(relatedCmd)
-}
-
-func runRelated(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
+func runRelated(ctx context.Context, cmd *cli.Command) error {
 	// Get configuration
-	cfg, err := GetConfigFromContext(cmd)
-	if err != nil {
-		return err
+	configFromContext := getConfigFromContext(ctx)
+
+	// Parse arguments
+	args := cmd.Args().Slice()
+	if len(args) != 1 {
+		return fmt.Errorf("expected exactly one repository argument")
 	}
 
 	// Validate repository name
@@ -57,12 +59,13 @@ func runRelated(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate limit
+	relatedLimit := int(cmd.Int("limit"))
 	if relatedLimit < 1 || relatedLimit > 20 {
 		return errors.New(errors.ErrTypeValidation, "limit must be between 1 and 20")
 	}
 
 	// Initialize repository
-	repo, err := storage.NewDuckDBRepository(cfg.Database.Path)
+	repo, err := storage.NewDuckDBRepository(configFromContext.Database.Path)
 	if err != nil {
 		return errors.Wrap(err, errors.ErrTypeDatabase, "failed to initialize database")
 	}

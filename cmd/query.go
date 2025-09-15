@@ -1,32 +1,25 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
-
 	"github.com/kyleking/gh-star-search/internal/errors"
 	"github.com/kyleking/gh-star-search/internal/query"
 	"github.com/kyleking/gh-star-search/internal/related"
 	"github.com/kyleking/gh-star-search/internal/storage"
+	"github.com/urfave/cli/v3"
 )
 
-var (
-	queryMode    string
-	queryLimit   int
-	queryLong    bool
-	queryShort   bool
-	queryRelated bool
-)
-
-var queryCmd = &cobra.Command{
-	Use:   "query <search-string>",
-	Short: "Search starred repositories using fuzzy or vector search",
-	Long: `Search your starred repositories using a query string. Supports two search modes:
+func QueryCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "query",
+		Usage: "Search starred repositories using fuzzy or vector search",
+		Description: `Search your starred repositories using a query string. Supports two search modes:
 - fuzzy: Full-text search with BM25 scoring (default)
 - vector: Semantic similarity search using embeddings
 
@@ -35,28 +28,50 @@ Examples:
   gh star-search query --mode vector "machine learning"
   gh star-search query --limit 5 --long "golang http"
   gh star-search query --related "react components"`,
-	Args: cobra.ExactArgs(1),
-	RunE: runQuery,
+		ArgsUsage: "<search-string>",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "mode",
+				Aliases: []string{"m"},
+				Value:   "fuzzy",
+				Usage:   "Search mode: fuzzy or vector",
+			},
+			&cli.IntFlag{
+				Name:    "limit",
+				Aliases: []string{"l"},
+				Value:   10,
+				Usage:   "Maximum number of results (1-50)",
+			},
+			&cli.BoolFlag{
+				Name:    "long",
+				Aliases: []string{"L"},
+				Usage:   "Use long-form output format",
+			},
+			&cli.BoolFlag{
+				Name:    "short",
+				Aliases: []string{"s"},
+				Usage:   "Use short-form output format",
+			},
+			&cli.BoolFlag{
+				Name:    "related",
+				Aliases: []string{"r"},
+				Usage:   "Include related repositories in results",
+			},
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return runQuery(ctx, cmd)
+		},
+	}
 }
 
-func init() {
-	queryCmd.Flags().StringVar(&queryMode, "mode", "fuzzy", "Search mode: fuzzy or vector")
-	queryCmd.Flags().IntVar(&queryLimit, "limit", 10, "Maximum number of results (1-50)")
-	queryCmd.Flags().BoolVar(&queryLong, "long", false, "Use long-form output format")
-	queryCmd.Flags().BoolVar(&queryShort, "short", false, "Use short-form output format")
-	queryCmd.Flags().BoolVar(&queryRelated, "related", false, "Include related repositories in results")
-
-	// Add to root command
-	rootCmd.AddCommand(queryCmd)
-}
-
-func runQuery(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
+func runQuery(ctx context.Context, cmd *cli.Command) error {
 	// Get configuration
-	cfg, err := GetConfigFromContext(cmd)
-	if err != nil {
-		return err
+	configFromContext := getConfigFromContext(ctx)
+
+	// Parse arguments
+	args := cmd.Args().Slice()
+	if len(args) != 1 {
+		return fmt.Errorf("expected exactly one search string argument")
 	}
 
 	// Validate query string
@@ -65,13 +80,20 @@ func runQuery(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Get flag values
+	queryMode := cmd.String("mode")
+	queryLimit := int(cmd.Int("limit"))
+	queryLong := cmd.Bool("long")
+	queryShort := cmd.Bool("short")
+	queryRelated := cmd.Bool("related")
+
 	// Validate and normalize flags
-	if err := validateQueryFlags(); err != nil {
+	if err := validateQueryFlags(queryMode, queryLimit, queryLong, queryShort); err != nil {
 		return err
 	}
 
 	// Initialize repository
-	repo, err := storage.NewDuckDBRepository(cfg.Database.Path)
+	repo, err := storage.NewDuckDBRepository(configFromContext.Database.Path)
 	if err != nil {
 		return errors.Wrap(err, errors.ErrTypeDatabase, "failed to initialize database")
 	}
@@ -185,7 +207,7 @@ func validateQuery(query string) error {
 }
 
 // validateQueryFlags validates and normalizes command flags
-func validateQueryFlags() error {
+func validateQueryFlags(queryMode string, queryLimit int, queryLong, queryShort bool) error {
 	// Validate mode
 	validModes := map[string]bool{"fuzzy": true, "vector": true}
 	if !validModes[queryMode] {

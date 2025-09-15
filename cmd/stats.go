@@ -6,17 +6,18 @@ import (
 	"sort"
 
 	"github.com/kyleking/gh-star-search/internal/storage"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var statsCmd = &cobra.Command{
-	Use:   "stats",
-	Short: "Display database statistics",
-	Long:  `Show statistics about the local database including total repositories, last sync time, and database size.`,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		ctx := cmd.Context()
-		return runStats(ctx)
-	},
+func StatsCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "stats",
+		Usage:       "Display database statistics",
+		Description: `Show statistics about the local database including total repositories, last sync time, and database size.`,
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return runStats(ctx)
+		},
+	}
 }
 
 func runStats(ctx context.Context) error {

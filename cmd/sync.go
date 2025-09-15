@@ -16,26 +16,39 @@ import (
 	"github.com/kyleking/gh-star-search/internal/github"
 	"github.com/kyleking/gh-star-search/internal/processor"
 	"github.com/kyleking/gh-star-search/internal/storage"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var syncCmd = &cobra.Command{
-	Use:   "sync",
-	Short: "Sync starred repositories to local database",
-	Long: `Incrementally fetch and process each repository that the authenticated GitHub user
+func SyncCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "sync",
+		Usage: "Sync starred repositories to local database",
+		Description: `Incrementally fetch and process each repository that the authenticated GitHub user
 has starred. Collects both structured metadata and unstructured content to enable
 intelligent search capabilities.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := cmd.Context()
-		return runSync(ctx, cmd, args)
-	},
-}
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "repo",
+				Aliases: []string{"r"},
+				Usage:   "Sync a specific repository for fine-tuning",
+			},
 
-func init() {
-	syncCmd.Flags().StringP("repo", "r", "", "Sync a specific repository for fine-tuning")
-	syncCmd.Flags().BoolP("verbose", "v", false, "Show detailed processing steps")
-	syncCmd.Flags().IntP("batch-size", "b", 10, "Number of repositories to process in each batch")
-	syncCmd.Flags().BoolP("force", "f", false, "Force re-processing of all repositories")
+			&cli.IntFlag{
+				Name:    "batch-size",
+				Aliases: []string{"b"},
+				Value:   10,
+				Usage:   "Number of repositories to process in each batch",
+			},
+			&cli.BoolFlag{
+				Name:    "force",
+				Aliases: []string{"f"},
+				Usage:   "Force re-processing of all repositories",
+			},
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return runSync(ctx, cmd)
+		},
+	}
 }
 
 // SyncService handles the synchronization of starred repositories
@@ -133,12 +146,15 @@ func (s *SyncStats) SafeIncrement(field string) {
 	}
 }
 
-func runSync(ctx context.Context, cmd *cobra.Command, _ []string) error {
+func runSync(ctx context.Context, cmd *cli.Command) error {
 	// Parse flags
-	specificRepo, _ := cmd.Flags().GetString("repo")
-	verbose, _ := cmd.Flags().GetBool("verbose")
-	batchSize, _ := cmd.Flags().GetInt("batch-size")
-	force, _ := cmd.Flags().GetBool("force")
+	specificRepo := cmd.String("repo")
+	batchSize := int(cmd.Int("batch-size"))
+	force := cmd.Bool("force")
+
+	// Get verbose setting from config
+	configFromContext := getConfigFromContext(ctx)
+	verbose := configFromContext.Logging.Level == "debug" || configFromContext.Debug.Enabled
 
 	// Load configuration
 	cfg := config.DefaultConfig()
@@ -940,4 +956,19 @@ func expandPath(path string) string {
 	}
 
 	return path
+}
+
+// contextKey is a type for context keys to avoid string collisions
+type contextKey string
+
+const (
+	configContextKey contextKey = "config"
+)
+
+// getConfigFromContext retrieves the configuration from the command context
+func getConfigFromContext(ctx context.Context) *config.Config {
+	if cfg, ok := ctx.Value(configContextKey).(*config.Config); ok {
+		return cfg
+	}
+	return config.DefaultConfig()
 }

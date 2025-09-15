@@ -8,22 +8,26 @@ import (
 	"strings"
 
 	"github.com/kyleking/gh-star-search/internal/storage"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var clearCmd = &cobra.Command{
-	Use:   "clear",
-	Short: "Clear the local database",
-	Long:  `Remove all data and the database file. This action requires confirmation.`,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		ctx := cmd.Context()
-		force, _ := cmd.Flags().GetBool("force")
-		return runClear(ctx, force)
-	},
-}
-
-func init() {
-	clearCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
+func ClearCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "clear",
+		Usage:       "Clear the local database",
+		Description: `Remove all data and the database file. This action requires confirmation.`,
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "force",
+				Aliases: []string{"f"},
+				Usage:   "Skip confirmation prompt",
+			},
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			force := cmd.Bool("force")
+			return runClear(ctx, force)
+		},
+	}
 }
 
 func runClear(ctx context.Context, force bool) error {

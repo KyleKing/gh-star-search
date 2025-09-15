@@ -11,28 +11,42 @@ import (
 	"text/tabwriter"
 
 	"github.com/kyleking/gh-star-search/internal/storage"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all repositories in the local database",
-	Long:  `Display all repositories in the local database with basic information.`,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		ctx := cmd.Context()
+func ListCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "list",
+		Usage:       "List all repositories in the local database",
+		Description: `Display all repositories in the local database with basic information.`,
+		Flags: []cli.Flag{
+			&cli.IntFlag{
+				Name:    "limit",
+				Aliases: []string{"l"},
+				Value:   50,
+				Usage:   "Maximum number of repositories to display",
+			},
+			&cli.IntFlag{
+				Name:    "offset",
+				Aliases: []string{"o"},
+				Value:   0,
+				Usage:   "Number of repositories to skip",
+			},
+			&cli.StringFlag{
+				Name:    "format",
+				Aliases: []string{"f"},
+				Value:   "table",
+				Usage:   "Output format (table, json, csv)",
+			},
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			limit := int(cmd.Int("limit"))
+			offset := int(cmd.Int("offset"))
+			format := cmd.String("format")
 
-		limit, _ := cmd.Flags().GetInt("limit")
-		offset, _ := cmd.Flags().GetInt("offset")
-		format, _ := cmd.Flags().GetString("format")
-
-		return runList(ctx, limit, offset, format)
-	},
-}
-
-func init() {
-	listCmd.Flags().IntP("limit", "l", 50, "Maximum number of repositories to display")
-	listCmd.Flags().IntP("offset", "o", 0, "Number of repositories to skip")
-	listCmd.Flags().StringP("format", "f", "table", "Output format (table, json, csv)")
+			return runList(ctx, limit, offset, format)
+		},
+	}
 }
 
 func runList(ctx context.Context, limit, offset int, format string) error {

@@ -6,19 +6,24 @@ import (
 	"strings"
 
 	"github.com/kyleking/gh-star-search/internal/storage"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var infoCmd = &cobra.Command{
-	Use:   "info <repository>",
-	Short: "Display detailed information about a specific repository",
-	Long:  `Show detailed information about a specific repository stored in the local database.`,
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := cmd.Context()
-		repo := args[0]
-		return runInfo(ctx, repo)
-	},
+func InfoCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "info",
+		Usage:       "Display detailed information about a specific repository",
+		Description: `Show detailed information about a specific repository stored in the local database.`,
+		ArgsUsage:   " <repository>",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			args := cmd.Args()
+			if args.Len() != 1 {
+				return fmt.Errorf("expected exactly 1 argument, got %d", args.Len())
+			}
+			repo := args.First()
+			return runInfo(ctx, repo)
+		},
+	}
 }
 
 func runInfo(ctx context.Context, repoName string) error {

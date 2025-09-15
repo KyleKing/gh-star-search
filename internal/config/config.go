@@ -5,96 +5,97 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/caarlos0/env/v11"
 )
 
 // Config represents the application configuration
 type Config struct {
-	Database   DatabaseConfig  `json:"database"`
-	GitHub     GitHubConfig    `json:"github"`
-	Cache      CacheConfig     `json:"cache"`
-	Logging    LoggingConfig   `json:"logging"`
-	Debug      DebugConfig     `json:"debug"`
-	Search     SearchConfig    `json:"search"`
-	Embeddings EmbeddingConfig `json:"embeddings"`
-	Summary    SummaryConfig   `json:"summary"`
-	Refresh    RefreshConfig   `json:"refresh"`
+	Database   DatabaseConfig  `json:"database" envPrefix:"GH_STAR_SEARCH_"`
+	GitHub     GitHubConfig    `json:"github" envPrefix:"GH_STAR_SEARCH_"`
+	Cache      CacheConfig     `json:"cache" envPrefix:"GH_STAR_SEARCH_"`
+	Logging    LoggingConfig   `json:"logging" envPrefix:"GH_STAR_SEARCH_"`
+	Debug      DebugConfig     `json:"debug" envPrefix:"GH_STAR_SEARCH_"`
+	Search     SearchConfig    `json:"search" envPrefix:"GH_STAR_SEARCH_"`
+	Embeddings EmbeddingConfig `json:"embeddings" envPrefix:"GH_STAR_SEARCH_"`
+	Summary    SummaryConfig   `json:"summary" envPrefix:"GH_STAR_SEARCH_"`
+	Refresh    RefreshConfig   `json:"refresh" envPrefix:"GH_STAR_SEARCH_"`
 }
 
 // DatabaseConfig represents database configuration
 type DatabaseConfig struct {
-	Path           string `json:"path"`
-	MaxConnections int    `json:"max_connections"`
-	QueryTimeout   string `json:"query_timeout"`
+	Path           string `json:"path" env:"DB_PATH"`
+	MaxConnections int    `json:"max_connections" env:"DB_MAX_CONNECTIONS"`
+	QueryTimeout   string `json:"query_timeout" env:"DB_QUERY_TIMEOUT"`
 }
 
 // GitHubConfig represents GitHub API configuration
 type GitHubConfig struct {
-	RateLimit     int    `json:"rate_limit"`
-	RetryAttempts int    `json:"retry_attempts"`
-	Timeout       string `json:"timeout"`
+	RateLimit     int    `json:"rate_limit" env:"GITHUB_RATE_LIMIT"`
+	RetryAttempts int    `json:"retry_attempts" env:"GITHUB_RETRY_ATTEMPTS"`
+	Timeout       string `json:"timeout" env:"GITHUB_TIMEOUT"`
 }
 
 // CacheConfig represents caching configuration
 type CacheConfig struct {
-	Directory         string `json:"directory"`
-	MaxSizeMB         int    `json:"max_size_mb"`
-	TTLHours          int    `json:"ttl_hours"`
-	CleanupFreq       string `json:"cleanup_frequency"`
-	MetadataStaleDays int    `json:"metadata_stale_days"`
-	StatsStaleDays    int    `json:"stats_stale_days"`
+	Directory         string `json:"directory" env:"CACHE_DIR"`
+	MaxSizeMB         int    `json:"max_size_mb" env:"CACHE_MAX_SIZE_MB"`
+	TTLHours          int    `json:"ttl_hours" env:"CACHE_TTL_HOURS"`
+	CleanupFreq       string `json:"cleanup_frequency" env:"CACHE_CLEANUP_FREQ"`
+	MetadataStaleDays int    `json:"metadata_stale_days" env:"CACHE_METADATA_STALE_DAYS"`
+	StatsStaleDays    int    `json:"stats_stale_days" env:"CACHE_STATS_STALE_DAYS"`
 }
 
 // LoggingConfig represents logging configuration
 type LoggingConfig struct {
-	Level      string `json:"level"`        // debug, info, warn, error
-	Format     string `json:"format"`       // text, json
-	Output     string `json:"output"`       // stdout, stderr, file
-	File       string `json:"file"`         // log file path when output is file
-	MaxSizeMB  int    `json:"max_size_mb"`  // max log file size
-	MaxBackups int    `json:"max_backups"`  // max number of backup files
-	MaxAgeDays int    `json:"max_age_days"` // max age of log files
-	AddSource  bool   `json:"add_source"`   // add source file and line info to logs
+	Level      string `json:"level" env:"LOG_LEVEL"`               // debug, info, warn, error
+	Format     string `json:"format" env:"LOG_FORMAT"`             // text, json
+	Output     string `json:"output" env:"LOG_OUTPUT"`             // stdout, stderr, file
+	File       string `json:"file" env:"LOG_FILE"`                 // log file path when output is file
+	MaxSizeMB  int    `json:"max_size_mb" env:"LOG_MAX_SIZE_MB"`   // max log file size
+	MaxBackups int    `json:"max_backups" env:"LOG_MAX_BACKUPS"`   // max number of backup files
+	MaxAgeDays int    `json:"max_age_days" env:"LOG_MAX_AGE_DAYS"` // max age of log files
+	AddSource  bool   `json:"add_source" env:"LOG_ADD_SOURCE"`     // add source file and line info to logs
 }
 
 // DebugConfig represents debug configuration
 type DebugConfig struct {
-	Enabled     bool `json:"enabled"`
-	ProfilePort int  `json:"profile_port"`
-	MetricsPort int  `json:"metrics_port"`
-	Verbose     bool `json:"verbose"`
-	TraceAPI    bool `json:"trace_api"`
+	Enabled     bool `json:"enabled" env:"DEBUG"`
+	ProfilePort int  `json:"profile_port" env:"DEBUG_PROFILE_PORT"`
+	MetricsPort int  `json:"metrics_port" env:"DEBUG_METRICS_PORT"`
+	Verbose     bool `json:"verbose" env:"VERBOSE"`
+	TraceAPI    bool `json:"trace_api" env:"DEBUG_TRACE_API"`
 }
 
 // SearchConfig represents search configuration
 type SearchConfig struct {
-	DefaultMode string  `json:"default_mode"` // "fuzzy" or "vector"
-	MinScore    float64 `json:"min_score"`    // Minimum score threshold
+	DefaultMode string  `json:"default_mode" env:"SEARCH_DEFAULT_MODE"` // "fuzzy" or "vector"
+	MinScore    float64 `json:"min_score" env:"SEARCH_MIN_SCORE"`       // Minimum score threshold
 }
 
 // EmbeddingConfig represents embedding configuration
 type EmbeddingConfig struct {
-	Provider   string            `json:"provider"`   // "local" or "remote"
-	Model      string            `json:"model"`      // Model name/path
-	Dimensions int               `json:"dimensions"` // Expected embedding dimensions
-	Enabled    bool              `json:"enabled"`    // Whether embeddings are enabled
-	Options    map[string]string `json:"options"`    // Provider-specific options
+	Provider   string            `json:"provider" env:"EMBEDDINGS_PROVIDER"`     // "local" or "remote"
+	Model      string            `json:"model" env:"EMBEDDINGS_MODEL"`           // Model name/path
+	Dimensions int               `json:"dimensions" env:"EMBEDDINGS_DIMENSIONS"` // Expected embedding dimensions
+	Enabled    bool              `json:"enabled" env:"EMBEDDINGS_ENABLED"`       // Whether embeddings are enabled
+	Options    map[string]string `json:"options" env:"EMBEDDINGS_OPTIONS"`       // Provider-specific options
 }
 
 // SummaryConfig represents summarization configuration
 type SummaryConfig struct {
-	Version           int    `json:"version"`            // Summary format version
-	TransformersModel string `json:"transformers_model"` // Python transformers model
-	Enabled           bool   `json:"enabled"`            // Whether summarization is enabled
+	Version           int    `json:"version" env:"SUMMARY_VERSION"`                       // Summary format version
+	TransformersModel string `json:"transformers_model" env:"SUMMARY_TRANSFORMERS_MODEL"` // Python transformers model
+	Enabled           bool   `json:"enabled" env:"SUMMARY_ENABLED"`                       // Whether summarization is enabled
 }
 
 // RefreshConfig represents refresh and caching configuration
 type RefreshConfig struct {
-	MetadataStaleDays int  `json:"metadata_stale_days"` // Days before metadata refresh
-	StatsStaleDays    int  `json:"stats_stale_days"`    // Days before stats refresh
-	ForceSummary      bool `json:"force_summary"`       // Force summary regeneration
+	MetadataStaleDays int  `json:"metadata_stale_days" env:"REFRESH_METADATA_STALE_DAYS"` // Days before metadata refresh
+	StatsStaleDays    int  `json:"stats_stale_days" env:"REFRESH_STATS_STALE_DAYS"`       // Days before stats refresh
+	ForceSummary      bool `json:"force_summary" env:"REFRESH_FORCE_SUMMARY"`             // Force summary regeneration
 }
 
 // DefaultConfig returns the default configuration
@@ -177,9 +178,11 @@ func LoadConfigWithOverrides(flagOverrides map[string]interface{}) (*Config, err
 		}
 	}
 
-	// Apply environment variable overrides
-	if err := applyEnvironmentOverrides(config); err != nil {
-		return nil, fmt.Errorf("failed to apply environment overrides: %w", err)
+	// Apply environment variable overrides using env library
+	if err := env.ParseWithOptions(config, env.Options{
+		Prefix: "GH_STAR_SEARCH_",
+	}); err != nil {
+		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
 	}
 
 	// Apply command-line flag overrides
@@ -212,98 +215,6 @@ func loadConfigFromFile(config *Config, configPath string) error {
 
 	// Merge file config with defaults
 	mergeConfigs(config, &fileConfig)
-
-	return nil
-}
-
-// applyEnvironmentOverrides applies environment variable overrides to configuration
-func applyEnvironmentOverrides(config *Config) error {
-	// Database configuration
-	if val := os.Getenv("GH_STAR_SEARCH_DB_PATH"); val != "" {
-		config.Database.Path = val
-	}
-
-	if val := os.Getenv("GH_STAR_SEARCH_DB_MAX_CONNECTIONS"); val != "" {
-		if intVal, err := strconv.Atoi(val); err == nil {
-			config.Database.MaxConnections = intVal
-		}
-	}
-
-	if val := os.Getenv("GH_STAR_SEARCH_DB_QUERY_TIMEOUT"); val != "" {
-		config.Database.QueryTimeout = val
-	}
-
-	// GitHub configuration
-	if val := os.Getenv("GH_STAR_SEARCH_GITHUB_RATE_LIMIT"); val != "" {
-		if intVal, err := strconv.Atoi(val); err == nil {
-			config.GitHub.RateLimit = intVal
-		}
-	}
-
-	if val := os.Getenv("GH_STAR_SEARCH_GITHUB_RETRY_ATTEMPTS"); val != "" {
-		if intVal, err := strconv.Atoi(val); err == nil {
-			config.GitHub.RetryAttempts = intVal
-		}
-	}
-
-	if val := os.Getenv("GH_STAR_SEARCH_GITHUB_TIMEOUT"); val != "" {
-		config.GitHub.Timeout = val
-	}
-
-	// Cache configuration
-	if val := os.Getenv("GH_STAR_SEARCH_CACHE_DIR"); val != "" {
-		config.Cache.Directory = val
-	}
-
-	if val := os.Getenv("GH_STAR_SEARCH_CACHE_MAX_SIZE_MB"); val != "" {
-		if intVal, err := strconv.Atoi(val); err == nil {
-			config.Cache.MaxSizeMB = intVal
-		}
-	}
-
-	if val := os.Getenv("GH_STAR_SEARCH_CACHE_TTL_HOURS"); val != "" {
-		if intVal, err := strconv.Atoi(val); err == nil {
-			config.Cache.TTLHours = intVal
-		}
-	}
-
-	if val := os.Getenv("GH_STAR_SEARCH_CACHE_METADATA_STALE_DAYS"); val != "" {
-		if intVal, err := strconv.Atoi(val); err == nil {
-			config.Cache.MetadataStaleDays = intVal
-		}
-	}
-
-	if val := os.Getenv("GH_STAR_SEARCH_CACHE_STATS_STALE_DAYS"); val != "" {
-		if intVal, err := strconv.Atoi(val); err == nil {
-			config.Cache.StatsStaleDays = intVal
-		}
-	}
-
-	// Logging configuration
-	if val := os.Getenv("GH_STAR_SEARCH_LOG_LEVEL"); val != "" {
-		config.Logging.Level = val
-	}
-
-	if val := os.Getenv("GH_STAR_SEARCH_LOG_FORMAT"); val != "" {
-		config.Logging.Format = val
-	}
-
-	if val := os.Getenv("GH_STAR_SEARCH_LOG_OUTPUT"); val != "" {
-		config.Logging.Output = val
-	}
-
-	if val := os.Getenv("GH_STAR_SEARCH_LOG_FILE"); val != "" {
-		config.Logging.File = val
-	}
-
-	// Debug configuration
-	if val := os.Getenv("GH_STAR_SEARCH_DEBUG"); val != "" {
-		config.Debug.Enabled = strings.ToLower(val) == "true"
-	}
-
-	if val := os.Getenv("GH_STAR_SEARCH_VERBOSE"); val != "" {
-		config.Debug.Verbose = strings.ToLower(val) == "true"
-	}
 
 	return nil
 }
