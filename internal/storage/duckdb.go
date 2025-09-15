@@ -78,9 +78,6 @@ func (r *DuckDBRepository) StoreRepository(
 	defer func() { _ = tx.Rollback() }()
 
 	// Convert arrays and objects to JSON
-	technologiesJSON, _ := json.Marshal(repo.Summary.Technologies)
-	useCasesJSON, _ := json.Marshal(repo.Summary.UseCases)
-	featuresJSON, _ := json.Marshal(repo.Summary.Features)
 	languagesJSON, _ := json.Marshal(map[string]int64{}) // Default empty, will be populated by sync
 	contributorsJSON, _ := json.Marshal([]Contributor{}) // Default empty, will be populated by sync
 
@@ -94,25 +91,18 @@ func (r *DuckDBRepository) StoreRepository(
 	insertRepoSQL := `
 	INSERT INTO repositories (
 		id, full_name, description, homepage, language, stargazers_count, forks_count, size_kb,
-		created_at, updated_at, last_synced, 
+		created_at, updated_at, last_synced,
 		open_issues_open, open_issues_total, open_prs_open, open_prs_total,
 		commits_30d, commits_1y, commits_total,
 		topics_array, languages, contributors,
 		license_name, license_spdx_id,
-		purpose, technologies, use_cases, features, installation_instructions,
-		usage_instructions, summary_generated_at, summary_version, summary_generator,
 		content_hash
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	var licenseName, licenseSPDXID string
 	if repo.Repository.License != nil {
 		licenseName = repo.Repository.License.Name
 		licenseSPDXID = repo.Repository.License.SPDXID
-	}
-
-	var summaryGeneratedAt *time.Time
-	if repo.Summary.GeneratedAt != nil && !repo.Summary.GeneratedAt.IsZero() {
-		summaryGeneratedAt = repo.Summary.GeneratedAt
 	}
 
 	_, err = tx.ExecContext(ctx, insertRepoSQL,
@@ -134,15 +124,6 @@ func (r *DuckDBRepository) StoreRepository(
 		string(contributorsJSON),
 		licenseName,
 		licenseSPDXID,
-		repo.Summary.Purpose,
-		string(technologiesJSON),
-		string(useCasesJSON),
-		string(featuresJSON),
-		repo.Summary.Installation,
-		repo.Summary.Usage,
-		summaryGeneratedAt,
-		repo.Summary.Version,
-		repo.Summary.Generator,
 		repo.ContentHash,
 	)
 	if err != nil {
@@ -225,9 +206,6 @@ func (r *DuckDBRepository) UpdateRepository(
 
 	// Convert arrays and objects to JSON
 	topicsJSON, _ := json.Marshal(repo.Repository.Topics)
-	technologiesJSON, _ := json.Marshal(repo.Summary.Technologies)
-	useCasesJSON, _ := json.Marshal(repo.Summary.UseCases)
-	featuresJSON, _ := json.Marshal(repo.Summary.Features)
 	languagesJSON, _ := json.Marshal(map[string]int64{}) // Default empty, will be populated by sync
 	contributorsJSON, _ := json.Marshal([]Contributor{}) // Default empty, will be populated by sync
 
@@ -235,25 +213,18 @@ func (r *DuckDBRepository) UpdateRepository(
 	insertRepoSQL := `
 	INSERT INTO repositories (
 		id, full_name, description, homepage, language, stargazers_count, forks_count, size_kb,
-		created_at, updated_at, last_synced, 
+		created_at, updated_at, last_synced,
 		open_issues_open, open_issues_total, open_prs_open, open_prs_total,
 		commits_30d, commits_1y, commits_total,
 		topics_array, languages, contributors,
 		license_name, license_spdx_id,
-		purpose, technologies, use_cases, features, installation_instructions,
-		usage_instructions, summary_generated_at, summary_version, summary_generator,
 		content_hash
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	var licenseName, licenseSPDXID string
 	if repo.Repository.License != nil {
 		licenseName = repo.Repository.License.Name
 		licenseSPDXID = repo.Repository.License.SPDXID
-	}
-
-	var summaryGeneratedAt *time.Time
-	if repo.Summary.GeneratedAt != nil && !repo.Summary.GeneratedAt.IsZero() {
-		summaryGeneratedAt = repo.Summary.GeneratedAt
 	}
 
 	_, err = r.db.ExecContext(ctx, insertRepoSQL,
@@ -275,15 +246,6 @@ func (r *DuckDBRepository) UpdateRepository(
 		string(contributorsJSON),
 		licenseName,
 		licenseSPDXID,
-		repo.Summary.Purpose,
-		string(technologiesJSON),
-		string(useCasesJSON),
-		string(featuresJSON),
-		repo.Summary.Installation,
-		repo.Summary.Usage,
-		summaryGeneratedAt,
-		repo.Summary.Version,
-		repo.Summary.Generator,
 		repo.ContentHash,
 	)
 	if err != nil {
@@ -353,9 +315,8 @@ func (r *DuckDBRepository) GetRepository(
 	fullName string,
 ) (*StoredRepo, error) {
 	query := `
-	SELECT id, full_name, description,
-		   COALESCE(homepage, '') as homepage,
-		   language, stargazers_count, forks_count, size_kb,
+		SELECT
+		   id, full_name, description, homepage, language, stargazers_count, forks_count, size_kb,
 		   created_at, updated_at, last_synced,
 		   COALESCE(open_issues_open, 0) as open_issues_open,
 		   COALESCE(open_issues_total, 0) as open_issues_total,
@@ -368,19 +329,12 @@ func (r *DuckDBRepository) GetRepository(
 		   COALESCE(languages, '{}') as languages,
 		   COALESCE(contributors, '[]') as contributors,
 		   license_name, license_spdx_id,
-		   purpose, technologies, use_cases, features,
-		   installation_instructions, usage_instructions,
-		   summary_generated_at,
-		   COALESCE(summary_version, 1) as summary_version,
-		   COALESCE(summary_generator, 'heuristic') as summary_generator,
 		   content_hash
 	FROM repositories WHERE full_name = ?`
 
 	row := r.db.QueryRowContext(ctx, query, fullName)
 
 	var repo StoredRepo
-
-	var technologiesJSON, useCasesJSON, featuresJSON string
 
 	var languagesData, contributorsData interface{}
 
@@ -394,9 +348,6 @@ func (r *DuckDBRepository) GetRepository(
 		&repo.Commits30d, &repo.Commits1y, &repo.CommitsTotal,
 		&topicsData, &languagesData, &contributorsData,
 		&repo.LicenseName, &repo.LicenseSPDXID,
-		&repo.Purpose, &technologiesJSON, &useCasesJSON, &featuresJSON,
-		&repo.InstallationInstructions, &repo.UsageInstructions,
-		&repo.SummaryGeneratedAt, &repo.SummaryVersion, &repo.SummaryGenerator,
 		&repo.ContentHash,
 	)
 	if err != nil {
@@ -415,18 +366,6 @@ func (r *DuckDBRepository) GetRepository(
 	}
 
 	// Parse JSON fields
-	if technologiesJSON != "" {
-		_ = json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
-	}
-
-	if useCasesJSON != "" {
-		_ = json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
-	}
-
-	if featuresJSON != "" {
-		_ = json.Unmarshal([]byte(featuresJSON), &repo.Features)
-	}
-
 	if languagesData != nil {
 		if languagesBytes, err := json.Marshal(languagesData); err == nil {
 			_ = json.Unmarshal(languagesBytes, &repo.Languages)
@@ -438,46 +377,6 @@ func (r *DuckDBRepository) GetRepository(
 			_ = json.Unmarshal(contributorsBytes, &repo.Contributors)
 		}
 	}
-
-	// Parse topics array
-	if topicsData != nil {
-		if topicsBytes, err := json.Marshal(topicsData); err == nil {
-			_ = json.Unmarshal(topicsBytes, &repo.Topics)
-		}
-	}
-
-	// Parse JSON fields
-	if technologiesJSON != "" {
-		_ = json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
-	}
-
-	if useCasesJSON != "" {
-		_ = json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
-	}
-
-	if featuresJSON != "" {
-		_ = json.Unmarshal([]byte(featuresJSON), &repo.Features)
-	}
-
-	if languagesData != nil {
-		if languagesBytes, err := json.Marshal(languagesData); err == nil {
-			_ = json.Unmarshal(languagesBytes, &repo.Languages)
-		}
-	}
-
-	if contributorsData != nil {
-		if contributorsBytes, err := json.Marshal(contributorsData); err == nil {
-			_ = json.Unmarshal(contributorsBytes, &repo.Contributors)
-		}
-	}
-
-	// Populate content chunks
-	chunks, err := r.getRepositoryChunks(ctx, repo.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get repository chunks: %w", err)
-	}
-
-	repo.Chunks = chunks
 
 	return &repo, nil
 }
@@ -599,17 +498,6 @@ func (r *DuckDBRepository) ListRepositories(
 		}
 
 		// Parse JSON fields
-		if technologiesJSON != "" {
-			_ = json.Unmarshal([]byte(technologiesJSON), &repo.Technologies)
-		}
-
-		if useCasesJSON != "" {
-			_ = json.Unmarshal([]byte(useCasesJSON), &repo.UseCases)
-		}
-
-		if featuresJSON != "" {
-			_ = json.Unmarshal([]byte(featuresJSON), &repo.Features)
-		}
 
 		if languagesData != nil {
 			if languagesBytes, err := json.Marshal(languagesData); err == nil {

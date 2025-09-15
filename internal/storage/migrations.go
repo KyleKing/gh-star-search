@@ -51,20 +51,6 @@ func (m *SchemaManager) CreateLatestSchema(ctx context.Context) error {
 			license_name VARCHAR,
 			license_spdx_id VARCHAR,
 
-			-- Summary fields
-			purpose TEXT,
-			technologies VARCHAR,
-			use_cases VARCHAR,
-			features VARCHAR,
-			installation_instructions TEXT,
-			usage_instructions TEXT,
-			summary_generated_at TIMESTAMP,
-			summary_version INTEGER DEFAULT 1,
-			summary_generator VARCHAR DEFAULT 'heuristic',
-
-			-- Embedding
-			repo_embedding FLOAT[384],
-
 			-- Content tracking
 			content_hash VARCHAR
 		);
@@ -89,7 +75,6 @@ func (m *SchemaManager) CreateLatestSchema(ctx context.Context) error {
 		CREATE INDEX IF NOT EXISTS idx_repositories_full_name ON repositories(full_name);
 		CREATE INDEX IF NOT EXISTS idx_repositories_stars ON repositories(stargazers_count);
 		CREATE INDEX IF NOT EXISTS idx_repositories_commits_total ON repositories(commits_total);
-		CREATE INDEX IF NOT EXISTS idx_repositories_summary_version ON repositories(summary_version);
 		CREATE INDEX IF NOT EXISTS idx_content_chunks_repo_type ON content_chunks(repository_id, chunk_type);
 		CREATE INDEX IF NOT EXISTS idx_content_chunks_repository_id ON content_chunks(repository_id);
 	`

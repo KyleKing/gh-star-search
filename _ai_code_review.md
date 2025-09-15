@@ -373,11 +373,7 @@ func CreateTestRepository(name, description string) processor.ProcessedRepo {
             UpdatedAt:    time.Now().Add(-7 * 24 * time.Hour),
             Topics:       []string{"golang", "cli", "tool"},
         },
-        Summary: processor.Summary{
-            Purpose: "A command-line tool for managing repositories",
-            Technologies: []string{"Go", "CLI"},
-            UseCases: []string{"Repository management", "Automation"},
-        },
+
     }
 }
 

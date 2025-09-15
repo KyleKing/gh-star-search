@@ -873,14 +873,6 @@ func (s *SyncService) processRepositoryWithChangeTrackingAndForce(
 	if showDetails {
 		fmt.Printf("  Generated %d content chunks\n", len(processed.Chunks))
 		fmt.Printf("  Content hash: %s\n", processed.ContentHash)
-
-		if processed.Summary.Purpose != "" {
-			fmt.Printf("  Purpose: %s\n", processed.Summary.Purpose)
-		}
-
-		if len(processed.Summary.Technologies) > 0 {
-			fmt.Printf("  Technologies: %v\n", processed.Summary.Technologies)
-		}
 	}
 
 	// Get existing repository if not provided

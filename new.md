@@ -1,4 +1,10 @@
-# Requirement Changes
+# New
+
+## Newer
+
+- [ ] Implement search across README, linked website, and other relevant GitHub files
+
+## Requirement Changes
 
 The original design was too vague and complicated. Instead, the search capability and interactions will be simplified as described below.
 

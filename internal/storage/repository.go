@@ -25,7 +25,6 @@ type Repository interface {
 	UpdateRepositoryMetrics(ctx context.Context, fullName string, metrics RepositoryMetrics) error
 	UpdateRepositoryEmbedding(ctx context.Context, fullName string, embedding []float32) error
 	GetRepositoriesNeedingMetricsUpdate(ctx context.Context, staleDays int) ([]string, error)
-	GetRepositoriesNeedingSummaryUpdate(ctx context.Context, forceUpdate bool) ([]string, error)
 }
 
 // StoredRepo represents a repository as stored in the database
@@ -59,20 +58,6 @@ type StoredRepo struct {
 	// License
 	LicenseName   string `json:"license_name"`
 	LicenseSPDXID string `json:"license_spdx_id"`
-
-	// Summary fields
-	Purpose                  string     `json:"purpose"`
-	Technologies             []string   `json:"technologies"`
-	UseCases                 []string   `json:"use_cases"`
-	Features                 []string   `json:"features"`
-	InstallationInstructions string     `json:"installation_instructions"`
-	UsageInstructions        string     `json:"usage_instructions"`
-	SummaryGeneratedAt       *time.Time `json:"summary_generated_at,omitempty"`
-	SummaryVersion           int        `json:"summary_version"`
-	SummaryGenerator         string     `json:"summary_generator"`
-
-	// Embedding
-	RepoEmbedding []float32 `json:"repo_embedding,omitempty"`
 
 	// Content tracking
 	ContentHash string `json:"content_hash"`

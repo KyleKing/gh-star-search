@@ -26,7 +26,6 @@ type Service interface {
 		content []github.Content,
 	) (*ProcessedRepo, error)
 	ExtractContent(ctx context.Context, repo github.Repository) ([]github.Content, error)
-	GenerateSummary(ctx context.Context, chunks []ContentChunk) (*Summary, error)
 }
 
 // ContentChunk represents a processed piece of repository content
@@ -38,23 +37,9 @@ type ContentChunk struct {
 	Priority int    `json:"priority"` // for size limit handling
 }
 
-// Summary represents the LLM-generated summary of repository content
-type Summary struct {
-	Purpose      string     `json:"purpose"`
-	Technologies []string   `json:"technologies"`
-	UseCases     []string   `json:"use_cases"`
-	Features     []string   `json:"features"`
-	Installation string     `json:"installation"`
-	Usage        string     `json:"usage"`
-	GeneratedAt  *time.Time `json:"generated_at,omitempty"`
-	Version      int        `json:"version"`
-	Generator    string     `json:"generator"`
-}
-
-// ProcessedRepo represents a fully processed repository with summary and chunks
+// ProcessedRepo represents a fully processed repository with chunks
 type ProcessedRepo struct {
 	Repository  github.Repository `json:"repository"`
-	Summary     Summary           `json:"summary"`
 	Chunks      []ContentChunk    `json:"chunks"`
 	ProcessedAt time.Time         `json:"processed_at"`
 	ContentHash string            `json:"content_hash"` // For change detection
@@ -135,19 +120,12 @@ func (s *serviceImpl) ProcessRepository(
 	// Generate content hash for change detection
 	contentHash := s.generateContentHash(chunks)
 
-	// Generate summary from chunks
-	summary, err := s.GenerateSummary(ctx, chunks)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate summary: %w", err)
-	}
-
 	// Create processed repository
 	processed := &ProcessedRepo{
 		Repository:  repo,
 		Chunks:      chunks,
 		ProcessedAt: time.Now(),
 		ContentHash: contentHash,
-		Summary:     *summary,
 	}
 
 	return processed, nil
@@ -192,11 +170,6 @@ func (s *serviceImpl) ExtractContent(
 	}
 
 	return filteredContent, nil
-}
-
-// GenerateSummary generates a basic summary from content chunks
-func (s *serviceImpl) GenerateSummary(_ context.Context, chunks []ContentChunk) (*Summary, error) {
-	return s.generateBasicSummary(chunks), nil
 }
 
 // extractAndChunkContent processes repository content into chunks
@@ -682,83 +655,4 @@ func (s *serviceImpl) generateContentHash(chunks []ContentChunk) string {
 	}
 
 	return hex.EncodeToString(hasher.Sum(nil))
-}
-
-// generateBasicSummary creates a basic summary without LLM processing
-func (s *serviceImpl) generateBasicSummary(chunks []ContentChunk) *Summary {
-	now := time.Now()
-	summary := &Summary{
-		Technologies: []string{},
-		UseCases:     []string{},
-		Features:     []string{},
-		GeneratedAt:  &now,
-		Version:      1,
-		Generator:    "heuristic",
-	}
-
-	// Extract basic information from chunks
-	for _, chunk := range chunks {
-		if chunk.Type == ContentTypeReadme {
-			// Try to extract purpose from README
-			lines := strings.Split(chunk.Content, "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if len(line) > 20 && len(line) < 200 && !strings.HasPrefix(line, "#") {
-					if summary.Purpose == "" {
-						summary.Purpose = line
-						break
-					}
-				}
-			}
-		}
-
-		if chunk.Type == ContentTypePackage {
-			// Extract technologies from package files
-			content := strings.ToLower(chunk.Content)
-			if strings.Contains(content, "javascript") || strings.Contains(content, "node") ||
-				strings.Contains(chunk.Source, "package.json") {
-				summary.Technologies = append(summary.Technologies, "JavaScript")
-			}
-
-			if strings.Contains(content, "python") || strings.Contains(content, "beautifulsoup") ||
-				strings.Contains(content, "django") ||
-				strings.Contains(content, "flask") {
-				summary.Technologies = append(summary.Technologies, "Python")
-			}
-
-			if strings.Contains(content, "go") && strings.Contains(chunk.Source, "go.mod") {
-				summary.Technologies = append(summary.Technologies, "Go")
-			}
-
-			if strings.Contains(chunk.Source, "cargo.toml") || strings.Contains(content, "rust") {
-				summary.Technologies = append(summary.Technologies, "Rust")
-			}
-
-			if strings.Contains(chunk.Source, "pom.xml") || strings.Contains(content, "java") {
-				summary.Technologies = append(summary.Technologies, "Java")
-			}
-		}
-	}
-
-	// Remove duplicates from technologies
-	summary.Technologies = removeDuplicates(summary.Technologies)
-
-	return summary
-}
-
-// removeDuplicates removes duplicate strings from a slice
-func removeDuplicates(slice []string) []string {
-	keys := make(map[string]bool)
-
-	var result []string
-
-	for _, item := range slice {
-		if !keys[item] {
-			keys[item] = true
-
-			result = append(result, item)
-		}
-	}
-
-	return result
 }
