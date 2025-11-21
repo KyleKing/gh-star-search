@@ -514,66 +514,26 @@ func (r *DuckDBRepository) ListRepositories(
 	return repos, rows.Err()
 }
 
-// SearchRepositories executes a SQL query or performs text search across repositories
+// SearchRepositories performs text search across repositories.
+// This method does NOT support SQL queries for security reasons.
+// All searches are performed using parameterized queries to prevent SQL injection.
 func (r *DuckDBRepository) SearchRepositories(
 	ctx context.Context,
 	query string,
 ) ([]SearchResult, error) {
-	// Check if the query looks like SQL (starts with SELECT)
+	// Validate that the query is not a SQL statement
+	// This is a defense-in-depth measure to prevent SQL injection
 	trimmedQuery := strings.TrimSpace(strings.ToUpper(query))
+	sqlKeywords := []string{"SELECT", "INSERT", "UPDATE", "DELETE", "DROP", "CREATE", "ALTER", "TRUNCATE"}
 
-	if strings.HasPrefix(trimmedQuery, "SELECT") {
-		return r.executeCustomSQL(ctx, query)
+	for _, keyword := range sqlKeywords {
+		if strings.HasPrefix(trimmedQuery, keyword) {
+			return nil, fmt.Errorf("SQL queries are not supported for security reasons. Please use simple search terms instead")
+		}
 	}
 
-	// Fall back to simple text search
+	// Perform text search using parameterized queries
 	return r.executeTextSearch(ctx, query)
-}
-
-// executeCustomSQL executes a custom SQL query
-func (r *DuckDBRepository) executeCustomSQL(
-	ctx context.Context,
-	sqlQuery string,
-) ([]SearchResult, error) {
-	rows, err := r.db.QueryContext(ctx, sqlQuery)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute SQL query: %w", err)
-	}
-	defer rows.Close()
-
-	// Get column information
-	columns, err := rows.Columns()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get columns: %w", err)
-	}
-
-	var results []SearchResult
-
-	for rows.Next() {
-		// Create a slice to hold the values
-		values := make([]interface{}, len(columns))
-		valuePtrs := make([]interface{}, len(columns))
-
-		for i := range values {
-			valuePtrs[i] = &values[i]
-		}
-
-		if err := rows.Scan(valuePtrs...); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
-		}
-
-		// Try to map the results to a repository structure
-		repo, score, matches := r.mapRowToRepository(columns, values)
-		if repo != nil {
-			results = append(results, SearchResult{
-				Repository: *repo,
-				Score:      score,
-				Matches:    matches,
-			})
-		}
-	}
-
-	return results, rows.Err()
 }
 
 // executeTextSearch performs simple text search
@@ -650,79 +610,6 @@ func (r *DuckDBRepository) executeTextSearch(
 	}
 
 	return results, rows.Err()
-}
-
-// mapRowToRepository attempts to map query results to a repository structure
-func (r *DuckDBRepository) mapRowToRepository(
-	columns []string,
-	values []interface{},
-) (*StoredRepo, float64, []Match) {
-	repo := &StoredRepo{}
-
-	var score = 1.0
-
-	var matches []Match
-
-	// Create a map for easier lookup
-	columnMap := make(map[string]interface{})
-	for i, col := range columns {
-		columnMap[strings.ToLower(col)] = values[i]
-	}
-
-	// Map common fields
-	if val, ok := columnMap["id"]; ok && val != nil {
-		if s, ok := val.(string); ok {
-			repo.ID = s
-		}
-	}
-
-	if val, ok := columnMap["full_name"]; ok && val != nil {
-		if s, ok := val.(string); ok {
-			repo.FullName = s
-		}
-	}
-
-	if val, ok := columnMap["description"]; ok && val != nil {
-		if s, ok := val.(string); ok {
-			repo.Description = s
-		}
-	}
-
-	if val, ok := columnMap["language"]; ok && val != nil {
-		if s, ok := val.(string); ok {
-			repo.Language = s
-		}
-	}
-
-	if val, ok := columnMap["stargazers_count"]; ok && val != nil {
-		if i, ok := val.(int64); ok {
-			repo.StargazersCount = int(i)
-		}
-	}
-
-	if val, ok := columnMap["forks_count"]; ok && val != nil {
-		if i, ok := val.(int64); ok {
-			repo.ForksCount = int(i)
-		}
-	}
-
-	// Handle score if present
-	if val, ok := columnMap["score"]; ok && val != nil {
-		if f, ok := val.(float64); ok {
-			score = f
-		}
-	}
-
-	// Create basic matches
-	if repo.FullName != "" {
-		matches = append(matches, Match{
-			Field:   "full_name",
-			Content: repo.FullName,
-			Score:   score,
-		})
-	}
-
-	return repo, score, matches
 }
 
 // findMatches identifies which fields matched the search query
