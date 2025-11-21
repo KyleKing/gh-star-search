@@ -16,14 +16,33 @@ import (
 	_ "github.com/marcboeker/go-duckdb" // DuckDB driver
 )
 
+const (
+	// DefaultQueryTimeout is the default timeout for database queries
+	DefaultQueryTimeout = 30 * time.Second
+	// DefaultMaxOpenConns is the default maximum number of open connections
+	DefaultMaxOpenConns = 10
+	// DefaultMaxIdleConns is the default maximum number of idle connections
+	DefaultMaxIdleConns = 5
+	// DefaultConnMaxLifetime is the default maximum lifetime of a connection
+	DefaultConnMaxLifetime = 30 * time.Minute
+	// DefaultConnMaxIdleTime is the default maximum idle time for a connection
+	DefaultConnMaxIdleTime = 5 * time.Minute
+)
+
 // DuckDBRepository implements the Repository interface using DuckDB
 type DuckDBRepository struct {
-	db   *sql.DB
-	path string
+	db           *sql.DB
+	path         string
+	queryTimeout time.Duration
 }
 
 // NewDuckDBRepository creates a new DuckDB repository instance with connection pooling
 func NewDuckDBRepository(dbPath string) (*DuckDBRepository, error) {
+	return NewDuckDBRepositoryWithTimeout(dbPath, DefaultQueryTimeout)
+}
+
+// NewDuckDBRepositoryWithTimeout creates a new DuckDB repository instance with custom timeout
+func NewDuckDBRepositoryWithTimeout(dbPath string, queryTimeout time.Duration) (*DuckDBRepository, error) {
 	// Ensure the directory exists
 	dir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -36,22 +55,32 @@ func NewDuckDBRepository(dbPath string) (*DuckDBRepository, error) {
 	}
 
 	// Configure connection pool for optimal performance
-	db.SetMaxOpenConns(10)                  // Maximum number of open connections
-	db.SetMaxIdleConns(5)                   // Maximum number of idle connections
-	db.SetConnMaxLifetime(30 * time.Minute) // Maximum lifetime of a connection
-	db.SetConnMaxIdleTime(5 * time.Minute)  // Maximum idle time for a connection
+	db.SetMaxOpenConns(DefaultMaxOpenConns)
+	db.SetMaxIdleConns(DefaultMaxIdleConns)
+	db.SetConnMaxLifetime(DefaultConnMaxLifetime)
+	db.SetConnMaxIdleTime(DefaultConnMaxIdleTime)
 
-	// Test the connection
-	if err := db.Ping(); err != nil {
+	// Test the connection with a timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := db.PingContext(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	repo := &DuckDBRepository{
-		db:   db,
-		path: dbPath,
+		db:           db,
+		path:         dbPath,
+		queryTimeout: queryTimeout,
 	}
 
 	return repo, nil
+}
+
+// withQueryTimeout creates a new context with the configured query timeout
+// If the parent context already has a deadline, it keeps the earlier deadline
+func (r *DuckDBRepository) withQueryTimeout(parent context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(parent, r.queryTimeout)
 }
 
 // Initialize creates the database schema
@@ -425,11 +454,15 @@ func (r *DuckDBRepository) getRepositoryChunks(
 	return chunks, rows.Err()
 }
 
-// ListRepositories retrieves a paginated list of repositories
+// ListRepositories retrieves a paginated list of repositories with a timeout
 func (r *DuckDBRepository) ListRepositories(
 	ctx context.Context,
 	limit, offset int,
 ) ([]StoredRepo, error) {
+	// Apply query timeout to prevent long-running queries
+	queryCtx, cancel := r.withQueryTimeout(ctx)
+	defer cancel()
+
 	query := `
 	SELECT id, full_name, description,
 		   COALESCE(homepage, '') as homepage,
@@ -451,7 +484,7 @@ func (r *DuckDBRepository) ListRepositories(
 	ORDER BY stargazers_count DESC, full_name
 	LIMIT ? OFFSET ?`
 
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	rows, err := r.db.QueryContext(queryCtx, query, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query repositories: %w", err)
 	}
@@ -536,11 +569,15 @@ func (r *DuckDBRepository) SearchRepositories(
 	return r.executeTextSearch(ctx, query)
 }
 
-// executeTextSearch performs simple text search
+// executeTextSearch performs simple text search with a timeout
 func (r *DuckDBRepository) executeTextSearch(
 	ctx context.Context,
 	query string,
 ) ([]SearchResult, error) {
+	// Apply query timeout to prevent long-running queries
+	queryCtx, cancel := r.withQueryTimeout(ctx)
+	defer cancel()
+
 	searchQuery := `
 	SELECT r.id, r.full_name, r.description, r.language, r.stargazers_count, r.forks_count, r.size_kb,
 		   r.created_at, r.updated_at, r.last_synced, r.topics_array, r.license_name, r.license_spdx_id,
@@ -559,7 +596,7 @@ func (r *DuckDBRepository) executeTextSearch(
 	searchTerm := "%" + query + "%"
 
 	rows, err := r.db.QueryContext(
-		ctx,
+		queryCtx,
 		searchQuery,
 		searchTerm,
 		searchTerm,
