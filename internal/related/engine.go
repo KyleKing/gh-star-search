@@ -10,6 +10,14 @@ import (
 	"github.com/kyleking/gh-star-search/internal/storage"
 )
 
+const (
+	// MaxRepositoryFetchLimit is the maximum number of repositories to fetch for comparison
+	// TODO: This should be replaced with a more efficient algorithm that doesn't load all repos into memory
+	MaxRepositoryFetchLimit = 10000
+	// MinRelatedScoreThreshold is the minimum score threshold for considering a repository related
+	MinRelatedScoreThreshold = 0.25
+)
+
 // Repository represents a related repository with scoring details
 type Repository struct {
 	Repository  storage.StoredRepo `json:"repository"`
@@ -57,7 +65,8 @@ func (e *EngineImpl) FindRelated(
 	}
 
 	// Get all repositories for comparison
-	allRepos, err := e.repo.ListRepositories(ctx, 10000, 0) // Large limit to get all
+	// TODO: This loads all repositories into memory, which is inefficient for large datasets
+	allRepos, err := e.repo.ListRepositories(ctx, MaxRepositoryFetchLimit, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list repositories: %w", err)
 	}
@@ -74,7 +83,7 @@ func (e *EngineImpl) FindRelated(
 		components := e.calculateComponents(*targetRepo, candidate)
 
 		// Skip if no meaningful relationship
-		if components.FinalScore < 0.25 {
+		if components.FinalScore < MinRelatedScoreThreshold {
 			continue
 		}
 

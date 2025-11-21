@@ -15,6 +15,17 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+const (
+	// MinQueryLimit is the minimum number of results that can be returned
+	MinQueryLimit = 1
+	// MaxQueryLimit is the maximum number of results that can be returned
+	MaxQueryLimit = 50
+	// DefaultQueryLimit is the default number of results to return
+	DefaultQueryLimit = 10
+	// MinQueryLength is the minimum length of a search query
+	MinQueryLength = 2
+)
+
 func QueryCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "query",
@@ -39,8 +50,8 @@ Examples:
 			&cli.IntFlag{
 				Name:    "limit",
 				Aliases: []string{"l"},
-				Value:   10,
-				Usage:   "Maximum number of results (1-50)",
+				Value:   DefaultQueryLimit,
+				Usage:   fmt.Sprintf("Maximum number of results (%d-%d)", MinQueryLimit, MaxQueryLimit),
 			},
 			&cli.BoolFlag{
 				Name:    "long",
@@ -187,9 +198,9 @@ func runQuery(ctx context.Context, cmd *cli.Command) error {
 
 // validateQuery validates the search query string
 func validateQuery(query string) error {
-	if len(query) < 2 {
+	if len(query) < MinQueryLength {
 		return errors.New(errors.ErrTypeValidation,
-			"query string must be at least 2 characters long")
+			fmt.Sprintf("query string must be at least %d characters long", MinQueryLength))
 	}
 
 	// Check for structured filter patterns and provide helpful message
@@ -224,9 +235,9 @@ func validateQueryFlags(queryMode string, queryLimit int, queryLong, queryShort 
 	}
 
 	// Validate limit
-	if queryLimit < 1 || queryLimit > 50 {
+	if queryLimit < MinQueryLimit || queryLimit > MaxQueryLimit {
 		return errors.New(errors.ErrTypeValidation,
-			"limit must be between 1 and 50")
+			fmt.Sprintf("limit must be between %d and %d", MinQueryLimit, MaxQueryLimit))
 	}
 
 	// Validate format flags (can't have both)

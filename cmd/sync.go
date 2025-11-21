@@ -19,6 +19,17 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+const (
+	// DefaultBatchSize is the default number of repositories to process in each batch
+	DefaultBatchSize = 10
+	// BatchDelaySeconds is the delay between batches to be respectful to APIs
+	BatchDelaySeconds = 2
+	// RepositoryRateLimitMs is the rate limit delay between processing individual repositories
+	RepositoryRateLimitMs = 100
+	// MaxWorkerCap is the maximum number of concurrent workers for API calls
+	MaxWorkerCap = 8
+)
+
 func SyncCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "sync",
@@ -36,7 +47,7 @@ intelligent search capabilities.`,
 			&cli.IntFlag{
 				Name:    "batch-size",
 				Aliases: []string{"b"},
-				Value:   10,
+				Value:   DefaultBatchSize,
 				Usage:   "Number of repositories to process in each batch",
 			},
 			&cli.BoolFlag{
@@ -633,7 +644,7 @@ func (s *SyncService) processRepositoriesInBatchesWithForceAndMonitor(
 		// Small delay between batches to be respectful to APIs
 		if batchNum < totalBatches {
 			s.logVerbose("Waiting between batches...")
-			time.Sleep(2 * time.Second)
+			time.Sleep(BatchDelaySeconds * time.Second)
 		}
 	}
 
@@ -772,7 +783,7 @@ func (s *SyncService) processWorker(
 			}
 
 			// Rate limiting - small delay between repositories
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(RepositoryRateLimitMs * time.Millisecond)
 
 		case <-ctx.Done():
 			errors <- ctx.Err()
@@ -795,7 +806,7 @@ func (s *SyncService) calculateOptimalWorkers(batchSize int) int {
 		return minInt(3, cpuCount)
 	}
 	// For larger batches, use more workers but cap at CPU count
-	return minInt(cpuCount, 8) // Cap at 8 to avoid too many concurrent API calls
+	return minInt(cpuCount, MaxWorkerCap) // Cap to avoid too many concurrent API calls
 }
 
 // minInt returns the minimum of two integers
