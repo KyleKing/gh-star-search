@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/JohannesKaufmann/html-to-markdown/v2/converter"
@@ -158,6 +160,17 @@ type clientImpl struct {
 	apiClient RESTClientInterface
 }
 
+// getPerPageWithOverride returns perPage with test override if available
+func (c *clientImpl) getPerPageWithOverride(defaultPerPage int, envVar string) int {
+	if testPerPage := os.Getenv(envVar); testPerPage != "" {
+		if val, err := strconv.Atoi(testPerPage); err == nil && val > 0 {
+			return val
+		}
+	}
+
+	return defaultPerPage
+}
+
 // NewClient creates a new GitHub client using existing GitHub CLI authentication
 func NewClient() (Client, error) {
 	client, err := api.DefaultRESTClient()
@@ -175,9 +188,16 @@ func (c *clientImpl) GetStarredRepos(ctx context.Context, _ string) ([]Repositor
 	var allRepos []Repository
 
 	page := 1
-	// TODO: Make these configurable for testing only
-	perPage := 5  // Reduced for testing to limit recorded data
-	maxPages := 3 // Limit pages for testing to prevent timeouts
+	// Support test-only overrides for perPage and maxPages
+	perPage := c.getPerPageWithOverride(50, "GH_STAR_SEARCH_TEST_PER_PAGE") // Default for testing to limit recorded data
+	maxPages := 0                                                           // Default limit pages for testing to prevent timeouts
+
+	// Check for test maxPages override
+	if testMaxPages := os.Getenv("GH_STAR_SEARCH_TEST_MAX_PAGES"); testMaxPages != "" {
+		if val, err := strconv.Atoi(testMaxPages); err == nil && val > 0 {
+			maxPages = val
+		}
+	}
 
 	for {
 		select {
@@ -210,7 +230,7 @@ func (c *clientImpl) GetStarredRepos(ctx context.Context, _ string) ([]Repositor
 		page++
 
 		// Limit pages for testing to prevent timeouts
-		if page > maxPages {
+		if maxPages != 0 && page > maxPages {
 			break
 		}
 
@@ -308,8 +328,10 @@ func (c *clientImpl) fetchCommitCount(
 	// Get commits from the default branch with per_page=1 to get total count from headers
 	var commits []map[string]interface{}
 
+	perPage := c.getPerPageWithOverride(1, "GH_STAR_SEARCH_TEST_COMMITS_PER_PAGE")
+
 	err := c.apiClient.Get(
-		fmt.Sprintf("repos/%s/commits?sha=%s&per_page=1", repo.FullName, repo.DefaultBranch),
+		fmt.Sprintf("repos/%s/commits?sha=%s&per_page=%d", repo.FullName, repo.DefaultBranch, perPage),
 		&commits,
 	)
 	if err != nil {
@@ -349,8 +371,10 @@ func (c *clientImpl) fetchContributors(
 
 	var contributors []map[string]interface{}
 
+	perPage := c.getPerPageWithOverride(10, "GH_STAR_SEARCH_TEST_CONTRIBUTORS_PER_PAGE")
+
 	err := c.apiClient.Get(
-		fmt.Sprintf("repos/%s/contributors?per_page=10", repo.FullName),
+		fmt.Sprintf("repos/%s/contributors?per_page=%d", repo.FullName, perPage),
 		&contributors,
 	)
 	if err != nil {
@@ -401,7 +425,9 @@ func (c *clientImpl) fetchLatestRelease(
 	// Get total release count
 	var releases []map[string]interface{}
 
-	err = c.apiClient.Get(fmt.Sprintf("repos/%s/releases?per_page=1", repo.FullName), &releases)
+	perPage := c.getPerPageWithOverride(1, "GH_STAR_SEARCH_TEST_RELEASES_PER_PAGE")
+
+	err = c.apiClient.Get(fmt.Sprintf("repos/%s/releases?per_page=%d", repo.FullName, perPage), &releases)
 	if err != nil {
 		return fmt.Errorf("failed to fetch release count: %w", err)
 	}
@@ -426,8 +452,10 @@ func (c *clientImpl) GetContributors(
 
 	var contributors []Contributor
 
+	perPage := c.getPerPageWithOverride(topN, "GH_STAR_SEARCH_TEST_CONTRIBUTORS_PER_PAGE")
+
 	err := c.apiClient.Get(
-		fmt.Sprintf("repos/%s/contributors?per_page=%d", fullName, topN),
+		fmt.Sprintf("repos/%s/contributors?per_page=%d", fullName, perPage),
 		&contributors,
 	)
 	if err != nil {
@@ -525,11 +553,13 @@ func (c *clientImpl) GetPullCounts(
 	default:
 	}
 
+	perPage := c.getPerPageWithOverride(1, "GH_STAR_SEARCH_TEST_SEARCH_PER_PAGE")
+
 	// Get open PRs
 	var openResult SearchResult
 
 	err = c.apiClient.Get(
-		fmt.Sprintf("search/issues?q=repo:%s+type:pr+state:open&per_page=1", fullName),
+		fmt.Sprintf("search/issues?q=repo:%s+type:pr+state:open&per_page=%d", fullName, perPage),
 		&openResult,
 	)
 	if err != nil {
@@ -542,7 +572,7 @@ func (c *clientImpl) GetPullCounts(
 	var totalResult SearchResult
 
 	err = c.apiClient.Get(
-		fmt.Sprintf("search/issues?q=repo:%s+type:pr&per_page=1", fullName),
+		fmt.Sprintf("search/issues?q=repo:%s+type:pr&per_page=%d", fullName, perPage),
 		&totalResult,
 	)
 	if err != nil {
@@ -565,11 +595,13 @@ func (c *clientImpl) GetIssueCounts(
 	default:
 	}
 
+	perPage := c.getPerPageWithOverride(1, "GH_STAR_SEARCH_TEST_SEARCH_PER_PAGE")
+
 	// Get open issues (excluding PRs)
 	var openResult SearchResult
 
 	err = c.apiClient.Get(
-		fmt.Sprintf("search/issues?q=repo:%s+type:issue+state:open&per_page=1", fullName),
+		fmt.Sprintf("search/issues?q=repo:%s+type:issue+state:open&per_page=%d", fullName, perPage),
 		&openResult,
 	)
 	if err != nil {
@@ -582,7 +614,7 @@ func (c *clientImpl) GetIssueCounts(
 	var totalResult SearchResult
 
 	err = c.apiClient.Get(
-		fmt.Sprintf("search/issues?q=repo:%s+type:issue&per_page=1", fullName),
+		fmt.Sprintf("search/issues?q=repo:%s+type:issue&per_page=%d", fullName, perPage),
 		&totalResult,
 	)
 	if err != nil {

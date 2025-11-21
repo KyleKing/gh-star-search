@@ -2,7 +2,6 @@ package github
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -23,7 +22,7 @@ func NewVCRRESTClient(httpClient *http.Client) *vcrRESTClient {
 // Get implements RESTClientInterface.Get using VCR's HTTP client
 func (v *vcrRESTClient) Get(path string, response interface{}) error {
 	// Convert GitHub API path to full URL
-	url := fmt.Sprintf("https://api.github.com/%s", path)
+	url := "https://api.github.com/" + path
 
 	// Use the HTTP client's Get method (VCR will intercept the request)
 	resp, err := v.httpClient.Get(url)

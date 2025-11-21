@@ -11,6 +11,7 @@ require (
 	github.com/marcboeker/go-duckdb v1.8.5
 	github.com/stretchr/testify v1.11.0
 	github.com/urfave/cli/v3 v3.0.0-alpha9
+	gopkg.in/dnaeon/go-vcr.v4 v4.0.5
 )
 
 require (
@@ -49,6 +50,5 @@ require (
 	golang.org/x/text v0.29.0 // indirect
 	golang.org/x/tools v0.37.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
-	gopkg.in/dnaeon/go-vcr.v4 v4.0.5 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

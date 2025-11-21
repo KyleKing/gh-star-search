@@ -176,10 +176,12 @@ func TestGetStarredRepos_Pagination(t *testing.T) {
 	mockClient := newMockRESTClient()
 	client := &clientImpl{apiClient: mockClient}
 
-	// Create 100 repos for first page (full page)
+	perPage := 5 // Match default test perPage
+
+	// Create repos for first page (full page)
 	var page1Repos []Repository
 
-	for i := range 100 {
+	for i := range perPage {
 		repo := createTestRepository()
 		repo.FullName = fmt.Sprintf("owner/repo%d", i)
 		page1Repos = append(page1Repos, repo)
@@ -187,11 +189,11 @@ func TestGetStarredRepos_Pagination(t *testing.T) {
 
 	// Create 1 repo for second page (partial page to end pagination)
 	testRepo2 := createTestRepository()
-	testRepo2.FullName = "owner/repo100"
+	testRepo2.FullName = fmt.Sprintf("owner/repo%d", perPage)
 
 	// Mock multiple pages
-	mockClient.setResponse("user/starred?page=1&per_page=100", page1Repos)
-	mockClient.setResponse("user/starred?page=2&per_page=100", []Repository{testRepo2})
+	mockClient.setResponse(fmt.Sprintf("user/starred?page=1&per_page=%d", perPage), page1Repos)
+	mockClient.setResponse(fmt.Sprintf("user/starred?page=2&per_page=%d", perPage), []Repository{testRepo2})
 
 	ctx := context.Background()
 	repos, err := client.GetStarredRepos(ctx, "testuser")
@@ -200,19 +202,20 @@ func TestGetStarredRepos_Pagination(t *testing.T) {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	if len(repos) != 101 {
-		t.Fatalf("Expected 101 repositories, got: %d", len(repos))
+	expectedTotal := perPage + 1
+	if len(repos) != expectedTotal {
+		t.Fatalf("Expected %d repositories, got: %d", expectedTotal, len(repos))
 	}
 
 	if repos[0].FullName != "owner/repo0" {
 		t.Errorf("Expected first repository name owner/repo0, got: %s", repos[0].FullName)
 	}
 
-	if repos[100].FullName != testRepo2.FullName {
+	if repos[perPage].FullName != testRepo2.FullName {
 		t.Errorf(
 			"Expected last repository name %s, got: %s",
 			testRepo2.FullName,
-			repos[100].FullName,
+			repos[perPage].FullName,
 		)
 	}
 }
@@ -222,7 +225,8 @@ func TestGetStarredRepos_Error(t *testing.T) {
 	client := &clientImpl{apiClient: mockClient}
 
 	expectedError := errors.New("API error")
-	mockClient.setError("user/starred?page=1&per_page=100", expectedError)
+	perPage := 5 // Match default test perPage
+	mockClient.setError(fmt.Sprintf("user/starred?page=1&per_page=%d", perPage), expectedError)
 
 	ctx := context.Background()
 	repos, err := client.GetStarredRepos(ctx, "testuser")
@@ -367,14 +371,16 @@ func TestGetRepositoryMetadata_Success(t *testing.T) {
 			},
 		},
 	}
-	mockClient.setResponse("repos/owner/repo/commits?sha=main&per_page=1", commitResponse)
+	commitsPerPage := 1 // Match default commits perPage
+	mockClient.setResponse(fmt.Sprintf("repos/owner/repo/commits?sha=main&per_page=%d", commitsPerPage), commitResponse)
 
 	// Mock contributors response
 	contributorsResponse := []map[string]interface{}{
 		{"login": "contributor1"},
 		{"login": "contributor2"},
 	}
-	mockClient.setResponse("repos/owner/repo/contributors?per_page=10", contributorsResponse)
+	contributorsPerPage := 10 // Match default contributors perPage
+	mockClient.setResponse(fmt.Sprintf("repos/owner/repo/contributors?per_page=%d", contributorsPerPage), contributorsResponse)
 
 	// Mock latest release response
 	releaseResponse := Release{
@@ -390,7 +396,8 @@ func TestGetRepositoryMetadata_Success(t *testing.T) {
 	releasesResponse := []map[string]interface{}{
 		{"tag_name": "v1.0.0"},
 	}
-	mockClient.setResponse("repos/owner/repo/releases?per_page=1", releasesResponse)
+	releasesPerPage := 1 // Match default releases perPage
+	mockClient.setResponse(fmt.Sprintf("repos/owner/repo/releases?per_page=%d", releasesPerPage), releasesResponse)
 
 	ctx := context.Background()
 	metadata, err := client.GetRepositoryMetadata(ctx, testRepo)
@@ -440,13 +447,15 @@ func TestGetRepositoryMetadata_NoReleases(t *testing.T) {
 			},
 		},
 	}
-	mockClient.setResponse("repos/owner/repo/commits?sha=main&per_page=1", commitResponse)
+	commitsPerPage := 1 // Match default commits perPage
+	mockClient.setResponse(fmt.Sprintf("repos/owner/repo/commits?sha=main&per_page=%d", commitsPerPage), commitResponse)
 
 	// Mock contributors response
 	contributorsResponse := []map[string]interface{}{
 		{"login": "contributor1"},
 	}
-	mockClient.setResponse("repos/owner/repo/contributors?per_page=10", contributorsResponse)
+	contributorsPerPage := 10 // Match default contributors perPage
+	mockClient.setResponse(fmt.Sprintf("repos/owner/repo/contributors?per_page=%d", contributorsPerPage), contributorsResponse)
 
 	// Mock 404 for no releases
 	mockClient.setError(
@@ -496,7 +505,8 @@ func TestGetContributors_Success(t *testing.T) {
 		{Login: "user2", Contributions: 50, Type: "User"},
 	}
 
-	mockClient.setResponse("repos/owner/repo/contributors?per_page=10", expectedContributors)
+	perPage := 10 // Match default contributors perPage
+	mockClient.setResponse(fmt.Sprintf("repos/owner/repo/contributors?per_page=%d", perPage), expectedContributors)
 
 	ctx := context.Background()
 	contributors, err := client.GetContributors(ctx, "owner/repo", 10)
@@ -648,11 +658,12 @@ func TestGetPullCounts_Success(t *testing.T) {
 	openResult := SearchResult{TotalCount: 5, IncompleteResults: false}
 	totalResult := SearchResult{TotalCount: 25, IncompleteResults: false}
 
+	perPage := 1 // Match default search perPage
 	mockClient.setResponse(
-		"search/issues?q=repo:owner/repo+type:pr+state:open&per_page=1",
+		fmt.Sprintf("search/issues?q=repo:owner/repo+type:pr+state:open&per_page=%d", perPage),
 		openResult,
 	)
-	mockClient.setResponse("search/issues?q=repo:owner/repo+type:pr&per_page=1", totalResult)
+	mockClient.setResponse(fmt.Sprintf("search/issues?q=repo:owner/repo+type:pr&per_page=%d", perPage), totalResult)
 
 	ctx := context.Background()
 	open, total, err := client.GetPullCounts(ctx, "owner/repo")
@@ -677,11 +688,12 @@ func TestGetIssueCounts_Success(t *testing.T) {
 	openResult := SearchResult{TotalCount: 8, IncompleteResults: false}
 	totalResult := SearchResult{TotalCount: 42, IncompleteResults: false}
 
+	perPage := 1 // Match default search perPage
 	mockClient.setResponse(
-		"search/issues?q=repo:owner/repo+type:issue+state:open&per_page=1",
+		fmt.Sprintf("search/issues?q=repo:owner/repo+type:issue+state:open&per_page=%d", perPage),
 		openResult,
 	)
-	mockClient.setResponse("search/issues?q=repo:owner/repo+type:issue&per_page=1", totalResult)
+	mockClient.setResponse(fmt.Sprintf("search/issues?q=repo:owner/repo+type:issue&per_page=%d", perPage), totalResult)
 
 	ctx := context.Background()
 	open, total, err := client.GetIssueCounts(ctx, "owner/repo")

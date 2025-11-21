@@ -18,6 +18,7 @@ type Config struct {
 	Cache    CacheConfig    `json:"cache"    envPrefix:"GH_STAR_SEARCH_"`
 	Logging  LoggingConfig  `json:"logging"  envPrefix:"GH_STAR_SEARCH_"`
 	Debug    DebugConfig    `json:"debug"    envPrefix:"GH_STAR_SEARCH_"`
+	Test     TestConfig     `json:"test"     envPrefix:"GH_STAR_SEARCH_"`
 }
 
 // DatabaseConfig represents database configuration
@@ -56,6 +57,12 @@ type DebugConfig struct {
 	MetricsPort int  `json:"metrics_port" env:"DEBUG_METRICS_PORT" envDefault:"8080"`
 	Verbose     bool `json:"verbose"      env:"VERBOSE"            envDefault:"false"`
 	TraceAPI    bool `json:"trace_api"    env:"DEBUG_TRACE_API"    envDefault:"false"`
+}
+
+// TestConfig represents test-specific configuration
+type TestConfig struct {
+	PerPage  int `json:"per_page"  env:"TEST_PER_PAGE"  envDefault:"5"`
+	MaxPages int `json:"max_pages" env:"TEST_MAX_PAGES" envDefault:"3"`
 }
 
 // LoadConfig loads configuration from file, environment variables, and command-line flags
