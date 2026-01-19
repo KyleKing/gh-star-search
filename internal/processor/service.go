@@ -227,42 +227,62 @@ func (s *serviceImpl) extractAndChunkContent(
 }
 
 // getPriorityPaths returns a list of file paths to prioritize for content extraction
+// Focuses on top-level documentation and key source files, avoiding tests and large assets
 func (s *serviceImpl) getPriorityPaths() []string {
 	return []string{
-		// README files (highest priority)
+		// README files (highest priority - top level only)
 		"README.md", "README.rst", "README.txt", "README",
 		"readme.md", "readme.rst", "readme.txt", "readme",
 
-		// Package manifests
+		// Package manifests (top level)
 		"package.json", "Cargo.toml", "go.mod", "setup.py", "pom.xml",
 		"composer.json", "Gemfile", "requirements.txt", "pyproject.toml",
+		"CMakeLists.txt", "Makefile", "build.gradle", "yarn.lock",
 
-		// Documentation
+		// Documentation files (top level)
 		"CHANGELOG.md", "CHANGELOG.rst", "CHANGELOG.txt", "CHANGELOG",
-		"CHANGES.md", "CHANGES.rst", "CHANGES.txt", "CHANGES",
-		"HISTORY.md", "HISTORY.rst", "HISTORY.txt", "HISTORY",
+		"CHANGES.md", "CONTRIBUTING.md", "AUTHORS.md", "CONTRIBUTORS.md",
 
-		// License files
+		// License files (top level)
 		"LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING",
 		"license", "license.md", "license.txt", "copying",
 
-		// Configuration files
-		".github/README.md", "docs/README.md", "doc/README.md",
-		"docs/index.md", "doc/index.md",
+		// Documentation directories - fetch index/main files only
+		"docs/README.md", "docs/index.md", "docs/getting-started.md",
+		"doc/README.md", "doc/index.md",
+		".github/README.md",
 
-		// Main entry points (common patterns)
-		"main.go", "main.py", "index.js", "index.ts", "app.js", "app.py",
+		// Source directories - main entry points only (limit to avoid tests)
 		"src/main.go", "src/main.py", "src/index.js", "src/index.ts",
+		"src/app.js", "src/app.py", "src/lib.rs", "src/main.rs",
+		"main.go", "main.py", "index.js", "index.ts", "app.js", "app.py",
+		"lib.rs", "main.rs",
 	}
 }
 
 // filterContent filters out unwanted content and validates files
+// Excludes tests, images, videos, and other non-essential files
 func (s *serviceImpl) filterContent(content []github.Content) []github.Content {
 	var filtered []github.Content
 
 	for _, file := range content {
-		// Skip if file is too large (> 1MB)
-		if file.Size > 1024*1024 {
+		// Skip if file is too large (> 500KB for more selective downloading)
+		if file.Size > 512*1024 {
+			continue
+		}
+
+		// Skip if not a file
+		if file.Type != "file" {
+			continue
+		}
+
+		// Skip test files
+		if s.isTestFile(file.Path) {
+			continue
+		}
+
+		// Skip image and media files
+		if s.isMediaFile(file.Path) {
 			continue
 		}
 
@@ -271,8 +291,8 @@ func (s *serviceImpl) filterContent(content []github.Content) []github.Content {
 			continue
 		}
 
-		// Skip if content type is file (not directory)
-		if file.Type != "file" {
+		// Skip common build/vendor directories
+		if s.isExcludedPath(file.Path) {
 			continue
 		}
 
@@ -280,6 +300,75 @@ func (s *serviceImpl) filterContent(content []github.Content) []github.Content {
 	}
 
 	return filtered
+}
+
+// isTestFile checks if a file is a test file
+func (s *serviceImpl) isTestFile(path string) bool {
+	lowerPath := strings.ToLower(path)
+	lowerBase := strings.ToLower(filepath.Base(path))
+
+	// Common test patterns
+	testPatterns := []string{
+		"test", "tests", "_test", "spec", "specs",
+		"__tests__", "test_", ".test.", ".spec.",
+	}
+
+	for _, pattern := range testPatterns {
+		if strings.Contains(lowerPath, pattern) || strings.Contains(lowerBase, pattern) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isMediaFile checks if a file is an image, video, or other media
+func (s *serviceImpl) isMediaFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+
+	mediaExts := []string{
+		// Images
+		".png", ".jpg", ".jpeg", ".gif", ".bmp", ".svg", ".ico",
+		".webp", ".tiff", ".tif",
+		// Videos
+		".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm",
+		// Audio
+		".mp3", ".wav", ".ogg", ".flac", ".m4a",
+		// Fonts
+		".ttf", ".otf", ".woff", ".woff2", ".eot",
+		// Archives
+		".zip", ".tar", ".gz", ".rar", ".7z", ".bz2",
+	}
+
+	for _, mediaExt := range mediaExts {
+		if ext == mediaExt {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isExcludedPath checks if a path should be excluded
+func (s *serviceImpl) isExcludedPath(path string) bool {
+	lowerPath := strings.ToLower(path)
+
+	// Exclude common directories we don't want to process
+	excludedDirs := []string{
+		"node_modules/", "vendor/", "build/", "dist/",
+		"target/", "bin/", "obj/", ".git/",
+		"__pycache__/", ".venv/", "venv/",
+		"coverage/", ".next/", ".nuxt/",
+		"examples/", "example/", "demo/", "demos/",
+	}
+
+	for _, dir := range excludedDirs {
+		if strings.Contains(lowerPath, dir) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // decodeContent decodes base64 encoded content from GitHub API
