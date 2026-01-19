@@ -23,9 +23,11 @@ func ConfigCommand() *cli.Command {
 }
 
 func runConfig(ctx context.Context, _ *cli.Command) error {
-	// Try to get config from context first, fallback to loading directly
-	cfg := getConfigFromContext(ctx)
+	return RunConfigWithConfig(getConfigFromContext(ctx))
+}
 
+// RunConfigWithConfig displays the configuration (exported for testing)
+func RunConfigWithConfig(cfg *config.Config) error {
 	// Ensure we have a valid config
 	if cfg == nil {
 		return errors.NewConfigError("failed to load configuration", "")
