@@ -1,0 +1,12 @@
+# Python dependencies for gh-star-search enhanced features
+# These are OPTIONAL - the application works without them but with reduced functionality
+
+# For enhanced summarization (uses DistilBART, ~1.5GB RAM)
+transformers>=4.30.0
+torch>=2.0.0
+
+# For vector embeddings and semantic search (~200MB RAM)
+sentence-transformers>=2.2.0
+
+# Note: The heuristic summarization method has no dependencies
+# Install only what you need for your use case
