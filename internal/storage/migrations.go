@@ -57,7 +57,10 @@ func (m *SchemaManager) CreateLatestSchema(ctx context.Context) error {
 			-- Summarization (AI-generated summaries)
 			purpose TEXT,
 			summary_generated_at TIMESTAMP,
-			summary_version INTEGER DEFAULT 0
+			summary_version INTEGER DEFAULT 0,
+
+			-- Vector embeddings for semantic search
+			repo_embedding JSON
 		);
 
 		-- Create content_chunks table (deprecated but kept for compatibility)
