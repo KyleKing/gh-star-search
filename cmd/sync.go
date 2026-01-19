@@ -44,6 +44,10 @@ intelligent search capabilities.`,
 				Aliases: []string{"f"},
 				Usage:   "Force re-processing of all repositories",
 			},
+			&cli.BoolFlag{
+				Name:  "summarize",
+				Usage: "Generate AI summaries for repositories after sync",
+			},
 		},
 		Action: runSync,
 	}
@@ -149,6 +153,7 @@ func runSync(ctx context.Context, cmd *cli.Command) error {
 	specificRepo := cmd.String("repo")
 	batchSize := int(cmd.Int("batch-size"))
 	force := cmd.Bool("force")
+	summarize := cmd.Bool("summarize")
 
 	// Get verbose setting from config
 	configFromContext := getConfigFromContext(ctx)
@@ -178,7 +183,19 @@ func runSync(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Perform full sync
-	return syncService.performFullSync(ctx, batchSize, force)
+	if err := syncService.performFullSync(ctx, batchSize, force); err != nil {
+		return err
+	}
+
+	// Generate summaries if requested
+	if summarize {
+		if err := syncService.generateSummaries(ctx, force); err != nil {
+			fmt.Printf("\nWarning: Failed to generate summaries: %v\n", err)
+			// Don't fail the entire sync if summarization fails
+		}
+	}
+
+	return nil
 }
 
 func initializeSyncService(cfg *config.Config, verbose bool) (*SyncService, error) {
