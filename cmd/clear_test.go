@@ -14,7 +14,6 @@ import (
 func TestRunClear(t *testing.T) {
 	testStats := &storage.Stats{
 		TotalRepositories:  10,
-		TotalContentChunks: 50,
 		DatabaseSizeMB:     5.5,
 		LastSyncTime:       time.Now(),
 		LanguageBreakdown:  map[string]int{"Go": 5, "Python": 5},
@@ -36,7 +35,6 @@ func TestRunClear(t *testing.T) {
 			contains: []string{
 				"This will delete:",
 				"• 10 repositories",
-				"• 50 content chunks",
 				"• 5.50 MB of data",
 				"Database cleared successfully.",
 			},
@@ -45,7 +43,6 @@ func TestRunClear(t *testing.T) {
 			name: "empty database",
 			stats: &storage.Stats{
 				TotalRepositories:  0,
-				TotalContentChunks: 0,
 				DatabaseSizeMB:     0,
 				LastSyncTime:       time.Time{},
 				LanguageBreakdown:  make(map[string]int),

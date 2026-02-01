@@ -38,12 +38,6 @@ func TestSchemaCreation(t *testing.T) {
 		t.Fatalf("Repositories table not created: %v", err)
 	}
 
-	// Verify content_chunks table exists
-	err = db.QueryRow("SELECT COUNT(*) FROM content_chunks").Scan(&count)
-	if err != nil {
-		t.Fatalf("Content chunks table not created: %v", err)
-	}
-
 	// Verify key columns exist
 	var columnCount int
 

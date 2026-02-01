@@ -6,7 +6,9 @@ This document covers operational details that complement [DESIGN.md](DESIGN.md):
 
 ### Current Approach
 
-The database schema is created from scratch on first run via `SchemaManager.CreateLatestSchema`. There is no versioned migration engine. If the schema changes between releases, users must clear and re-sync:
+The database uses sequential SQL migrations stored in `internal/storage/migrations/`. Each migration is a numbered SQL file (e.g., `001_initial_schema.sql`) that runs once when the schema version is behind the code version.
+
+Migrations are applied automatically on first run. The `schema_version` table tracks which migrations have been applied. For major schema changes or corruption, users can clear and re-sync:
 
 ```bash
 gh star-search clear
@@ -15,9 +17,7 @@ gh star-search sync
 
 ### Schema
 
-Two tables are maintained in DuckDB:
-
-**`repositories`** -- one row per starred repo:
+The `repositories` table stores one row per starred repo:
 
 | Column | Type | Purpose |
 |--------|------|---------|
@@ -35,15 +35,19 @@ Two tables are maintained in DuckDB:
 | `summary_generated_at`, `summary_version` | TIMESTAMP/INTEGER | Summary tracking |
 | `repo_embedding` | JSON | Float32 vector for semantic search |
 
-**`content_chunks`** (deprecated) -- legacy chunked content, retained for compatibility but no longer written during sync.
-
 ### Indexes
 
-Indexes exist on: `language`, `updated_at`, `stargazers_count`, `full_name`, `commits_total`, and composite `(repository_id, chunk_type)` on `content_chunks`.
+Indexes exist on: `language`, `updated_at`, `stargazers_count`, `full_name`, and `commits_total`.
 
-### Future Migration Plan
+### Adding Migrations
 
-A formal migration engine (e.g., golang-migrate) is planned once the schema stabilizes post-v1.0. Until then, schema changes are breaking and require `clear` + `sync`.
+New migrations are added as numbered SQL files in `internal/storage/migrations/`. See `internal/storage/migrations/README.md` for detailed instructions.
+
+Migrations are:
+- Embedded in the binary via `//go:embed`
+- Applied sequentially on app startup
+- Idempotent (safe to run multiple times)
+- Non-reversible (no rollback support)
 
 ## Embedding and Summarization
 

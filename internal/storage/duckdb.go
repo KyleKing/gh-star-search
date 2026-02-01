@@ -95,11 +95,6 @@ func (r *DuckDBRepository) Initialize(ctx context.Context) error {
 	return schemaManager.CreateLatestSchema(ctx)
 }
 
-// InitializeWithPrompt creates the database schema (simplified, no migration needed)
-func (r *DuckDBRepository) InitializeWithPrompt(ctx context.Context, _ bool) error {
-	return r.Initialize(ctx)
-}
-
 // StoreRepository stores a new repository in the database
 func (r *DuckDBRepository) StoreRepository(
 	ctx context.Context,
@@ -175,40 +170,6 @@ func (r *DuckDBRepository) StoreRepository(
 		return fmt.Errorf("failed to insert repository: %w", err)
 	}
 
-	// Insert content chunks (deprecated but still supported for backward compatibility)
-	if len(repo.Chunks) > 0 {
-		// Check if content_chunks table exists
-		var tableExists bool
-		err = tx.QueryRowContext(ctx, `
-			SELECT COUNT(*) > 0 
-			FROM information_schema.tables 
-			WHERE table_name = 'content_chunks'
-		`).Scan(&tableExists)
-
-		if err == nil && tableExists {
-			insertChunkSQL := `
-			INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`
-
-			for _, chunk := range repo.Chunks {
-				chunkID := uuid.New().String()
-
-				_, err := tx.ExecContext(ctx, insertChunkSQL,
-					chunkID,
-					repoID,
-					chunk.Source,
-					chunk.Type,
-					chunk.Content,
-					chunk.Tokens,
-					chunk.Priority,
-				)
-				if err != nil {
-					return fmt.Errorf("failed to insert content chunk: %w", err)
-				}
-			}
-		}
-	}
-
 	return tx.Commit()
 }
 
@@ -277,22 +238,13 @@ func (r *DuckDBRepository) UpdateRepository(
 		return fmt.Errorf("failed to get repository: %w", err)
 	}
 
-	// Step 2: Delete existing chunks first (no FK constraint, so order doesn't matter)
-	_, err = r.db.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", existingData.id)
-	if err != nil {
-		// Ignore error if table doesn't exist
-		if !strings.Contains(err.Error(), "does not exist") && !strings.Contains(err.Error(), "not found") {
-			return fmt.Errorf("failed to delete existing chunks: %w", err)
-		}
-	}
-
-	// Step 3: Delete existing repository
+	// Step 2: Delete existing repository
 	_, err = r.db.ExecContext(ctx, "DELETE FROM repositories WHERE id = ?", existingData.id)
 	if err != nil {
 		return fmt.Errorf("failed to delete repository: %w", err)
 	}
 
-	// Step 4: Convert JSON data for reinsertion
+	// Step 3: Convert JSON data for reinsertion
 	topicsJSON, err := json.Marshal(repo.Repository.Topics)
 	if err != nil {
 		return fmt.Errorf("failed to marshal topics: %w", err)
@@ -308,7 +260,7 @@ func (r *DuckDBRepository) UpdateRepository(
 		return fmt.Errorf("failed to marshal contributors: %w", err)
 	}
 
-	// Step 5: INSERT repository with updated metadata but preserved metrics
+	// Step 4: INSERT repository with updated metadata but preserved metrics
 	var licenseName, licenseSPDXID string
 	if repo.Repository.License != nil {
 		licenseName = repo.Repository.License.Name
@@ -355,61 +307,24 @@ func (r *DuckDBRepository) UpdateRepository(
 		return fmt.Errorf("failed to insert updated repository: %w", err)
 	}
 
-	// Step 6: Insert new content chunks if provided
-	if len(repo.Chunks) > 0 {
-		insertChunkSQL := `
-			INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`
-
-		for _, chunk := range repo.Chunks {
-			chunkID := uuid.New().String()
-			_, err := r.db.ExecContext(ctx, insertChunkSQL,
-				chunkID,
-				existingData.id,
-				chunk.Source,
-				chunk.Type,
-				chunk.Content,
-				chunk.Tokens,
-				chunk.Priority,
-			)
-			if err != nil {
-				// Ignore if table doesn't exist
-				if !strings.Contains(err.Error(), "does not exist") && !strings.Contains(err.Error(), "not found") {
-					return fmt.Errorf("failed to insert content chunk: %w", err)
-				}
-				break
-			}
-		}
-	}
-
 	return nil
 }
 
-// DeleteRepository removes a repository and its chunks from the database
+// DeleteRepository removes a repository from the database
 func (r *DuckDBRepository) DeleteRepository(ctx context.Context, fullName string) error {
-	// Get repository ID first
-	var repoID string
-
-	err := r.db.QueryRowContext(ctx, "SELECT id FROM repositories WHERE full_name = ?", fullName).
-		Scan(&repoID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil // Repository doesn't exist, nothing to delete
-		}
-
-		return fmt.Errorf("failed to get repository ID: %w", err)
-	}
-
-	// Delete chunks first
-	_, err = r.db.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", repoID)
-	if err != nil {
-		return fmt.Errorf("failed to delete content chunks: %w", err)
-	}
-
-	// Delete repository
-	_, err = r.db.ExecContext(ctx, "DELETE FROM repositories WHERE id = ?", repoID)
+	// Delete repository by full_name
+	result, err := r.db.ExecContext(ctx, "DELETE FROM repositories WHERE full_name = ?", fullName)
 	if err != nil {
 		return fmt.Errorf("failed to delete repository: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return nil // Repository doesn't exist, nothing to delete
 	}
 
 	return nil
@@ -648,10 +563,6 @@ func (r *DuckDBRepository) executeTextSearch(
 	FROM repositories r
 	WHERE r.full_name ILIKE ?
 		OR r.description ILIKE ?
-		OR EXISTS (
-			SELECT 1 FROM content_chunks c
-			WHERE c.repository_id = r.id AND c.content ILIKE ?
-		)
 	ORDER BY r.stargazers_count DESC
 	LIMIT 50`
 
@@ -660,7 +571,6 @@ func (r *DuckDBRepository) executeTextSearch(
 	rows, err := r.db.QueryContext(
 		queryCtx,
 		searchQuery,
-		searchTerm,
 		searchTerm,
 		searchTerm,
 	)
@@ -808,13 +718,6 @@ func (r *DuckDBRepository) GetStats(ctx context.Context) (*Stats, error) {
 		return nil, fmt.Errorf("failed to get repository count: %w", err)
 	}
 
-	// Get total content chunks
-	err = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM content_chunks").
-		Scan(&stats.TotalContentChunks)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get chunk count: %w", err)
-	}
-
 	// Get last sync time
 	var lastSyncTime *time.Time
 
@@ -862,14 +765,8 @@ func (r *DuckDBRepository) GetStats(ctx context.Context) (*Stats, error) {
 
 // Clear removes all data from the database
 func (r *DuckDBRepository) Clear(ctx context.Context) error {
-	// Delete all content chunks first (due to foreign key constraint)
-	_, err := r.db.ExecContext(ctx, "DELETE FROM content_chunks")
-	if err != nil {
-		return fmt.Errorf("failed to clear content chunks: %w", err)
-	}
-
 	// Delete all repositories
-	_, err = r.db.ExecContext(ctx, "DELETE FROM repositories")
+	_, err := r.db.ExecContext(ctx, "DELETE FROM repositories")
 	if err != nil {
 		return fmt.Errorf("failed to clear repositories: %w", err)
 	}

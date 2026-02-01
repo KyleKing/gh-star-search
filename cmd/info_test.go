@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/KyleKing/gh-star-search/internal/processor"
 	"github.com/KyleKing/gh-star-search/internal/storage"
 )
 
@@ -28,10 +27,6 @@ func TestRunInfo(t *testing.T) {
 		LicenseName:     "MIT License",
 		LicenseSPDXID:   "MIT",
 		ContentHash:     "abc123",
-		Chunks: []processor.ContentChunk{
-			{Source: "README.md", Type: "readme", Content: "# Test Repo", Tokens: 10, Priority: 1},
-			{Source: "main.go", Type: "code", Content: "package main", Tokens: 5, Priority: 2},
-		},
 	}
 
 	tests := []struct {
@@ -55,9 +50,6 @@ func TestRunInfo(t *testing.T) {
 				"Size: 1024 KB",
 				"License: MIT License (MIT)",
 				"Topics: cli, golang, tool",
-				"Content Chunks: 2",
-				"readme: 1 chunks",
-				"code: 1 chunks",
 			},
 		},
 		{

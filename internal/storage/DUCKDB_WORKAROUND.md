@@ -47,12 +47,6 @@ INSERT INTO repositories VALUES (...)
 
 **Risk mitigation**: Single-row operations execute in microseconds, making the non-atomic window negligible for practical purposes.
 
-## Fixed Bugs
-
-1. **Concurrent reads during UpdateRepository** - Fixed by removing transaction; operations fast enough that race conditions are minimal
-2. **UpdateRepository resets metrics** - Fixed by capturing existing metrics in step 1 and reinserting them
-3. **Concurrent metrics updates** - Expected behavior; last successful update wins (optimistic concurrency)
-
 ## References
 
 - [Issue #11915](https://github.com/duckdb/duckdb/issues/11915): UPDATE with LIST columns fails
@@ -66,15 +60,3 @@ When DuckDB fixes the over-eager constraint checking:
 1. Wrap operations in transactions for true atomicity
 2. Add optimistic locking with version fields
 3. Consider using DuckDB's `INSERT OR REPLACE` if available
-
-## Testing
-
-All storage tests pass:
-```bash
-go test ./internal/storage/
-```
-
-Critical tests:
-- `TestConcurrentReadsDuringWrite` - Verifies no read failures during updates
-- `TestUpdateRepositoryMetrics_Transaction` - Verifies metrics are preserved
-- `TestConcurrentMetricsUpdates` - Verifies optimistic concurrency works

@@ -182,11 +182,6 @@ func TestSyncIntegration(t *testing.T) {
 	if activeRepo.StargazersCount != 100 {
 		t.Errorf("Expected 100 stars for active-repo, got %d", activeRepo.StargazersCount)
 	}
-
-	if len(activeRepo.Chunks) != 0 {
-		t.Error("Expected no content chunks for active-repo (chunks are deprecated)")
-	}
-
 	// Step 2: Simulate repository changes and perform incremental sync
 	t.Log("Step 2: Incremental sync with changes")
 
@@ -440,11 +435,6 @@ func TestSyncSpecificRepository(t *testing.T) {
 	if stored.StargazersCount != 42 {
 		t.Errorf("Expected StargazersCount 42, got %d", stored.StargazersCount)
 	}
-
-	if len(stored.Chunks) != 0 {
-		t.Error("Expected no content chunks to be stored")
-	}
-
 	// Test syncing non-existent repository
 	err = syncService.syncSpecificRepository(ctx, "user/non-existent")
 	if err == nil {

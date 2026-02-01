@@ -76,7 +76,6 @@ func (m *MockRepository) GetStats(_ context.Context) (*storage.Stats, error) {
 
 	return &storage.Stats{
 		TotalRepositories:  len(m.repos),
-		TotalContentChunks: 0,
 		DatabaseSizeMB:     1.5,
 		LastSyncTime:       time.Now(),
 		LanguageBreakdown:  make(map[string]int),
@@ -106,10 +105,6 @@ func (m *MockRepository) GetRepositoriesNeedingSummaryUpdate(
 	_ bool,
 ) ([]string, error) {
 	return []string{}, nil
-}
-
-func (m *MockRepository) InitializeWithPrompt(_ context.Context, _ bool) error {
-	return nil
 }
 
 func (m *MockRepository) UpdateRepositoryEmbedding(_ context.Context, _ string, _ []float32) error {

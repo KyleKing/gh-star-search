@@ -10,7 +10,6 @@ import (
 // Repository defines the interface for database operations
 type Repository interface {
 	Initialize(ctx context.Context) error
-	InitializeWithPrompt(ctx context.Context, autoConfirm bool) error
 	StoreRepository(ctx context.Context, repo processor.ProcessedRepo) error
 	UpdateRepository(ctx context.Context, repo processor.ProcessedRepo) error
 	DeleteRepository(ctx context.Context, fullName string) error
@@ -68,9 +67,6 @@ type StoredRepo struct {
 	Purpose            string     `json:"purpose,omitempty"`
 	SummaryGeneratedAt *time.Time `json:"summary_generated_at,omitempty"`
 	SummaryVersion     int        `json:"summary_version"`
-
-	// Legacy chunks (deprecated, will be removed)
-	Chunks []processor.ContentChunk `json:"chunks,omitempty"`
 }
 
 // Contributor represents a repository contributor
@@ -109,10 +105,9 @@ type Match struct {
 
 // Stats represents database statistics
 type Stats struct {
-	TotalRepositories  int            `json:"total_repositories"`
-	LastSyncTime       time.Time      `json:"last_sync_time"`
-	DatabaseSizeMB     float64        `json:"database_size_mb"`
-	TotalContentChunks int            `json:"total_content_chunks"`
-	LanguageBreakdown  map[string]int `json:"language_breakdown"`
-	TopicBreakdown     map[string]int `json:"topic_breakdown"`
+	TotalRepositories int            `json:"total_repositories"`
+	LastSyncTime      time.Time      `json:"last_sync_time"`
+	DatabaseSizeMB    float64        `json:"database_size_mb"`
+	LanguageBreakdown map[string]int `json:"language_breakdown"`
+	TopicBreakdown    map[string]int `json:"topic_breakdown"`
 }

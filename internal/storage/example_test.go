@@ -96,11 +96,10 @@ func ExampleDuckDBRepository() {
 		log.Fatalf("Failed to get stats: %v", err)
 	}
 
-	fmt.Printf("Database contains %d repositories and %d content chunks\n",
-		stats.TotalRepositories, stats.TotalContentChunks)
+	fmt.Printf("Database contains %d repositories\n", stats.TotalRepositories)
 
 	// Output:
 	// Found 1 repositories matching 'awesome'
 	// - example/awesome-project: An awesome example project
-	// Database contains 1 repositories and 2 content chunks
+	// Database contains 1 repositories
 }

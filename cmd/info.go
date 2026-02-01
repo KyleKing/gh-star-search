@@ -79,20 +79,6 @@ func RunInfoWithStorage(ctx context.Context, repoName string, repo storage.Repos
 		fmt.Printf("Topics: %s\n", strings.Join(storedRepo.Topics, ", "))
 	}
 
-	if len(storedRepo.Chunks) > 0 {
-		fmt.Printf("\nContent Chunks: %d\n", len(storedRepo.Chunks))
-
-		// Group chunks by type
-		chunksByType := make(map[string]int)
-		for _, chunk := range storedRepo.Chunks {
-			chunksByType[chunk.Type]++
-		}
-
-		for chunkType, count := range chunksByType {
-			fmt.Printf("  %s: %d chunks\n", chunkType, count)
-		}
-	}
-
 	return nil
 }
 

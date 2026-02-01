@@ -39,11 +39,6 @@ func TestDuckDBRepository(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to query repositories table: %v", err)
 		}
-
-		err = repo.db.QueryRow("SELECT COUNT(*) FROM content_chunks").Scan(&count)
-		if err != nil {
-			t.Fatalf("Failed to query content_chunks table: %v", err)
-		}
 	})
 
 	// Create test data
@@ -73,10 +68,6 @@ func TestDuckDBRepository(t *testing.T) {
 				stored.Description,
 			)
 		}
-
-		if len(stored.Chunks) != 0 {
-			t.Errorf("Expected 0 chunks, got %d", len(stored.Chunks))
-		}
 	})
 
 	// Test updating repository
@@ -86,16 +77,6 @@ func TestDuckDBRepository(t *testing.T) {
 		// Modify test data
 		updatedRepo := testRepo
 		updatedRepo.Repository.Description = "Updated description"
-
-		updatedRepo.Chunks = []processor.ContentChunk{
-			{
-				Source:   "README.md",
-				Type:     processor.ContentTypeReadme,
-				Content:  "Updated README content",
-				Tokens:   50,
-				Priority: processor.PriorityHigh,
-			},
-		}
 
 		err := repo.UpdateRepository(ctx, updatedRepo)
 		if err != nil {
@@ -110,10 +91,6 @@ func TestDuckDBRepository(t *testing.T) {
 
 		if stored.Description != "Updated description" {
 			t.Errorf("Expected updated description, got %s", stored.Description)
-		}
-
-		if len(stored.Chunks) != 1 {
-			t.Errorf("Expected 1 chunk after update, got %d", len(stored.Chunks))
 		}
 	})
 
@@ -184,10 +161,6 @@ func TestDuckDBRepository(t *testing.T) {
 			t.Errorf("Expected at least 2 repositories in stats, got %d", stats.TotalRepositories)
 		}
 
-		if stats.TotalContentChunks == 0 {
-			t.Errorf("Expected content chunks in stats, got 0")
-		}
-
 		if len(stats.LanguageBreakdown) == 0 {
 			t.Errorf("Expected language breakdown in stats")
 		}
@@ -204,16 +177,6 @@ func TestDuckDBRepository(t *testing.T) {
 		_, err = repo.GetRepository(ctx, testRepo.Repository.FullName)
 		if err == nil {
 			t.Errorf("Expected error when getting deleted repository")
-		}
-
-		// Verify chunks were also deleted (cascade)
-		var chunkCount int
-
-		err = repo.db.QueryRow("SELECT COUNT(*) FROM content_chunks WHERE repository_id = (SELECT id FROM repositories WHERE full_name = ?)", testRepo.Repository.FullName).
-			Scan(&chunkCount)
-		if err != nil {
-			// This is expected since the repository was deleted
-			_ = err // explicitly ignore the error
 		}
 	})
 
@@ -271,11 +234,6 @@ func TestMigrations(t *testing.T) {
 		err := repo.db.QueryRow("SELECT COUNT(*) FROM repositories").Scan(&count)
 		if err != nil {
 			t.Fatalf("Repositories table not created: %v", err)
-		}
-
-		err = repo.db.QueryRow("SELECT COUNT(*) FROM content_chunks").Scan(&count)
-		if err != nil {
-			t.Fatalf("Content chunks table not created: %v", err)
 		}
 
 		// Verify key columns exist
@@ -371,15 +329,7 @@ func setupSearchTestDB(t *testing.T) (*DuckDBRepository, context.Context) {
 				UpdatedAt:       time.Now().Add(-2 * time.Hour),
 				Topics:          []string{"terraform", "infrastructure", "cloud"},
 			},
-			Chunks: []processor.ContentChunk{
-				{
-					Source:   "README.md",
-					Type:     processor.ContentTypeReadme,
-					Content:  "# Terraform Provider\n\nManage cloud infrastructure with declarative config.",
-					Tokens:   30,
-					Priority: processor.PriorityHigh,
-				},
-			},
+			Chunks: []processor.ContentChunk{},
 			ProcessedAt: time.Now(),
 			ContentHash: "hash-terraform",
 		},
@@ -395,15 +345,7 @@ func setupSearchTestDB(t *testing.T) (*DuckDBRepository, context.Context) {
 				UpdatedAt:       time.Now().Add(-1 * time.Hour),
 				Topics:          []string{"react", "dashboard", "analytics"},
 			},
-			Chunks: []processor.ContentChunk{
-				{
-					Source:   "README.md",
-					Type:     processor.ContentTypeReadme,
-					Content:  "# React Dashboard\n\nReal-time analytics with interactive charts.",
-					Tokens:   25,
-					Priority: processor.PriorityHigh,
-				},
-			},
+			Chunks: []processor.ContentChunk{},
 			ProcessedAt: time.Now(),
 			ContentHash: "hash-react",
 		},
@@ -419,15 +361,7 @@ func setupSearchTestDB(t *testing.T) (*DuckDBRepository, context.Context) {
 				UpdatedAt:       time.Now().Add(-5 * time.Hour),
 				Topics:          []string{"json", "parser", "rust"},
 			},
-			Chunks: []processor.ContentChunk{
-				{
-					Source:   "README.md",
-					Type:     processor.ContentTypeReadme,
-					Content:  "# JSON Parser\n\nZero-copy JSON parsing for high-performance applications.",
-					Tokens:   20,
-					Priority: processor.PriorityHigh,
-				},
-			},
+			Chunks: []processor.ContentChunk{},
 			ProcessedAt: time.Now(),
 			ContentHash: "hash-json",
 		},
@@ -494,21 +428,6 @@ func TestSearchRepositories(t *testing.T) {
 
 		if !hasDescriptionMatch {
 			t.Errorf("Expected a description match field in results")
-		}
-	})
-
-	t.Run("SearchByChunkContent", func(t *testing.T) {
-		results, err := repo.SearchRepositories(ctx, "declarative")
-		if err != nil {
-			t.Fatalf("Search failed: %v", err)
-		}
-
-		if len(results) != 1 {
-			t.Fatalf("Expected 1 result for chunk content match, got %d", len(results))
-		}
-
-		if results[0].Repository.FullName != "org/terraform-provider" {
-			t.Errorf("Expected org/terraform-provider, got %s", results[0].Repository.FullName)
 		}
 	})
 
@@ -681,22 +600,7 @@ func createTestProcessedRepo() processor.ProcessedRepo {
 				SPDXID: "MIT",
 			},
 		},
-		Chunks: []processor.ContentChunk{
-			{
-				Source:   "README.md",
-				Type:     processor.ContentTypeReadme,
-				Content:  "# Test Repository\n\nThis is a test repository for unit testing.",
-				Tokens:   25,
-				Priority: processor.PriorityHigh,
-			},
-			{
-				Source:   "main.go",
-				Type:     processor.ContentTypeCode,
-				Content:  "package main\n\nfunc main() {\n\t// Test code\n}",
-				Tokens:   15,
-				Priority: processor.PriorityMedium,
-			},
-		},
+		Chunks:      []processor.ContentChunk{},
 		ProcessedAt: time.Now(),
 		ContentHash: "test-hash-123",
 	}

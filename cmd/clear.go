@@ -64,7 +64,6 @@ func RunClearWithStorage(ctx context.Context, force bool, repo storage.Repositor
 	// Show what will be deleted
 	fmt.Printf("This will delete:\n")
 	fmt.Printf("  • %d repositories\n", stats.TotalRepositories)
-	fmt.Printf("  • %d content chunks\n", stats.TotalContentChunks)
 	fmt.Printf("  • %.2f MB of data\n", stats.DatabaseSizeMB)
 
 	// Confirmation prompt (unless force flag is used)

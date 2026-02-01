@@ -393,12 +393,7 @@ func TestSyncService_ProcessRepository(t *testing.T) {
 
 	if stored.StargazersCount != 42 {
 		t.Errorf("Expected StargazersCount 42, got %d", stored.StargazersCount)
-	}
-
-	if len(stored.Chunks) != 0 {
-		t.Error("Expected no content chunks to be stored")
-	}
-}
+	}}
 
 func TestSyncService_ProcessRepositoriesInBatches(t *testing.T) {
 	// Create temporary database

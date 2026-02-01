@@ -14,7 +14,6 @@ import (
 func TestRunStats(t *testing.T) {
 	testStats := &storage.Stats{
 		TotalRepositories:  150,
-		TotalContentChunks: 500,
 		DatabaseSizeMB:     25.5,
 		LastSyncTime:       time.Date(2023, 6, 15, 14, 30, 0, 0, time.UTC),
 		LanguageBreakdown: map[string]int{
@@ -48,7 +47,6 @@ func TestRunStats(t *testing.T) {
 			contains: []string{
 				"Database Statistics",
 				"Total Repositories: 150",
-				"Total Content Chunks: 500",
 				"Database Size: 25.50 MB",
 				"Last Sync: 2023-06-15 14:30:00",
 				"Language Breakdown:",
@@ -64,7 +62,6 @@ func TestRunStats(t *testing.T) {
 			name: "empty stats",
 			stats: &storage.Stats{
 				TotalRepositories:  0,
-				TotalContentChunks: 0,
 				DatabaseSizeMB:     0,
 				LastSyncTime:       time.Time{},
 				LanguageBreakdown:  make(map[string]int),
@@ -73,7 +70,6 @@ func TestRunStats(t *testing.T) {
 			wantErr: false,
 			contains: []string{
 				"Total Repositories: 0",
-				"Total Content Chunks: 0",
 				"Database Size: 0.00 MB",
 				"Last Sync: Never",
 			},

@@ -51,7 +51,6 @@ func runStatsWithStorage(ctx context.Context, repo storage.Repository) error {
 	fmt.Printf("==================\n\n")
 
 	fmt.Printf("Total Repositories: %d\n", stats.TotalRepositories)
-	fmt.Printf("Total Content Chunks: %d\n", stats.TotalContentChunks)
 	fmt.Printf("Database Size: %.2f MB\n", stats.DatabaseSizeMB)
 
 	if !stats.LastSyncTime.IsZero() {

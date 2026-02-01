@@ -93,10 +93,6 @@ func (m *mockQueryRepo) GetRepositoriesNeedingSummaryUpdate(_ context.Context, _
 	return []string{}, nil
 }
 
-func (m *mockQueryRepo) InitializeWithPrompt(_ context.Context, _ bool) error {
-	return nil
-}
-
 func (m *mockQueryRepo) UpdateRepositoryEmbedding(_ context.Context, _ string, _ []float32) error {
 	return nil
 }
