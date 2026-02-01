@@ -23,9 +23,12 @@ type Config struct {
 
 // DatabaseConfig represents database configuration
 type DatabaseConfig struct {
-	Path           string `json:"path"            env:"DB_PATH"            envDefault:"~/.config/gh-star-search/database.db"`
-	MaxConnections int    `json:"max_connections" env:"DB_MAX_CONNECTIONS" envDefault:"10"`
-	QueryTimeout   string `json:"query_timeout"   env:"DB_QUERY_TIMEOUT"   envDefault:"30s"`
+	Path              string `json:"path"                env:"DB_PATH"                  envDefault:"~/.config/gh-star-search/database.db"`
+	MaxConnections    int    `json:"max_connections"     env:"DB_MAX_CONNECTIONS"       envDefault:"10"`
+	MaxIdleConns      int    `json:"max_idle_conns"      env:"DB_MAX_IDLE_CONNS"        envDefault:"5"`
+	ConnMaxLifetime   string `json:"conn_max_lifetime"   env:"DB_CONN_MAX_LIFETIME"     envDefault:"30m"`
+	ConnMaxIdleTime   string `json:"conn_max_idle_time"  env:"DB_CONN_MAX_IDLE_TIME"    envDefault:"5m"`
+	QueryTimeout      string `json:"query_timeout"       env:"DB_QUERY_TIMEOUT"         envDefault:"30s"`
 }
 
 // CacheConfig represents caching configuration

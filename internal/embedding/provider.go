@@ -71,7 +71,7 @@ func NewManager(config Config) (*Manager, error) {
 
 	switch config.Provider {
 	case "local":
-		provider, err = NewLocalProviderImpl(config)
+		provider, err = NewLocalProvider(config)
 	case "remote":
 		provider, err = NewRemoteProvider(config)
 	default:

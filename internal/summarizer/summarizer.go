@@ -12,104 +12,86 @@ import (
 	"time"
 )
 
-// Method represents the summarization method to use
+// Method represents the summarization method used
 type Method string
 
 const (
-	// MethodHeuristic uses simple keyword extraction (~10MB RAM)
+	// MethodAuto automatically selects the best available method
+	MethodAuto Method = "auto"
+	// MethodHeuristic uses simple keyword extraction (no dependencies)
 	MethodHeuristic Method = "heuristic"
-	// MethodTransformers uses AI-based summarization (~1.5GB RAM)
+	// MethodTransformers uses transformers library (requires Python packages)
 	MethodTransformers Method = "transformers"
 )
 
-// Result represents the result of a summarization operation
+// Result represents a summarization result
 type Result struct {
-	Success      bool   `json:"success"`
-	Summary      string `json:"summary"`
-	Method       string `json:"method"`
-	InputLength  int    `json:"input_length,omitempty"`
-	OutputLength int    `json:"output_length,omitempty"`
-	Error        string `json:"error,omitempty"`
+	Summary string `json:"summary"`
+	Method  string `json:"method"`
+	Error   string `json:"error,omitempty"`
 }
 
-// Summarizer handles repository content summarization
+// Summarizer handles text summarization
 type Summarizer struct {
 	pythonPath string
 	scriptPath string
 	timeout    time.Duration
 }
 
-// Config holds configuration for the summarizer
-type Config struct {
-	// PythonPath is the path to the Python executable
-	// If empty, will try to find python3 or python in PATH
-	PythonPath string
-
-	// ScriptPath is the path to the summarize.py script
-	// If empty, will default to scripts/summarize.py relative to project root
-	ScriptPath string
-
-	// Timeout is the maximum duration for summarization
-	// Default: 30 seconds
-	Timeout time.Duration
-}
-
-// New creates a new Summarizer with the given configuration
-func New(cfg Config) (*Summarizer, error) {
-	pythonPath := cfg.PythonPath
-	if pythonPath == "" {
-		// Try to find Python in PATH
-		var err error
-		pythonPath, err = findPython()
+// New creates a new Summarizer instance
+func New() (*Summarizer, error) {
+	// Find Python executable
+	pythonPath, err := exec.LookPath("python3")
+	if err != nil {
+		// Try python as fallback
+		pythonPath, err = exec.LookPath("python")
 		if err != nil {
-			return nil, fmt.Errorf("failed to find Python executable: %w", err)
+			return nil, fmt.Errorf("python not found in PATH: %w", err)
 		}
 	}
 
-	scriptPath := cfg.ScriptPath
-	if scriptPath == "" {
-		// Default to scripts/summarize.py relative to project root
-		// Get current file's directory and go up to project root
-		_, currentFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return nil, fmt.Errorf("failed to determine project root")
-		}
-
-		projectRoot := filepath.Join(filepath.Dir(currentFile), "..", "..")
-		scriptPath = filepath.Join(projectRoot, "scripts", "summarize.py")
+	// Find script path
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return nil, fmt.Errorf("failed to determine script path")
 	}
 
-	timeout := cfg.Timeout
-	if timeout == 0 {
-		timeout = 30 * time.Second
-	}
+	// Go up from internal/summarizer/ to project root, then to scripts/
+	projectRoot := filepath.Join(filepath.Dir(currentFile), "..", "..")
+	scriptPath := filepath.Join(projectRoot, "scripts", "summarize.py")
 
 	return &Summarizer{
 		pythonPath: pythonPath,
 		scriptPath: scriptPath,
-		timeout:    timeout,
+		timeout:    30 * time.Second,
 	}, nil
 }
 
-// Summarize generates a summary of the given text using the specified method
+// Summarize summarizes the given text
 func (s *Summarizer) Summarize(ctx context.Context, text string, method Method) (*Result, error) {
 	if text == "" {
-		return &Result{
-			Success: false,
-			Error:   "empty input text",
-		}, nil
+		return &Result{Summary: "", Method: "none"}, nil
+	}
+
+	// If text is very short, just return it
+	if len(strings.TrimSpace(text)) < 100 {
+		return &Result{Summary: strings.TrimSpace(text), Method: "passthrough"}, nil
 	}
 
 	// Create context with timeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, s.timeout)
+	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
-	// Prepare command
-	cmd := exec.CommandContext(timeoutCtx, s.pythonPath, s.scriptPath,
+	// Build command
+	cmd := exec.CommandContext(
+		ctx,
+		s.pythonPath,
+		s.scriptPath,
 		"--method", string(method),
-		"--json")
+		"--json",
+	)
 
-	// Set up stdin with the text to summarize
+	// Set input
 	cmd.Stdin = strings.NewReader(text)
 
 	// Capture output
@@ -117,67 +99,71 @@ func (s *Summarizer) Summarize(ctx context.Context, text string, method Method) 
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	// Run the command
+	// Run command
 	err := cmd.Run()
 	if err != nil {
-		// Check if it was a timeout
-		if timeoutCtx.Err() == context.DeadlineExceeded {
-			return nil, fmt.Errorf("summarization timed out after %v", s.timeout)
+		// Check if it's a context timeout
+		if ctx.Err() == context.DeadlineExceeded {
+			return nil, fmt.Errorf("summarization timeout after %v", s.timeout)
 		}
 
-		// Include stderr in error message
-		stderrStr := stderr.String()
-		if stderrStr != "" {
-			return nil, fmt.Errorf("summarization failed: %w (stderr: %s)", err, stderrStr)
-		}
-
-		return nil, fmt.Errorf("summarization failed: %w", err)
+		// Return error with stderr for debugging
+		return nil, fmt.Errorf("summarization failed: %w (stderr: %s)", err, stderr.String())
 	}
 
-	// Parse JSON result
+	// Parse JSON output
 	var result Result
 	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
-		return nil, fmt.Errorf("failed to parse summarization result: %w (output: %s)", err, stdout.String())
+		return nil, fmt.Errorf("failed to parse summarization result: %w", err)
 	}
 
 	return &result, nil
 }
 
-// SummarizeWithFallback attempts to summarize using the preferred method,
-// falling back to heuristic if transformers fails
-func (s *Summarizer) SummarizeWithFallback(ctx context.Context, text string) (*Result, error) {
-	// Try transformers first (if available)
-	result, err := s.Summarize(ctx, text, MethodTransformers)
-	if err != nil || !result.Success {
-		// Fall back to heuristic
-		result, err = s.Summarize(ctx, text, MethodHeuristic)
-		if err != nil {
-			return nil, err
-		}
+// SummarizeSimple is a convenience method that uses auto method
+func (s *Summarizer) SummarizeSimple(ctx context.Context, text string) (string, error) {
+	result, err := s.Summarize(ctx, text, MethodAuto)
+	if err != nil {
+		return "", err
 	}
-
-	return result, nil
+	return result.Summary, nil
 }
 
-// findPython attempts to find a Python executable in the system PATH
-func findPython() (string, error) {
-	// Try python3 first (preferred)
-	pythonCandidates := []string{"python3", "python"}
-
-	for _, candidate := range pythonCandidates {
-		path, err := exec.LookPath(candidate)
-		if err == nil {
-			// Verify it's Python 3
-			cmd := exec.Command(path, "--version")
-			output, err := cmd.CombinedOutput()
-			if err == nil {
-				version := string(output)
-				if strings.Contains(version, "Python 3") {
-					return path, nil
-				}
-			}
-		}
+// IsAvailable checks if Python and the summarization script are available
+func (s *Summarizer) IsAvailable() bool {
+	// Check if Python is available
+	cmd := exec.Command(s.pythonPath, "--version")
+	if err := cmd.Run(); err != nil {
+		return false
 	}
 
-	return "", fmt.Errorf("no suitable Python 3 executable found in PATH")
+	// Check if script exists
+	cmd = exec.Command(s.pythonPath, s.scriptPath, "--help")
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+
+	return true
+}
+
+// GetCapabilities returns information about available summarization methods
+func (s *Summarizer) GetCapabilities(ctx context.Context) (map[string]bool, error) {
+	capabilities := map[string]bool{
+		"heuristic":    true, // Always available in Python script
+		"transformers": false,
+	}
+
+	// Test if transformers is available by trying to import it
+	testCmd := exec.CommandContext(
+		ctx,
+		s.pythonPath,
+		"-c",
+		"import transformers; import torch",
+	)
+
+	if err := testCmd.Run(); err == nil {
+		capabilities["transformers"] = true
+	}
+
+	return capabilities, nil
 }

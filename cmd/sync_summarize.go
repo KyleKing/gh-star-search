@@ -26,7 +26,7 @@ func (s *SyncService) generateSummaries(ctx context.Context, force bool) error {
 	fmt.Printf("\n📝 Generating summaries for %d repositories...\n", len(repos))
 
 	// Initialize summarizer
-	sum, err := summarizer.New(summarizer.Config{})
+	sum, err := summarizer.New()
 	if err != nil {
 		return fmt.Errorf("failed to initialize summarizer: %w", err)
 	}
@@ -51,14 +51,14 @@ func (s *SyncService) generateSummaries(ctx context.Context, force bool) error {
 		text := buildSummaryInput(repo.FullName, repo.Description, repo.Homepage, repo.Topics, repo.Language)
 
 		// Generate summary
-		result, err := sum.SummarizeWithFallback(ctx, text)
+		result, err := sum.Summarize(ctx, text, summarizer.MethodAuto)
 		if err != nil {
 			fmt.Printf("❌ Failed to generate summary: %v\n", err)
 			failed++
 			continue
 		}
 
-		if !result.Success {
+		if result.Error != "" {
 			fmt.Printf("❌ Summarization failed: %s\n", result.Error)
 			failed++
 			continue

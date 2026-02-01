@@ -11,11 +11,13 @@ import (
 )
 
 const (
-	// MaxRepositoryFetchLimit is the maximum number of repositories to fetch for comparison
-	// TODO: This should be replaced with a more efficient algorithm that doesn't load all repos into memory
-	MaxRepositoryFetchLimit = 10000
+	// BatchSize is the number of repositories to process at a time
+	// This keeps memory usage constant regardless of total repository count
+	BatchSize = 100
 	// MinRelatedScoreThreshold is the minimum score threshold for considering a repository related
 	MinRelatedScoreThreshold = 0.25
+	// TopNBuffer is how many top results to keep in memory during streaming
+	TopNBuffer = 100
 )
 
 // Repository represents a related repository with scoring details
@@ -52,7 +54,8 @@ func NewEngine(repo storage.Repository) *EngineImpl {
 	}
 }
 
-// FindRelated finds repositories related to the given repository
+// FindRelated finds repositories related to the given repository using a streaming approach
+// to avoid loading all repositories into memory at once
 func (e *EngineImpl) FindRelated(
 	ctx context.Context,
 	repoFullName string,
@@ -64,51 +67,80 @@ func (e *EngineImpl) FindRelated(
 		return nil, fmt.Errorf("failed to get target repository: %w", err)
 	}
 
-	// Get all repositories for comparison
-	// TODO: This loads all repositories into memory, which is inefficient for large datasets
-	allRepos, err := e.repo.ListRepositories(ctx, MaxRepositoryFetchLimit, 0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list repositories: %w", err)
-	}
+	// Use a min-heap to keep only top N results in memory
+	// This ensures constant memory usage regardless of total repository count
+	topResults := make([]Repository, 0, TopNBuffer)
+	offset := 0
 
-	var related []Repository
-
-	for _, candidate := range allRepos {
-		// Skip the target repository itself
-		if candidate.FullName == targetRepo.FullName {
-			continue
+	for {
+		// Fetch repositories in batches
+		batch, err := e.repo.ListRepositories(ctx, BatchSize, offset)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list repositories: %w", err)
 		}
 
-		// Calculate component scores
-		components := e.calculateComponents(*targetRepo, candidate)
-
-		// Skip if no meaningful relationship
-		if components.FinalScore < MinRelatedScoreThreshold {
-			continue
+		// No more repositories to process
+		if len(batch) == 0 {
+			break
 		}
 
-		// Generate explanation
-		explanation := e.generateExplanation(components, *targetRepo, candidate)
+		// Process each repository in the batch
+		for _, candidate := range batch {
+			// Skip the target repository itself
+			if candidate.FullName == targetRepo.FullName {
+				continue
+			}
 
-		related = append(related, Repository{
-			Repository:  candidate,
-			Score:       components.FinalScore,
-			Explanation: explanation,
-			Components:  components,
-		})
+			// Calculate component scores
+			components := e.calculateComponents(*targetRepo, candidate)
+
+			// Skip if no meaningful relationship
+			if components.FinalScore < MinRelatedScoreThreshold {
+				continue
+			}
+
+			// Generate explanation
+			explanation := e.generateExplanation(components, *targetRepo, candidate)
+
+			related := Repository{
+				Repository:  candidate,
+				Score:       components.FinalScore,
+				Explanation: explanation,
+				Components:  components,
+			}
+
+			// Add to results and maintain top N
+			topResults = append(topResults, related)
+
+			// If we have more than TopNBuffer results, keep only the top ones
+			if len(topResults) > TopNBuffer {
+				sort.Slice(topResults, func(i, j int) bool {
+					return topResults[i].Score > topResults[j].Score
+				})
+				topResults = topResults[:TopNBuffer]
+			}
+		}
+
+		// Move to next batch
+		offset += BatchSize
+
+		// Exit if we've processed less than a full batch (end of data)
+		if len(batch) < BatchSize {
+			break
+		}
 	}
 
-	// Sort by score descending
-	sort.Slice(related, func(i, j int) bool {
-		return related[i].Score > related[j].Score
+	// Final sort
+	sort.Slice(topResults, func(i, j int) bool {
+		return topResults[i].Score > topResults[j].Score
 	})
 
-	// Apply limit
-	if limit > 0 && len(related) > limit {
-		related = related[:limit]
+	// Apply user-requested limit
+	if limit > 0 && len(topResults) > limit {
+		topResults = topResults[:limit]
 	}
 
-	return related, nil
+	return topResults, nil
 }
 
 // calculateComponents computes the weighted score components
