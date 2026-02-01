@@ -11,9 +11,6 @@ import (
 	"github.com/KyleKing/gh-star-search/internal/errors"
 )
 
-// Ensure config package is used
-var _ *config.Config
-
 func ConfigCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "config",

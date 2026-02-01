@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -35,7 +36,7 @@ type Entry struct {
 	Size      int64     `json:"size"`
 }
 
-// Stats represents cache statistics
+// Stats represents cache statistics for external consumption
 type Stats struct {
 	TotalEntries int64   `json:"total_entries"`
 	TotalSize    int64   `json:"total_size"`
@@ -52,7 +53,8 @@ type FileCache struct {
 	defaultTTL  time.Duration
 	cleanupFreq time.Duration
 	mu          sync.RWMutex
-	stats       Stats
+	hits        atomic.Int64
+	misses      atomic.Int64
 	stopCleanup chan struct{}
 	cleanupOnce sync.Once
 }
@@ -108,26 +110,26 @@ func (c *FileCache) Get(ctx context.Context, key string) ([]byte, error) {
 
 	// Check if files exist
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		c.stats.Misses++
+		c.misses.Add(1)
 		return nil, errors.New("cache miss: key not found")
 	}
 
 	// Read metadata
 	metaData, err := os.ReadFile(metaPath)
 	if err != nil {
-		c.stats.Misses++
+		c.misses.Add(1)
 		return nil, fmt.Errorf("failed to read cache metadata: %w", err)
 	}
 
 	var entry Entry
 	if err := json.Unmarshal(metaData, &entry); err != nil {
-		c.stats.Misses++
+		c.misses.Add(1)
 		return nil, fmt.Errorf("failed to parse cache metadata: %w", err)
 	}
 
 	// Check if entry has expired
 	if time.Now().After(entry.ExpiresAt) {
-		c.stats.Misses++
+		c.misses.Add(1)
 		// Clean up expired entry
 		os.Remove(filePath)
 		os.Remove(metaPath)
@@ -138,11 +140,11 @@ func (c *FileCache) Get(ctx context.Context, key string) ([]byte, error) {
 	// Read data
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		c.stats.Misses++
+		c.misses.Add(1)
 		return nil, fmt.Errorf("failed to read cache data: %w", err)
 	}
 
-	c.stats.Hits++
+	c.hits.Add(1)
 
 	return data, nil
 }
@@ -243,7 +245,8 @@ func (c *FileCache) Clear(ctx context.Context) error {
 	}
 
 	// Reset stats
-	c.stats = Stats{}
+	c.hits.Store(0)
+	c.misses.Store(0)
 
 	return nil
 }
@@ -275,8 +278,6 @@ func (c *FileCache) Cleanup(ctx context.Context) error {
 
 	now := time.Now()
 
-	var removedCount int64
-
 	entries, err := os.ReadDir(c.directory)
 	if err != nil {
 		return fmt.Errorf("failed to read cache directory: %w", err)
@@ -306,8 +307,6 @@ func (c *FileCache) Cleanup(ctx context.Context) error {
 
 			os.Remove(filePath)
 			os.Remove(metaPath)
-
-			removedCount++
 		}
 	}
 
@@ -328,7 +327,7 @@ func (c *FileCache) GetStats(ctx context.Context) (*Stats, error) {
 	// Count current entries and size
 	var totalEntries int64
 
-	totalSize, _ := c.Size(ctx)
+	totalSize, _ := c.calculateSize()
 
 	entries, err := os.ReadDir(c.directory)
 	if err == nil {
@@ -339,15 +338,21 @@ func (c *FileCache) GetStats(ctx context.Context) (*Stats, error) {
 		}
 	}
 
-	stats := c.stats
-	stats.TotalEntries = totalEntries
-	stats.TotalSize = totalSize
+	hits := c.hits.Load()
+	misses := c.misses.Load()
+
+	stats := Stats{
+		TotalEntries: totalEntries,
+		TotalSize:    totalSize,
+		Hits:         hits,
+		Misses:       misses,
+	}
 
 	// Calculate hit/miss rates
-	total := stats.Hits + stats.Misses
+	total := hits + misses
 	if total > 0 {
-		stats.HitRate = float64(stats.Hits) / float64(total)
-		stats.MissRate = float64(stats.Misses) / float64(total)
+		stats.HitRate = float64(hits) / float64(total)
+		stats.MissRate = float64(misses) / float64(total)
 	}
 
 	return &stats, nil

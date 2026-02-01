@@ -35,8 +35,10 @@ func parseLogLevel(level string) slog.Level {
 	}
 }
 
-// SetupLogger initializes the global slog logger with the given configuration
-func SetupLogger(cfg config.LoggingConfig) error {
+// SetupLogger initializes the global slog logger with the given configuration.
+// Returns an io.Closer that should be closed on shutdown (may be nil if no
+// file was opened).
+func SetupLogger(cfg config.LoggingConfig) (io.Closer, error) {
 	// Set up output writer
 	var writer io.Writer
 
@@ -49,24 +51,24 @@ func SetupLogger(cfg config.LoggingConfig) error {
 		writer = os.Stderr
 	case "file":
 		if cfg.File == "" {
-			return errors.New("log file path is required when output is 'file'")
+			return nil, errors.New("log file path is required when output is 'file'")
 		}
 
 		// Ensure log directory exists
 		if err := os.MkdirAll(filepath.Dir(cfg.File), logDirPerm); err != nil {
-			return fmt.Errorf("failed to create log directory: %w", err)
+			return nil, fmt.Errorf("failed to create log directory: %w", err)
 		}
 
 		var err error
 
 		file, err = os.OpenFile(cfg.File, os.O_CREATE|os.O_WRONLY|os.O_APPEND, logFilePerm)
 		if err != nil {
-			return fmt.Errorf("failed to open log file: %w", err)
+			return nil, fmt.Errorf("failed to open log file: %w", err)
 		}
 
 		writer = file
 	default:
-		return fmt.Errorf("invalid log output: %s", cfg.Output)
+		return nil, fmt.Errorf("invalid log output: %s", cfg.Output)
 	}
 
 	// Create handler options
@@ -89,14 +91,11 @@ func SetupLogger(cfg config.LoggingConfig) error {
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
 
-	// Close file if it was opened (will be closed when program exits)
 	if file != nil {
-		// Note: In a real application, you might want to keep track of the file
-		// and close it properly on shutdown
-		_ = file
+		return file, nil
 	}
 
-	return nil
+	return io.NopCloser(nil), nil
 }
 
 // SetupFallbackLogger sets up a basic logger for cases where configuration fails

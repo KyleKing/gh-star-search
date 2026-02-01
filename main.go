@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 
@@ -15,7 +16,14 @@ import (
 	"github.com/KyleKing/gh-star-search/internal/logging"
 )
 
+var globalLogCloser io.Closer
+
 func main() {
+	defer func() {
+		if globalLogCloser != nil {
+			globalLogCloser.Close()
+		}
+	}()
 	app := &cli.Command{
 		Name:  "gh-star-search",
 		Usage: "Search your starred GitHub repositories using natural language",
@@ -135,9 +143,12 @@ func initializeGlobalConfig(ctx context.Context, cmd *cli.Command) (context.Cont
 	}
 
 	// Initialize logging with slog
-	if err := logging.SetupLogger(cfg.Logging); err != nil {
+	logCloser, err := logging.SetupLogger(cfg.Logging)
+	if err != nil {
 		return ctx, gherrors.Wrap(err, gherrors.ErrTypeConfig, "failed to initialize logging")
 	}
+
+	globalLogCloser = logCloser
 
 	// Log startup information using slog
 	slog.Info("gh-star-search starting",

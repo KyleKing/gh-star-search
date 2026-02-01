@@ -48,8 +48,9 @@ func TestSetupLoggerStdout(t *testing.T) {
 		Output: "stdout",
 	}
 
-	err := SetupLogger(cfg)
+	closer, err := SetupLogger(cfg)
 	require.NoError(t, err)
+	t.Cleanup(func() { closer.Close() })
 
 	// Test logging
 	slog.Info("test message")
@@ -62,8 +63,9 @@ func TestSetupLoggerStderr(t *testing.T) {
 		Output: "stderr",
 	}
 
-	err := SetupLogger(cfg)
+	closer, err := SetupLogger(cfg)
 	require.NoError(t, err)
+	t.Cleanup(func() { closer.Close() })
 
 	// Test logging with fields
 	slog.Info("test message", "key", "value")
@@ -80,8 +82,9 @@ func TestSetupLoggerFile(t *testing.T) {
 		File:   logFile,
 	}
 
-	err := SetupLogger(cfg)
+	closer, err := SetupLogger(cfg)
 	require.NoError(t, err)
+	t.Cleanup(func() { closer.Close() })
 
 	// Test logging
 	slog.Warn("test warning message")
@@ -100,7 +103,7 @@ func TestSetupLoggerFileInvalidPath(t *testing.T) {
 		File:   "",
 	}
 
-	err := SetupLogger(cfg)
+	_, err := SetupLogger(cfg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "log file path is required")
 }
@@ -112,7 +115,7 @@ func TestSetupLoggerInvalidOutput(t *testing.T) {
 		Output: "invalid",
 	}
 
-	err := SetupLogger(cfg)
+	_, err := SetupLogger(cfg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid log output")
 }
