@@ -7,7 +7,7 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"github.com/kyleking/gh-star-search/cmd"
+	"github.com/KyleKing/gh-star-search/cmd"
 )
 
 var (

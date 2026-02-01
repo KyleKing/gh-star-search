@@ -9,10 +9,10 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"github.com/kyleking/gh-star-search/cmd"
-	"github.com/kyleking/gh-star-search/internal/config"
-	gherrors "github.com/kyleking/gh-star-search/internal/errors"
-	"github.com/kyleking/gh-star-search/internal/logging"
+	"github.com/KyleKing/gh-star-search/cmd"
+	"github.com/KyleKing/gh-star-search/internal/config"
+	gherrors "github.com/KyleKing/gh-star-search/internal/errors"
+	"github.com/KyleKing/gh-star-search/internal/logging"
 )
 
 func main() {

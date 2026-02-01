@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kyleking/gh-star-search/internal/github"
+	"github.com/KyleKing/gh-star-search/internal/github"
 )
 
 // Helper function to create test repositories for performance testing

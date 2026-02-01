@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kyleking/gh-star-search/internal/embedding"
-	"github.com/kyleking/gh-star-search/internal/storage"
+	"github.com/KyleKing/gh-star-search/internal/embedding"
+	"github.com/KyleKing/gh-star-search/internal/storage"
 )
 
 // Mode represents the search mode

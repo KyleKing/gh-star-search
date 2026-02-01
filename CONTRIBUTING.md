@@ -79,7 +79,7 @@ After a release, update `Formula/gh-star-search.rb`:
 Users can install directly from the repository formula:
 
 ```bash
-brew install --formula https://github.com/kyleking/gh-star-search/raw/main/Formula/gh-star-search.rb
+brew install --formula https://github.com/KyleKing/gh-star-search/raw/main/Formula/gh-star-search.rb
 ```
 
 Or from a local checkout:
@@ -88,7 +88,7 @@ Or from a local checkout:
 brew install --formula ./Formula/gh-star-search.rb
 ```
 
-To set up a [homebrew tap](https://docs.brew.sh/Taps) for `brew install kyleking/tap/gh-star-search`, create a `homebrew-tap` repo at `https://github.com/kyleking/homebrew-tap` and copy the formula there.
+To set up a [homebrew tap](https://docs.brew.sh/Taps) for `brew install KyleKing/tap/gh-star-search`, create a `homebrew-tap` repo at `https://github.com/KyleKing/homebrew-tap` and copy the formula there.
 
 
 ## Troubleshooting

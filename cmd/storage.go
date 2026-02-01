@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/kyleking/gh-star-search/internal/config"
-	"github.com/kyleking/gh-star-search/internal/storage"
+	"github.com/KyleKing/gh-star-search/internal/config"
+	"github.com/KyleKing/gh-star-search/internal/storage"
 )
 
 // initializeStorage creates and initializes a storage repository

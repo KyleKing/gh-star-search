@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kyleking/gh-star-search/internal/embedding"
+	"github.com/KyleKing/gh-star-search/internal/embedding"
 )
 
 // generateEmbeddings generates vector embeddings for repositories

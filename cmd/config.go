@@ -7,8 +7,8 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"github.com/kyleking/gh-star-search/internal/config"
-	"github.com/kyleking/gh-star-search/internal/errors"
+	"github.com/KyleKing/gh-star-search/internal/config"
+	"github.com/KyleKing/gh-star-search/internal/errors"
 )
 
 // Ensure config package is used

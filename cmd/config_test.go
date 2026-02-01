@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kyleking/gh-star-search/internal/config"
+	"github.com/KyleKing/gh-star-search/internal/config"
 )
 
 func TestRunConfig(t *testing.T) {

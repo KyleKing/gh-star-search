@@ -4,8 +4,8 @@ import (
 	"encoding/base64"
 	"time"
 
-	"github.com/kyleking/gh-star-search/internal/github"
-	"github.com/kyleking/gh-star-search/internal/processor"
+	"github.com/KyleKing/gh-star-search/internal/github"
+	"github.com/KyleKing/gh-star-search/internal/processor"
 )
 
 // RepositoryOption is a functional option for configuring test repositories

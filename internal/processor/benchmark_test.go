@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kyleking/gh-star-search/internal/github"
+	"github.com/KyleKing/gh-star-search/internal/github"
 )
 
 func BenchmarkProcessRepository(b *testing.B) {

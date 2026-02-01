@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kyleking/gh-star-search/internal/config"
-	"github.com/kyleking/gh-star-search/internal/github"
-	"github.com/kyleking/gh-star-search/internal/processor"
-	"github.com/kyleking/gh-star-search/internal/storage"
+	"github.com/KyleKing/gh-star-search/internal/config"
+	"github.com/KyleKing/gh-star-search/internal/github"
+	"github.com/KyleKing/gh-star-search/internal/processor"
+	"github.com/KyleKing/gh-star-search/internal/storage"
 )
 
 // MockGitHubClient implements github.Client for testing

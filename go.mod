@@ -1,4 +1,4 @@
-module github.com/kyleking/gh-star-search
+module github.com/KyleKing/gh-star-search
 
 go 1.24.0
 

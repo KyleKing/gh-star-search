@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kyleking/gh-star-search/internal/github"
+	"github.com/KyleKing/gh-star-search/internal/github"
 )
 
 type mockGitHubClientSimple struct {

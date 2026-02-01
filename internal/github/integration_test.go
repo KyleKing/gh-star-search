@@ -7,8 +7,8 @@ import (
 
 	"github.com/cli/go-gh/v2/pkg/api"
 
-	"github.com/kyleking/gh-star-search/internal/cache"
-	"github.com/kyleking/gh-star-search/internal/config"
+	"github.com/KyleKing/gh-star-search/internal/cache"
+	"github.com/KyleKing/gh-star-search/internal/config"
 )
 
 func TestCachedClientIntegration(t *testing.T) {

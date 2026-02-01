@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kyleking/gh-star-search/internal/config"
+	"github.com/KyleKing/gh-star-search/internal/config"
 )
 
 const (

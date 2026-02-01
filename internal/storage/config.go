@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kyleking/gh-star-search/internal/config"
+	"github.com/KyleKing/gh-star-search/internal/config"
 )
 
 // NewDuckDBRepositoryFromConfig creates a new DuckDB repository with settings from config

@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 	_ "github.com/marcboeker/go-duckdb" // DuckDB driver
 
-	"github.com/kyleking/gh-star-search/internal/processor"
+	"github.com/KyleKing/gh-star-search/internal/processor"
 )
 
 const (
@@ -212,50 +212,106 @@ func (r *DuckDBRepository) StoreRepository(
 	return tx.Commit()
 }
 
-// UpdateRepository updates an existing repository in the database
+// UpdateRepository updates an existing repository in the database.
+//
+// WORKAROUND: DuckDB has a known limitation where UPDATE statements on tables with
+// PRIMARY KEY or UNIQUE constraints can fail with "duplicate key" errors, particularly
+// when updating JSON/LIST columns. This occurs because DuckDB internally rewrites UPDATE
+// as DELETE+INSERT per 2048-row chunk, causing false constraint violations.
+//
+// Solution: Use DELETE...RETURNING + INSERT within a transaction to work around this.
+// See: https://github.com/duckdb/duckdb/issues/11915
+// See: https://duckdb.org/docs/stable/sql/indexes#index-limitations
 func (r *DuckDBRepository) UpdateRepository(
 	ctx context.Context,
 	repo processor.ProcessedRepo,
 ) error {
-	// Get the repository ID first (outside transaction to avoid locking issues)
-	var repoID string
-	err := r.db.QueryRowContext(ctx, "SELECT id FROM repositories WHERE full_name = ?", repo.Repository.FullName).
-		Scan(&repoID)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to get repository ID: %w", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Step 1: DELETE and capture existing data using RETURNING clause
+	// This preserves metrics that were set by UpdateRepositoryMetrics
+	var existingData struct {
+		id              string
+		openIssuesOpen  int
+		openIssuesTotal int
+		openPRsOpen     int
+		openPRsTotal    int
+		commits30d      int
+		commits1y       int
+		commitsTotal    int
+		languages       interface{}
+		contributors    interface{}
 	}
 
-	// Convert topics to JSON
+	err = tx.QueryRowContext(ctx, `
+		DELETE FROM repositories
+		WHERE full_name = ?
+		RETURNING id,
+			COALESCE(open_issues_open, 0),
+			COALESCE(open_issues_total, 0),
+			COALESCE(open_prs_open, 0),
+			COALESCE(open_prs_total, 0),
+			COALESCE(commits_30d, 0),
+			COALESCE(commits_1y, 0),
+			COALESCE(commits_total, 0),
+			COALESCE(languages, '{}'),
+			COALESCE(contributors, '[]')`,
+		repo.Repository.FullName).
+		Scan(&existingData.id,
+			&existingData.openIssuesOpen,
+			&existingData.openIssuesTotal,
+			&existingData.openPRsOpen,
+			&existingData.openPRsTotal,
+			&existingData.commits30d,
+			&existingData.commits1y,
+			&existingData.commitsTotal,
+			&existingData.languages,
+			&existingData.contributors,
+		)
+	if err != nil {
+		return fmt.Errorf("failed to delete repository: %w", err)
+	}
+
+	// Convert JSON data for reinsertion
 	topicsJSON, err := json.Marshal(repo.Repository.Topics)
 	if err != nil {
 		return fmt.Errorf("failed to marshal topics: %w", err)
 	}
 
-	// Update repository metadata - preserve metrics fields
+	languagesJSON, err := json.Marshal(existingData.languages)
+	if err != nil {
+		return fmt.Errorf("failed to marshal languages: %w", err)
+	}
+
+	contributorsJSON, err := json.Marshal(existingData.contributors)
+	if err != nil {
+		return fmt.Errorf("failed to marshal contributors: %w", err)
+	}
+
+	// Step 2: INSERT with updated metadata but preserved metrics
 	var licenseName, licenseSPDXID string
 	if repo.Repository.License != nil {
 		licenseName = repo.Repository.License.Name
 		licenseSPDXID = repo.Repository.License.SPDXID
 	}
 
-	updateRepoSQL := `
-	UPDATE repositories SET
-		description = ?,
-		homepage = ?,
-		language = ?,
-		stargazers_count = ?,
-		forks_count = ?,
-		size_kb = ?,
-		created_at = ?,
-		updated_at = ?,
-		last_synced = ?,
-		topics_array = ?,
-		license_name = ?,
-		license_spdx_id = ?,
-		content_hash = ?
-	WHERE id = ?`
+	insertSQL := `
+		INSERT INTO repositories (
+			id, full_name, description, homepage, language, stargazers_count, forks_count, size_kb,
+			created_at, updated_at, last_synced,
+			open_issues_open, open_issues_total, open_prs_open, open_prs_total,
+			commits_30d, commits_1y, commits_total,
+			topics_array, languages, contributors,
+			license_name, license_spdx_id, content_hash
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	_, err = r.db.ExecContext(ctx, updateRepoSQL,
+	_, err = tx.ExecContext(ctx, insertSQL,
+		existingData.id,
+		repo.Repository.FullName,
 		repo.Repository.Description,
 		repo.Repository.Homepage,
 		repo.Repository.Language,
@@ -265,37 +321,44 @@ func (r *DuckDBRepository) UpdateRepository(
 		repo.Repository.CreatedAt,
 		repo.Repository.UpdatedAt,
 		repo.ProcessedAt,
+		existingData.openIssuesOpen,
+		existingData.openIssuesTotal,
+		existingData.openPRsOpen,
+		existingData.openPRsTotal,
+		existingData.commits30d,
+		existingData.commits1y,
+		existingData.commitsTotal,
 		string(topicsJSON),
+		string(languagesJSON),
+		string(contributorsJSON),
 		licenseName,
 		licenseSPDXID,
 		repo.ContentHash,
-		repoID,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to update repository: %w", err)
+		return fmt.Errorf("failed to insert updated repository: %w", err)
 	}
 
-	// Handle content chunks if provided
+	// Step 3: Handle content chunks if provided
 	if len(repo.Chunks) > 0 {
-		// Delete existing chunks
-		_, err = r.db.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", repoID)
+		// Delete existing chunks (no FK constraint, so this is safe)
+		_, err = tx.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", existingData.id)
 		if err != nil {
 			// Ignore error if table doesn't exist
 			if !strings.Contains(err.Error(), "does not exist") && !strings.Contains(err.Error(), "not found") {
 				return fmt.Errorf("failed to delete existing chunks: %w", err)
 			}
 		} else {
-			// Insert new chunks only if deletion succeeded
+			// Insert new chunks
 			insertChunkSQL := `
-			INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`
+				INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`
 
 			for _, chunk := range repo.Chunks {
 				chunkID := uuid.New().String()
-
-				_, err := r.db.ExecContext(ctx, insertChunkSQL,
+				_, err := tx.ExecContext(ctx, insertChunkSQL,
 					chunkID,
-					repoID,
+					existingData.id,
 					chunk.Source,
 					chunk.Type,
 					chunk.Content,
@@ -309,7 +372,7 @@ func (r *DuckDBRepository) UpdateRepository(
 		}
 	}
 
-	return nil
+	return tx.Commit()
 }
 
 // DeleteRepository removes a repository and its chunks from the database
@@ -804,7 +867,12 @@ func (r *DuckDBRepository) Clear(ctx context.Context) error {
 	return nil
 }
 
-// UpdateRepositoryMetrics updates activity and metrics data for a repository
+// UpdateRepositoryMetrics updates activity and metrics data for a repository.
+//
+// Note: This function uses a simple UPDATE statement without the DELETE+INSERT workaround
+// because it only updates scalar fields and JSON columns (not the entire row with JSON).
+// Concurrent updates to the same repository may conflict - this is expected behavior.
+// The last successful update wins (optimistic concurrency).
 func (r *DuckDBRepository) UpdateRepositoryMetrics(
 	ctx context.Context,
 	fullName string,

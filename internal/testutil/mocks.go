@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/kyleking/gh-star-search/internal/github"
+	"github.com/KyleKing/gh-star-search/internal/github"
 )
 
 // MockGitHubClient implements github.Client for testing with enhanced error injection

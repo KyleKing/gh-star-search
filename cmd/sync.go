@@ -13,11 +13,11 @@ import (
 	"github.com/briandowns/spinner"
 	"github.com/urfave/cli/v3"
 
-	"github.com/kyleking/gh-star-search/internal/cache"
-	"github.com/kyleking/gh-star-search/internal/config"
-	"github.com/kyleking/gh-star-search/internal/github"
-	"github.com/kyleking/gh-star-search/internal/processor"
-	"github.com/kyleking/gh-star-search/internal/storage"
+	"github.com/KyleKing/gh-star-search/internal/cache"
+	"github.com/KyleKing/gh-star-search/internal/config"
+	"github.com/KyleKing/gh-star-search/internal/github"
+	"github.com/KyleKing/gh-star-search/internal/processor"
+	"github.com/KyleKing/gh-star-search/internal/storage"
 )
 
 const (

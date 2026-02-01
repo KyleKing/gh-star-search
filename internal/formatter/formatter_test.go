@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kyleking/gh-star-search/internal/query"
-	"github.com/kyleking/gh-star-search/internal/storage"
+	"github.com/KyleKing/gh-star-search/internal/query"
+	"github.com/KyleKing/gh-star-search/internal/storage"
 )
 
 func TestFormatter_FormatResult(t *testing.T) {

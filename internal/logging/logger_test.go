@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kyleking/gh-star-search/internal/config"
+	"github.com/KyleKing/gh-star-search/internal/config"
 )
 
 func TestParseLogLevel(t *testing.T) {

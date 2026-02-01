@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kyleking/gh-star-search/internal/processor"
-	"github.com/kyleking/gh-star-search/internal/storage"
+	"github.com/KyleKing/gh-star-search/internal/processor"
+	"github.com/KyleKing/gh-star-search/internal/storage"
 )
 
 // MockRepository for testing query engine

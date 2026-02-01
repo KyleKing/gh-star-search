@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kyleking/gh-star-search/internal/storage"
+	"github.com/KyleKing/gh-star-search/internal/storage"
 )
 
 func TestSearchEngine_CalculateFuzzyScore(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kyleking/gh-star-search/internal/summarizer"
+	"github.com/KyleKing/gh-star-search/internal/summarizer"
 )
 
 // generateSummaries generates AI summaries for repositories that need them

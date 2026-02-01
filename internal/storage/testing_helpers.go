@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kyleking/gh-star-search/internal/processor"
+	"github.com/KyleKing/gh-star-search/internal/processor"
 )
 
 // NewTestDB creates a temporary test database with auto-cleanup.

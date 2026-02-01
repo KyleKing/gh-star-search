@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kyleking/gh-star-search/internal/processor"
-	"github.com/kyleking/gh-star-search/internal/storage"
+	"github.com/KyleKing/gh-star-search/internal/processor"
+	"github.com/KyleKing/gh-star-search/internal/storage"
 )
 
 // MockRepository implements storage.Repository for testing

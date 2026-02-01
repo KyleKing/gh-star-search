@@ -3,7 +3,7 @@
 
 class GhStarSearch < Formula
   desc "GH CLI extension to search your stars "
-  homepage "https://github.com/kyleking/gh-star-search"
+  homepage "https://github.com/KyleKing/gh-star-search"
   license "MIT"
   version "0.1.0"
 

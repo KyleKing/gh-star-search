@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kyleking/gh-star-search/internal/processor"
-	testutil "github.com/kyleking/gh-star-search/internal/testutil"
+	"github.com/KyleKing/gh-star-search/internal/processor"
+	testutil "github.com/KyleKing/gh-star-search/internal/testutil"
 )
 
 func TestStoreRepository_ConcurrentWrites(t *testing.T) {

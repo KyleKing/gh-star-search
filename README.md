@@ -19,7 +19,7 @@ Features:
 ## Installation
 
 ```bash
-gh extension install kyleking/gh-star-search
+gh extension install KyleKing/gh-star-search
 ```
 
 ## Usage

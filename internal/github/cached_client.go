@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kyleking/gh-star-search/internal/cache"
-	"github.com/kyleking/gh-star-search/internal/config"
-	"github.com/kyleking/gh-star-search/internal/errors"
+	"github.com/KyleKing/gh-star-search/internal/cache"
+	"github.com/KyleKing/gh-star-search/internal/config"
+	"github.com/KyleKing/gh-star-search/internal/errors"
 )
 
 // CachedClient wraps a GitHub client with caching capabilities

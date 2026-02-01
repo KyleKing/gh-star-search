@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kyleking/gh-star-search/internal/query"
-	"github.com/kyleking/gh-star-search/internal/storage"
+	"github.com/KyleKing/gh-star-search/internal/query"
+	"github.com/KyleKing/gh-star-search/internal/storage"
 )
 
 // OutputFormat represents the output format type

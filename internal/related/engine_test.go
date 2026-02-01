@@ -3,7 +3,7 @@ package related
 import (
 	"testing"
 
-	"github.com/kyleking/gh-star-search/internal/storage"
+	"github.com/KyleKing/gh-star-search/internal/storage"
 )
 
 func TestEngineImpl_CalculateSameOrgScore(t *testing.T) {

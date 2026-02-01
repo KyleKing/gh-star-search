@@ -131,7 +131,7 @@ statements = 100
 ignore-comments = true
 
 [formatters.settings.gci]
-sections = ["standard", "default", "prefix(github.com/kyleking/gh-star-search)"]
+sections = ["standard", "default", "prefix(github.com/KyleKing/gh-star-search)"]
 
 [linters.settings.gocognit]
 min-complexity = 30
@@ -157,7 +157,7 @@ extra-rules = true
 lang-version = "1.23"
 
 [formatters.settings.goimports]
-local-prefixes = "github.com/kyleking/gh-star-search"
+local-prefixes = "github.com/KyleKing/gh-star-search"
 
 [linters.settings.gomodguard]
 blocked.modules = []
