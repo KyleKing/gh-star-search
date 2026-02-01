@@ -16,14 +16,33 @@ import (
 	_ "github.com/marcboeker/go-duckdb" // DuckDB driver
 )
 
+const (
+	// DefaultQueryTimeout is the default timeout for database queries
+	DefaultQueryTimeout = 30 * time.Second
+	// DefaultMaxOpenConns is the default maximum number of open connections
+	DefaultMaxOpenConns = 10
+	// DefaultMaxIdleConns is the default maximum number of idle connections
+	DefaultMaxIdleConns = 5
+	// DefaultConnMaxLifetime is the default maximum lifetime of a connection
+	DefaultConnMaxLifetime = 30 * time.Minute
+	// DefaultConnMaxIdleTime is the default maximum idle time for a connection
+	DefaultConnMaxIdleTime = 5 * time.Minute
+)
+
 // DuckDBRepository implements the Repository interface using DuckDB
 type DuckDBRepository struct {
-	db   *sql.DB
-	path string
+	db           *sql.DB
+	path         string
+	queryTimeout time.Duration
 }
 
 // NewDuckDBRepository creates a new DuckDB repository instance with connection pooling
 func NewDuckDBRepository(dbPath string) (*DuckDBRepository, error) {
+	return NewDuckDBRepositoryWithTimeout(dbPath, DefaultQueryTimeout)
+}
+
+// NewDuckDBRepositoryWithTimeout creates a new DuckDB repository instance with custom timeout
+func NewDuckDBRepositoryWithTimeout(dbPath string, queryTimeout time.Duration) (*DuckDBRepository, error) {
 	// Ensure the directory exists
 	dir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -36,22 +55,32 @@ func NewDuckDBRepository(dbPath string) (*DuckDBRepository, error) {
 	}
 
 	// Configure connection pool for optimal performance
-	db.SetMaxOpenConns(10)                  // Maximum number of open connections
-	db.SetMaxIdleConns(5)                   // Maximum number of idle connections
-	db.SetConnMaxLifetime(30 * time.Minute) // Maximum lifetime of a connection
-	db.SetConnMaxIdleTime(5 * time.Minute)  // Maximum idle time for a connection
+	db.SetMaxOpenConns(DefaultMaxOpenConns)
+	db.SetMaxIdleConns(DefaultMaxIdleConns)
+	db.SetConnMaxLifetime(DefaultConnMaxLifetime)
+	db.SetConnMaxIdleTime(DefaultConnMaxIdleTime)
 
-	// Test the connection
-	if err := db.Ping(); err != nil {
+	// Test the connection with a timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := db.PingContext(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	repo := &DuckDBRepository{
-		db:   db,
-		path: dbPath,
+		db:           db,
+		path:         dbPath,
+		queryTimeout: queryTimeout,
 	}
 
 	return repo, nil
+}
+
+// withQueryTimeout creates a new context with the configured query timeout
+// If the parent context already has a deadline, it keeps the earlier deadline
+func (r *DuckDBRepository) withQueryTimeout(parent context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(parent, r.queryTimeout)
 }
 
 // Initialize creates the database schema
@@ -425,11 +454,15 @@ func (r *DuckDBRepository) getRepositoryChunks(
 	return chunks, rows.Err()
 }
 
-// ListRepositories retrieves a paginated list of repositories
+// ListRepositories retrieves a paginated list of repositories with a timeout
 func (r *DuckDBRepository) ListRepositories(
 	ctx context.Context,
 	limit, offset int,
 ) ([]StoredRepo, error) {
+	// Apply query timeout to prevent long-running queries
+	queryCtx, cancel := r.withQueryTimeout(ctx)
+	defer cancel()
+
 	query := `
 	SELECT id, full_name, description,
 		   COALESCE(homepage, '') as homepage,
@@ -451,7 +484,7 @@ func (r *DuckDBRepository) ListRepositories(
 	ORDER BY stargazers_count DESC, full_name
 	LIMIT ? OFFSET ?`
 
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	rows, err := r.db.QueryContext(queryCtx, query, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query repositories: %w", err)
 	}
@@ -514,73 +547,37 @@ func (r *DuckDBRepository) ListRepositories(
 	return repos, rows.Err()
 }
 
-// SearchRepositories executes a SQL query or performs text search across repositories
+// SearchRepositories performs text search across repositories.
+// This method does NOT support SQL queries for security reasons.
+// All searches are performed using parameterized queries to prevent SQL injection.
 func (r *DuckDBRepository) SearchRepositories(
 	ctx context.Context,
 	query string,
 ) ([]SearchResult, error) {
-	// Check if the query looks like SQL (starts with SELECT)
+	// Validate that the query is not a SQL statement
+	// This is a defense-in-depth measure to prevent SQL injection
 	trimmedQuery := strings.TrimSpace(strings.ToUpper(query))
+	sqlKeywords := []string{"SELECT", "INSERT", "UPDATE", "DELETE", "DROP", "CREATE", "ALTER", "TRUNCATE"}
 
-	if strings.HasPrefix(trimmedQuery, "SELECT") {
-		return r.executeCustomSQL(ctx, query)
+	for _, keyword := range sqlKeywords {
+		if strings.HasPrefix(trimmedQuery, keyword) {
+			return nil, fmt.Errorf("SQL queries are not supported for security reasons. Please use simple search terms instead")
+		}
 	}
 
-	// Fall back to simple text search
+	// Perform text search using parameterized queries
 	return r.executeTextSearch(ctx, query)
 }
 
-// executeCustomSQL executes a custom SQL query
-func (r *DuckDBRepository) executeCustomSQL(
-	ctx context.Context,
-	sqlQuery string,
-) ([]SearchResult, error) {
-	rows, err := r.db.QueryContext(ctx, sqlQuery)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute SQL query: %w", err)
-	}
-	defer rows.Close()
-
-	// Get column information
-	columns, err := rows.Columns()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get columns: %w", err)
-	}
-
-	var results []SearchResult
-
-	for rows.Next() {
-		// Create a slice to hold the values
-		values := make([]interface{}, len(columns))
-		valuePtrs := make([]interface{}, len(columns))
-
-		for i := range values {
-			valuePtrs[i] = &values[i]
-		}
-
-		if err := rows.Scan(valuePtrs...); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
-		}
-
-		// Try to map the results to a repository structure
-		repo, score, matches := r.mapRowToRepository(columns, values)
-		if repo != nil {
-			results = append(results, SearchResult{
-				Repository: *repo,
-				Score:      score,
-				Matches:    matches,
-			})
-		}
-	}
-
-	return results, rows.Err()
-}
-
-// executeTextSearch performs simple text search
+// executeTextSearch performs simple text search with a timeout
 func (r *DuckDBRepository) executeTextSearch(
 	ctx context.Context,
 	query string,
 ) ([]SearchResult, error) {
+	// Apply query timeout to prevent long-running queries
+	queryCtx, cancel := r.withQueryTimeout(ctx)
+	defer cancel()
+
 	searchQuery := `
 	SELECT r.id, r.full_name, r.description, r.language, r.stargazers_count, r.forks_count, r.size_kb,
 		   r.created_at, r.updated_at, r.last_synced, r.topics_array, r.license_name, r.license_spdx_id,
@@ -599,7 +596,7 @@ func (r *DuckDBRepository) executeTextSearch(
 	searchTerm := "%" + query + "%"
 
 	rows, err := r.db.QueryContext(
-		ctx,
+		queryCtx,
 		searchQuery,
 		searchTerm,
 		searchTerm,
@@ -650,79 +647,6 @@ func (r *DuckDBRepository) executeTextSearch(
 	}
 
 	return results, rows.Err()
-}
-
-// mapRowToRepository attempts to map query results to a repository structure
-func (r *DuckDBRepository) mapRowToRepository(
-	columns []string,
-	values []interface{},
-) (*StoredRepo, float64, []Match) {
-	repo := &StoredRepo{}
-
-	var score = 1.0
-
-	var matches []Match
-
-	// Create a map for easier lookup
-	columnMap := make(map[string]interface{})
-	for i, col := range columns {
-		columnMap[strings.ToLower(col)] = values[i]
-	}
-
-	// Map common fields
-	if val, ok := columnMap["id"]; ok && val != nil {
-		if s, ok := val.(string); ok {
-			repo.ID = s
-		}
-	}
-
-	if val, ok := columnMap["full_name"]; ok && val != nil {
-		if s, ok := val.(string); ok {
-			repo.FullName = s
-		}
-	}
-
-	if val, ok := columnMap["description"]; ok && val != nil {
-		if s, ok := val.(string); ok {
-			repo.Description = s
-		}
-	}
-
-	if val, ok := columnMap["language"]; ok && val != nil {
-		if s, ok := val.(string); ok {
-			repo.Language = s
-		}
-	}
-
-	if val, ok := columnMap["stargazers_count"]; ok && val != nil {
-		if i, ok := val.(int64); ok {
-			repo.StargazersCount = int(i)
-		}
-	}
-
-	if val, ok := columnMap["forks_count"]; ok && val != nil {
-		if i, ok := val.(int64); ok {
-			repo.ForksCount = int(i)
-		}
-	}
-
-	// Handle score if present
-	if val, ok := columnMap["score"]; ok && val != nil {
-		if f, ok := val.(float64); ok {
-			score = f
-		}
-	}
-
-	// Create basic matches
-	if repo.FullName != "" {
-		matches = append(matches, Match{
-			Field:   "full_name",
-			Content: repo.FullName,
-			Score:   score,
-		})
-	}
-
-	return repo, score, matches
 }
 
 // findMatches identifies which fields matched the search query
