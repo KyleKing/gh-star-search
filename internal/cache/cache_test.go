@@ -11,7 +11,7 @@ func TestFileCache_BasicOperations(t *testing.T) {
 	// Create temporary directory for testing
 	tempDir := t.TempDir()
 
-	cache, err := NewFileCache(tempDir, 10, time.Hour, time.Minute)
+	cache, err := NewFileCache(tempDir, 10, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to create cache: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestFileCache_BasicOperations(t *testing.T) {
 func TestFileCache_TTL(t *testing.T) {
 	tempDir := t.TempDir()
 
-	cache, err := NewFileCache(tempDir, 10, time.Hour, time.Minute)
+	cache, err := NewFileCache(tempDir, 10, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to create cache: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestFileCache_SizeLimit(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create cache with very small size limit (1MB)
-	cache, err := NewFileCache(tempDir, 1, time.Hour, time.Minute)
+	cache, err := NewFileCache(tempDir, 1, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to create cache: %v", err)
 	}
@@ -140,7 +140,7 @@ func TestFileCache_SizeLimit(t *testing.T) {
 func TestFileCache_Stats(t *testing.T) {
 	tempDir := t.TempDir()
 
-	cache, err := NewFileCache(tempDir, 10, time.Hour, time.Minute)
+	cache, err := NewFileCache(tempDir, 10, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to create cache: %v", err)
 	}
@@ -206,7 +206,7 @@ func TestFileCache_Stats(t *testing.T) {
 func TestFileCache_Cleanup(t *testing.T) {
 	tempDir := t.TempDir()
 
-	cache, err := NewFileCache(tempDir, 10, time.Hour, 100*time.Millisecond)
+	cache, err := NewFileCache(tempDir, 10, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to create cache: %v", err)
 	}
@@ -263,7 +263,7 @@ func TestFileCache_Cleanup(t *testing.T) {
 func BenchmarkFileCache_Set(b *testing.B) {
 	tempDir := b.TempDir()
 
-	cache, err := NewFileCache(tempDir, 100, time.Hour, time.Minute)
+	cache, err := NewFileCache(tempDir, 100, time.Hour)
 	if err != nil {
 		b.Fatalf("Failed to create cache: %v", err)
 	}
@@ -287,7 +287,7 @@ func BenchmarkFileCache_Set(b *testing.B) {
 func BenchmarkFileCache_Get(b *testing.B) {
 	tempDir := b.TempDir()
 
-	cache, err := NewFileCache(tempDir, 100, time.Hour, time.Minute)
+	cache, err := NewFileCache(tempDir, 100, time.Hour)
 	if err != nil {
 		b.Fatalf("Failed to create cache: %v", err)
 	}

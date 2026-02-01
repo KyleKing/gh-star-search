@@ -42,12 +42,12 @@ func (s *SyncService) generateEmbeddings(ctx context.Context, _ bool) error {
 		Options:    make(map[string]string),
 	}
 
-	embManager, err := embedding.NewManager(embConfig)
+	embProvider, err := embedding.NewProvider(embConfig)
 	if err != nil {
-		return fmt.Errorf("failed to initialize embedding manager: %w", err)
+		return fmt.Errorf("failed to initialize embedding provider: %w", err)
 	}
 
-	if !embManager.IsEnabled() {
+	if !embProvider.IsEnabled() {
 		return fmt.Errorf("embedding provider is not enabled")
 	}
 
@@ -71,7 +71,7 @@ func (s *SyncService) generateEmbeddings(ctx context.Context, _ bool) error {
 		text := buildEmbeddingInput(repo.FullName, repo.Description, repo.Purpose, repo.Topics)
 
 		// Generate embedding
-		embVec, err := embManager.GenerateEmbedding(ctx, text)
+		embVec, err := embProvider.GenerateEmbedding(ctx, text)
 		if err != nil {
 			fmt.Printf("❌ Failed to generate embedding: %v\n", err)
 			failed++

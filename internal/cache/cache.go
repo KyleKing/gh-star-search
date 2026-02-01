@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -48,24 +49,20 @@ type Stats struct {
 
 // FileCache implements the Cache interface using the filesystem
 type FileCache struct {
-	directory   string
-	maxSizeMB   int64
-	defaultTTL  time.Duration
-	cleanupFreq time.Duration
-	mu          sync.RWMutex
-	hits        atomic.Int64
-	misses      atomic.Int64
-	stopCleanup chan struct{}
-	cleanupOnce sync.Once
+	directory  string
+	maxSizeMB  int64
+	defaultTTL time.Duration
+	mu         sync.RWMutex
+	hits       atomic.Int64
+	misses     atomic.Int64
 }
 
 // NewFileCache creates a new file-based cache
 func NewFileCache(
 	directory string,
 	maxSizeMB int,
-	defaultTTL, cleanupFreq time.Duration,
+	defaultTTL time.Duration,
 ) (*FileCache, error) {
-	// Expand path if it starts with ~
 	if strings.HasPrefix(directory, "~/") {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -75,21 +72,17 @@ func NewFileCache(
 		directory = filepath.Join(home, directory[2:])
 	}
 
-	// Create directory if it doesn't exist
 	if err := os.MkdirAll(directory, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
 	cache := &FileCache{
-		directory:   directory,
-		maxSizeMB:   int64(maxSizeMB) * 1024 * 1024, // Convert MB to bytes
-		defaultTTL:  defaultTTL,
-		cleanupFreq: cleanupFreq,
-		stopCleanup: make(chan struct{}),
+		directory:  directory,
+		maxSizeMB:  int64(maxSizeMB) * 1024 * 1024,
+		defaultTTL: defaultTTL,
 	}
 
-	// Start background cleanup goroutine
-	go cache.backgroundCleanup()
+	_ = cache.Cleanup(context.Background())
 
 	return cache, nil
 }
@@ -358,12 +351,8 @@ func (c *FileCache) GetStats(ctx context.Context) (*Stats, error) {
 	return &stats, nil
 }
 
-// Close stops the background cleanup goroutine
+// Close is a no-op retained for interface compatibility
 func (c *FileCache) Close() error {
-	c.cleanupOnce.Do(func() {
-		close(c.stopCleanup)
-	})
-
 	return nil
 }
 
@@ -437,14 +426,9 @@ func (c *FileCache) enforceSize(newEntrySize int64) error {
 		}
 	}
 
-	// Sort by modification time (oldest first)
-	for i := range len(entryInfos) - 1 {
-		for j := i + 1; j < len(entryInfos); j++ {
-			if entryInfos[i].modTime.After(entryInfos[j].modTime) {
-				entryInfos[i], entryInfos[j] = entryInfos[j], entryInfos[i]
-			}
-		}
-	}
+	sort.Slice(entryInfos, func(i, j int) bool {
+		return entryInfos[i].modTime.Before(entryInfos[j].modTime)
+	})
 
 	// Remove entries until we have enough space
 	spaceNeeded := (currentSize + newEntrySize) - c.maxSizeMB
@@ -493,17 +477,3 @@ func (c *FileCache) calculateSize() (int64, error) {
 	return totalSize, err
 }
 
-// backgroundCleanup runs periodic cleanup of expired entries
-func (c *FileCache) backgroundCleanup() {
-	ticker := time.NewTicker(c.cleanupFreq)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			_ = c.Cleanup(context.Background())
-		case <-c.stopCleanup:
-			return
-		}
-	}
-}

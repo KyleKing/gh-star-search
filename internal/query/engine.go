@@ -3,10 +3,10 @@ package query
 import (
 	"context"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
-	"github.com/KyleKing/gh-star-search/internal/embedding"
 	"github.com/KyleKing/gh-star-search/internal/storage"
 )
 
@@ -124,127 +124,15 @@ func (e *SearchEngine) searchFuzzy(
 	return results, nil
 }
 
-// searchVector performs vector similarity search using cosine similarity
+// searchVector falls back to fuzzy search until embeddings are fully implemented
 func (e *SearchEngine) searchVector(
 	ctx context.Context,
 	query string,
 	opts SearchOptions,
 ) ([]Result, error) {
-	// Import embedding package at the top of file
-	embConfig := embedding.Config{
-		Provider:   "local",
-		Model:      "sentence-transformers/all-MiniLM-L6-v2",
-		Dimensions: 384,
-		Enabled:    true,
-		Options:    make(map[string]string),
-	}
-
-	embManager, err := embedding.NewManager(embConfig)
-	if err != nil || !embManager.IsEnabled() {
-		// Fall back to fuzzy search if embeddings not available
-		return e.searchFuzzy(ctx, query, opts)
-	}
-
-	// Generate embedding for query
-	queryEmbedding, err := embManager.GenerateEmbedding(ctx, query)
-	if err != nil {
-		// Fall back to fuzzy search on error
-		return e.searchFuzzy(ctx, query, opts)
-	}
-
-	// Get all repositories (we'll need to filter those with embeddings)
-	// For efficiency, we should limit this, but for now get a reasonable subset
-	allRepos, err := e.repo.ListRepositories(ctx, 1000, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	var results []Result
-
-	// Calculate cosine similarity for each repository with an embedding
-	for _, repo := range allRepos {
-		// Skip repositories without embeddings
-		// Note: This requires parsing the repo_embedding JSON field
-		// For now, we'll compute similarity for all repos
-		// TODO: Add proper embedding retrieval from storage
-
-		// Build embedding text from repo metadata
-		repoText := buildRepoEmbeddingText(repo)
-
-		// Generate embedding for this repo (in production, this would be cached)
-		repoEmbedding, err := embManager.GenerateEmbedding(ctx, repoText)
-		if err != nil {
-			continue // Skip repos that fail to embed
-		}
-
-		// Calculate cosine similarity
-		similarity := cosineSimilarity(queryEmbedding, repoEmbedding)
-
-		// Skip results below minimum score
-		if similarity < opts.MinScore {
-			continue
-		}
-
-		results = append(results, Result{
-			RepoID:      repo.ID,
-			Score:       similarity,
-			Repository:  repo,
-			MatchFields: []string{"embedding"}, // Special marker for vector match
-		})
-	}
-
-	// Sort by similarity score (descending) and assign ranks
-	results = sortAndRankResults(results)
-
-	// Apply limit
-	if opts.Limit > 0 && len(results) > opts.Limit {
-		results = results[:opts.Limit]
-	}
-
-	return results, nil
+	return e.searchFuzzy(ctx, query, opts)
 }
 
-// cosineSimilarity computes the cosine similarity between two vectors
-func cosineSimilarity(a, b []float32) float64 {
-	if len(a) != len(b) {
-		return 0.0
-	}
-
-	var dotProduct, normA, normB float64
-
-	for i := range a {
-		dotProduct += float64(a[i]) * float64(b[i])
-		normA += float64(a[i]) * float64(a[i])
-		normB += float64(b[i]) * float64(b[i])
-	}
-
-	if normA == 0 || normB == 0 {
-		return 0.0
-	}
-
-	return dotProduct / (math.Sqrt(normA) * math.Sqrt(normB))
-}
-
-// buildRepoEmbeddingText builds text for embedding from repository
-func buildRepoEmbeddingText(repo storage.StoredRepo) string {
-	var parts []string
-
-	parts = append(parts, repo.FullName)
-
-	if repo.Purpose != "" {
-		parts = append(parts, repo.Purpose)
-	}
-
-	if repo.Description != "" {
-		parts = append(parts, repo.Description)
-	}
-
-	if len(repo.Topics) > 0 {
-		parts = append(parts, strings.Join(repo.Topics, " "))
-	}
-
-	return strings.Join(parts, ". ")
-}
 
 // calculateFuzzyScore computes a BM25-like relevance score
 func (e *SearchEngine) calculateFuzzyScore(repo storage.StoredRepo, queryTerms []string) float64 {
@@ -400,18 +288,13 @@ func tokenizeQuery(query string) []string {
 
 // sortAndRankResults sorts results by score and assigns ranks
 func sortAndRankResults(results []Result) []Result {
-	// Sort by score descending, then by stars descending as tiebreaker
-	for i := range len(results) - 1 {
-		for j := i + 1; j < len(results); j++ {
-			if results[i].Score < results[j].Score ||
-				(results[i].Score == results[j].Score &&
-					results[i].Repository.StargazersCount < results[j].Repository.StargazersCount) {
-				results[i], results[j] = results[j], results[i]
-			}
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Score != results[j].Score {
+			return results[i].Score > results[j].Score
 		}
-	}
+		return results[i].Repository.StargazersCount > results[j].Repository.StargazersCount
+	})
 
-	// Assign ranks
 	for i := range results {
 		results[i].Rank = i + 1
 	}

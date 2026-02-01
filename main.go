@@ -180,31 +180,15 @@ var debugMode bool
 func printStructuredError(err *gherrors.Error) {
 	fmt.Fprintf(os.Stderr, "Error: %s\n", err.Message)
 
-	if err.Code != "" {
-		fmt.Fprintf(os.Stderr, "Code: %s\n", err.Code)
-	}
-
-	if len(err.Context) > 0 {
-		fmt.Fprintf(os.Stderr, "Context:\n")
-
-		for k, v := range err.Context {
-			fmt.Fprintf(os.Stderr, "  %s: %v\n", k, v)
-		}
-	}
-
 	if len(err.Suggestions) > 0 {
 		fmt.Fprintf(os.Stderr, "\nSuggestions:\n")
 
 		for _, suggestion := range err.Suggestions {
-			fmt.Fprintf(os.Stderr, "  • %s\n", suggestion)
+			fmt.Fprintf(os.Stderr, "  - %s\n", suggestion)
 		}
 	}
 
 	if err.Cause != nil && debugMode {
 		fmt.Fprintf(os.Stderr, "\nUnderlying error: %v\n", err.Cause)
-	}
-
-	if err.Stack != "" && debugMode {
-		fmt.Fprintf(os.Stderr, "\nStack trace:\n%s\n", err.Stack)
 	}
 }

@@ -38,7 +38,6 @@ func RunConfigWithConfig(cfg *config.Config) error {
 	// Database configuration
 	fmt.Println("\nDatabase:")
 	fmt.Printf("  Path: %s\n", cfg.Database.Path)
-	fmt.Printf("  Max Connections: %d\n", cfg.Database.MaxConnections)
 	fmt.Printf("  Query Timeout: %s\n", cfg.Database.QueryTimeout)
 
 	// Cache configuration
@@ -46,7 +45,6 @@ func RunConfigWithConfig(cfg *config.Config) error {
 	fmt.Printf("  Directory: %s\n", cfg.Cache.Directory)
 	fmt.Printf("  Max Size: %d MB\n", cfg.Cache.MaxSizeMB)
 	fmt.Printf("  TTL: %d hours\n", cfg.Cache.TTLHours)
-	fmt.Printf("  Cleanup Frequency: %s\n", cfg.Cache.CleanupFreq)
 	fmt.Printf("  Metadata Stale: %d days\n", cfg.Cache.MetadataStaleDays)
 	fmt.Printf("  Stats Stale: %d days\n", cfg.Cache.StatsStaleDays)
 
@@ -58,9 +56,6 @@ func RunConfigWithConfig(cfg *config.Config) error {
 
 	if cfg.Logging.Output == "file" {
 		fmt.Printf("  File: %s\n", cfg.Logging.File)
-		fmt.Printf("  Max Size: %d MB\n", cfg.Logging.MaxSizeMB)
-		fmt.Printf("  Max Backups: %d\n", cfg.Logging.MaxBackups)
-		fmt.Printf("  Max Age: %d days\n", cfg.Logging.MaxAgeDays)
 	}
 
 	fmt.Printf("  Add Source: %t\n", cfg.Logging.AddSource)
@@ -68,12 +63,6 @@ func RunConfigWithConfig(cfg *config.Config) error {
 	// Debug configuration
 	fmt.Println("\nDebug:")
 	fmt.Printf("  Enabled: %t\n", cfg.Debug.Enabled)
-
-	if cfg.Debug.Enabled {
-		fmt.Printf("  Profile Port: %d\n", cfg.Debug.ProfilePort)
-		fmt.Printf("  Metrics Port: %d\n", cfg.Debug.MetricsPort)
-	}
-
 	fmt.Printf("  Verbose: %t\n", cfg.Debug.Verbose)
 	fmt.Printf("  Trace API: %t\n", cfg.Debug.TraceAPI)
 

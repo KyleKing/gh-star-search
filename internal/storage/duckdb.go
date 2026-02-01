@@ -20,14 +20,6 @@ import (
 const (
 	// DefaultQueryTimeout is the default timeout for database queries
 	DefaultQueryTimeout = 30 * time.Second
-	// DefaultMaxOpenConns is the default maximum number of open connections
-	DefaultMaxOpenConns = 10
-	// DefaultMaxIdleConns is the default maximum number of idle connections
-	DefaultMaxIdleConns = 5
-	// DefaultConnMaxLifetime is the default maximum lifetime of a connection
-	DefaultConnMaxLifetime = 30 * time.Minute
-	// DefaultConnMaxIdleTime is the default maximum idle time for a connection
-	DefaultConnMaxIdleTime = 5 * time.Minute
 )
 
 // DuckDBRepository implements the Repository interface using DuckDB
@@ -57,12 +49,6 @@ func NewDuckDBRepositoryWithTimeout(
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-
-	// Configure connection pool for optimal performance
-	db.SetMaxOpenConns(DefaultMaxOpenConns)
-	db.SetMaxIdleConns(DefaultMaxIdleConns)
-	db.SetConnMaxLifetime(DefaultConnMaxLifetime)
-	db.SetConnMaxIdleTime(DefaultConnMaxIdleTime)
 
 	// Test the connection with a timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -277,15 +278,12 @@ func (f *Formatter) formatLanguages(languages map[string]int64) string {
 		entries = append(entries, langEntry{name: lang, bytes: bytes})
 	}
 
-	// Sort by bytes descending, then by name for deterministic output
-	for i := range len(entries) - 1 {
-		for j := i + 1; j < len(entries); j++ {
-			if entries[i].bytes < entries[j].bytes ||
-				(entries[i].bytes == entries[j].bytes && entries[i].name > entries[j].name) {
-				entries[i], entries[j] = entries[j], entries[i]
-			}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].bytes != entries[j].bytes {
+			return entries[i].bytes > entries[j].bytes
 		}
-	}
+		return entries[i].name < entries[j].name
+	})
 
 	// Convert bytes to approximate lines of code (60 bytes per line average)
 	parts := make([]string, 0, len(entries))

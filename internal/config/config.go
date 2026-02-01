@@ -23,12 +23,8 @@ type Config struct {
 
 // DatabaseConfig represents database configuration
 type DatabaseConfig struct {
-	Path            string `json:"path"               env:"DB_PATH"               envDefault:"~/.config/gh-star-search/database.db"`
-	MaxConnections  int    `json:"max_connections"    env:"DB_MAX_CONNECTIONS"    envDefault:"10"`
-	MaxIdleConns    int    `json:"max_idle_conns"     env:"DB_MAX_IDLE_CONNS"     envDefault:"5"`
-	ConnMaxLifetime string `json:"conn_max_lifetime"  env:"DB_CONN_MAX_LIFETIME"  envDefault:"30m"`
-	ConnMaxIdleTime string `json:"conn_max_idle_time" env:"DB_CONN_MAX_IDLE_TIME" envDefault:"5m"`
-	QueryTimeout    string `json:"query_timeout"      env:"DB_QUERY_TIMEOUT"      envDefault:"30s"`
+	Path         string `json:"path"          env:"DB_PATH"          envDefault:"~/.config/gh-star-search/database.db"`
+	QueryTimeout string `json:"query_timeout" env:"DB_QUERY_TIMEOUT" envDefault:"30s"`
 }
 
 // CacheConfig represents caching configuration
@@ -36,30 +32,24 @@ type CacheConfig struct {
 	Directory         string `json:"directory"           env:"CACHE_DIR"                 envDefault:"~/.cache/gh-star-search"`
 	MaxSizeMB         int    `json:"max_size_mb"         env:"CACHE_MAX_SIZE_MB"         envDefault:"500"`
 	TTLHours          int    `json:"ttl_hours"           env:"CACHE_TTL_HOURS"           envDefault:"24"`
-	CleanupFreq       string `json:"cleanup_frequency"   env:"CACHE_CLEANUP_FREQ"        envDefault:"1h"`
 	MetadataStaleDays int    `json:"metadata_stale_days" env:"CACHE_METADATA_STALE_DAYS" envDefault:"14"`
 	StatsStaleDays    int    `json:"stats_stale_days"    env:"CACHE_STATS_STALE_DAYS"    envDefault:"7"`
 }
 
 // LoggingConfig represents logging configuration
 type LoggingConfig struct {
-	Level      string `json:"level"        env:"LOG_LEVEL"        envDefault:"info"`                                  // debug, info, warn, error
-	Format     string `json:"format"       env:"LOG_FORMAT"       envDefault:"text"`                                  // text, json
-	Output     string `json:"output"       env:"LOG_OUTPUT"       envDefault:"stdout"`                                // stdout, stderr, file
-	File       string `json:"file"         env:"LOG_FILE"         envDefault:"~/.config/gh-star-search/logs/app.log"` // log file path when output is file
-	MaxSizeMB  int    `json:"max_size_mb"  env:"LOG_MAX_SIZE_MB"  envDefault:"10"`                                    // max log file size
-	MaxBackups int    `json:"max_backups"  env:"LOG_MAX_BACKUPS"  envDefault:"5"`                                     // max number of backup files
-	MaxAgeDays int    `json:"max_age_days" env:"LOG_MAX_AGE_DAYS" envDefault:"30"`                                    // max age of log files
-	AddSource  bool   `json:"add_source"   env:"LOG_ADD_SOURCE"   envDefault:"false"`                                 // add source file and line info to logs
+	Level     string `json:"level"      env:"LOG_LEVEL"      envDefault:"info"`
+	Format    string `json:"format"     env:"LOG_FORMAT"     envDefault:"text"`
+	Output    string `json:"output"     env:"LOG_OUTPUT"     envDefault:"stdout"`
+	File      string `json:"file"       env:"LOG_FILE"       envDefault:"~/.config/gh-star-search/logs/app.log"`
+	AddSource bool   `json:"add_source" env:"LOG_ADD_SOURCE" envDefault:"false"`
 }
 
 // DebugConfig represents debug configuration
 type DebugConfig struct {
-	Enabled     bool `json:"enabled"      env:"DEBUG"              envDefault:"false"`
-	ProfilePort int  `json:"profile_port" env:"DEBUG_PROFILE_PORT" envDefault:"6060"`
-	MetricsPort int  `json:"metrics_port" env:"DEBUG_METRICS_PORT" envDefault:"8080"`
-	Verbose     bool `json:"verbose"      env:"VERBOSE"            envDefault:"false"`
-	TraceAPI    bool `json:"trace_api"    env:"DEBUG_TRACE_API"    envDefault:"false"`
+	Enabled  bool `json:"enabled"   env:"DEBUG"           envDefault:"false"`
+	Verbose  bool `json:"verbose"   env:"VERBOSE"         envDefault:"false"`
+	TraceAPI bool `json:"trace_api" env:"DEBUG_TRACE_API" envDefault:"false"`
 }
 
 // TestConfig represents test-specific configuration
@@ -210,18 +200,6 @@ func validateConfig(config *Config) error {
 	// Validate timeout durations
 	if _, err := time.ParseDuration(config.Database.QueryTimeout); err != nil {
 		return fmt.Errorf("invalid database query timeout: %s", config.Database.QueryTimeout)
-	}
-
-	if _, err := time.ParseDuration(config.Cache.CleanupFreq); err != nil {
-		return fmt.Errorf("invalid cache cleanup frequency: %s", config.Cache.CleanupFreq)
-	}
-
-	// Validate numeric values
-	if config.Database.MaxConnections <= 0 {
-		return fmt.Errorf(
-			"database max connections must be positive: %d",
-			config.Database.MaxConnections,
-		)
 	}
 
 	return nil

@@ -248,7 +248,6 @@ func initializeSyncService(cfg *config.Config, verbose bool) (*SyncService, erro
 			cfg.Cache.Directory,
 			cfg.Cache.MaxSizeMB,
 			time.Duration(cfg.Cache.TTLHours)*time.Hour,
-			1*time.Hour, // Cleanup frequency
 		)
 		if err != nil {
 			fmt.Printf("Warning: Failed to initialize cache: %v\n", err)

@@ -46,7 +46,6 @@ func TestLoadConfigFromFile(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "/custom/path/db.db", config.Database.Path)
-	assert.Equal(t, 20, config.Database.MaxConnections)
 	assert.Equal(t, "60s", config.Database.QueryTimeout)
 	assert.Equal(t, "debug", config.Logging.Level)
 	assert.Equal(t, "json", config.Logging.Format)
@@ -139,22 +138,6 @@ func TestValidateConfig(t *testing.T) {
 			errorContains: "invalid database query timeout",
 		},
 
-		{
-			name: "invalid cache cleanup frequency",
-			modifyConfig: func(c *Config) {
-				c.Cache.CleanupFreq = "invalid"
-			},
-			expectError:   true,
-			errorContains: "invalid cache cleanup frequency",
-		},
-		{
-			name: "invalid max connections",
-			modifyConfig: func(c *Config) {
-				c.Database.MaxConnections = -1
-			},
-			expectError:   true,
-			errorContains: "database max connections must be positive",
-		},
 	}
 
 	for _, tt := range tests {
@@ -302,8 +285,7 @@ func TestMergeConfigs(t *testing.T) {
 
 	source := &Config{
 		Database: DatabaseConfig{
-			Path:           "/new/path",
-			MaxConnections: 25,
+			Path: "/new/path",
 		},
 		Logging: LoggingConfig{
 			Level: "debug",
@@ -313,7 +295,6 @@ func TestMergeConfigs(t *testing.T) {
 	mergeConfigs(target, source)
 
 	assert.Equal(t, "/new/path", target.Database.Path)
-	assert.Equal(t, 25, target.Database.MaxConnections)
 	assert.Equal(t, "debug", target.Logging.Level)
 	// Other values should remain from target
 	assert.Equal(t, "30s", target.Database.QueryTimeout)
