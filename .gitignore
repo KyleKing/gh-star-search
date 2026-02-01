@@ -1,66 +1,56 @@
-# Created by https://www.toptal.com/developers/gitignore/api/macos,go
-# Edit at https://www.toptal.com/developers/gitignore?templates=macos,go
+# Built binary (from copier project_name)
+/gh-start-search
 
-### Go ###
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
+# Go binaries
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
 
-# Test binary, built with `go test -c`
+# Test binaries and coverage
 *.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+coverage.out
+coverage.html
+*.cover
+*.coverprofile
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Delve debugger
+__debug_bin*
 
-# # Go workspace file
-# Track go.work because installation is local
-# go.work
+# Build artifacts
+dist/
+bin/
+build/
 
-### macOS ###
-# General
+# Go workspace files (local only)
+go.work
+go.work.sum
+
+# Dependency directories
+vendor/
+
+# Air (live reload) temporary directory
+tmp/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*~
+
+# OS-specific
 .DS_Store
 .AppleDouble
 .LSOverride
-
-# Icon must end with two \r
-Icon
-
-
-# Thumbnails
-._*
-
-# Files that might appear in the root of a volume
-.DocumentRevisions-V100
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
-.Trashes
-.VolumeIcon.icns
-.com.apple.timemachine.donotpresent
-
-# Directories potentially created on remote AFP share
-.AppleDB
-.AppleDesktop
-Network Trash Folder
-Temporary Items
-.apdisk
-
-### macOS Patch ###
-# iCloud generated files
-*.icloud
-
-# End of https://www.toptal.com/developers/gitignore/api/macos,go
-
-# ------------------------------------------------------------------------------
-# Custom Rules
-
-/gh-star-search
+Thumbs.db
+ehthumbs.db
+Desktop.ini

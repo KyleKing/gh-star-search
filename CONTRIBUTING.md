@@ -1,145 +1,100 @@
-# Contributing to gh-star-search
+# Contributing to gh-start-search
 
-## Architecture Overview
+## Setup
 
-gh-star-search is a GitHub CLI extension built in Go that searches and discovers relationships across starred repositories. It follows a layered architecture:
-
-```
-CLI Layer (cmd/)  -->  Core Packages (internal/)  -->  DuckDB + GitHub API
-```
-
-### Design Principles
-
-1. **Local-First**: All data stored in a local DuckDB database
-2. **Minimal Content**: Only essential content ingested (no full git clones)
-3. **Incremental Sync**: Staleness detection avoids unnecessary API calls
-4. **Security-First**: Parameterized queries only
-5. **Rate-Limited**: Built-in delays between API requests
-
-## Project Structure
-
-```
-cmd/                      # CLI commands (sync, query, list, info, stats, clear, related, config)
-internal/
-  cache/                  # File-based caching with TTL
-  config/                 # Configuration models & loading
-  embedding/              # Embedding provider interface (local Python + remote)
-  errors/                 # Structured error types
-  formatter/              # Output formatting (long/short)
-  github/                 # GitHub API client + VCR test helpers
-  logging/                # Structured logging with slog
-  processor/              # Content extraction & processing
-  query/                  # Search engine (fuzzy + vector)
-  related/                # Related repository engine (streaming batch)
-  storage/                # DuckDB persistence layer
-  summarizer/             # Python subprocess summarization
-  types/                  # Shared type definitions
-scripts/                  # Python helper scripts (summarize.py, embed.py)
-```
-
-## GitHub API Integration
-
-| Endpoint | Purpose | Cache TTL |
-|----------|---------|-----------|
-| `GET /user/starred` | List starred repos | 14 days |
-| `GET /repos/{owner}/{repo}` | Metadata | 14 days |
-| `GET /repos/{owner}/{repo}/contributors` | Top contributors | 7 days |
-| `GET /repos/{owner}/{repo}/topics` | Topics | 7 days |
-| `GET /repos/{owner}/{repo}/languages` | Language stats | 7 days |
-| `GET /repos/{owner}/{repo}/contents/{path}` | README content | Content-hash |
-| `GET /repos/{owner}/{repo}/stats/participation` | Commit activity | 7 days |
-
-**Rate Limiting**: 100ms delay per repository, 2s delay per batch (both configurable). GitHub allows 5,000 requests/hour for authenticated users.
-
-**Authentication**: Uses `gh` CLI auth via `github.com/cli/go-gh`.
-
-## Development
-
-### Prerequisites
-
-- Go 1.24+
-- `gh` CLI installed and authenticated
-- `mise` (optional, for task runner)
-
-### Setup
+Prerequisites: Go (see `go.mod`), [mise](https://mise.jdx.dev/), [hk](https://hk.jdx.dev/)
 
 ```bash
-go mod download
-go test ./...
-go build -o gh-star-search
+mise install
+hk install --mise
+mise run ci
 ```
 
-### Using Mise
+## Tasks
+
+Shared tasks live in `.config/mise.template.toml` (managed by the copier template).
+Project-specific tasks go in `.config/mise.project.toml` or other `mise.*.toml` files.
+
+| Command | Description |
+|---------|-------------|
+| `mise run bench` | Run benchmarks |
+| `mise run build` | Build binary |
+| `mise run ci` | Full CI check (tests + build) |
+| `mise run clean` | Clean build artifacts |
+| `mise run demo` | Generate VHS demo recordings |
+| `mise run format` | Auto-fix lint and formatting |
+| `mise run hooks` | Run git hooks |
+| `mise run lint` | Run linter |
+| `mise run test` | Run tests with coverage |
+| `mise tasks` | List all available tasks |
+
+## Code Guidelines
+
+Follow [AGENTS.md](AGENTS.md) for code organization, testing patterns, and error handling.
+
+Linting is configured in `.golangci.toml` with 40+ rules. Run `mise run format` to auto-fix.
+
+## Git Workflow
+
+Conventional commits enforced via [commitizen](https://commitizen-tools.github.io/commitizen/):
+
+```
+<type>(<scope>): <subject>
+```
+
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+
+Git hooks run automatically via hk on commit and push.
+
+
+## Releases
+
+Automated via goreleaser on tag push:
 
 ```bash
-mise run ci        # lint, test, format
-mise run test      # tests with coverage
-mise run build     # build binary
-mise run format    # format code
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
-### Code Style
+GitHub Actions builds binaries for Linux, macOS, Windows, and FreeBSD (amd64/arm64).
 
-- Formatting: `gofmt` (enforced by git hooks)
-- Linting: `golangci-lint` (30+ rules)
-- SQL: `sqlfluff` validation
-- Naming: `ls-lint` validation
+### Updating the Homebrew Formula
 
-## Testing
+After a release, update `Formula/gh-start-search.rb`:
 
-### Test Types
+1. Download the release binaries from the GitHub release page
+2. Generate SHA256 checksums:
 
-- **Unit** (`*_test.go`): Isolated function tests alongside source files
-- **Integration** (`*_integration_test.go`): Component interactions, may need `gh` auth
-- **Performance** (`*_performance_test.go`): Benchmarks for critical paths
+   ```bash
+   shasum -a 256 gh-start-search-darwin-arm64 gh-start-search-darwin-amd64 gh-start-search-linux-arm64 gh-start-search-linux-amd64
+   ```
 
-### Running Tests
+   Or run `mise run brew:sha` for a reminder of these steps.
+
+3. Update the `version` and `sha256` values in `Formula/gh-start-search.rb`
+4. Commit and push the formula changes
+
+### Installing via Homebrew
+
+Users can install directly from the repository formula:
 
 ```bash
-go test ./...              # all tests
-go test -short ./...       # skip integration tests
-go test -cover ./...       # with coverage
-go test -race ./...        # with race detector
-go test -bench=. ./...     # benchmarks
+brew install --formula https://github.com/kyleking/gh-start-search/raw/main/Formula/gh-start-search.rb
 ```
 
-### Test Constants
+Or from a local checkout:
 
-Common constants in `internal/testing/constants.go` -- use these instead of magic numbers.
+```bash
+brew install --formula ./Formula/gh-start-search.rb
+```
 
-### HTTP Mocking
+To set up a [homebrew tap](https://docs.brew.sh/Taps) for `brew install kyleking/tap/gh-start-search`, create a `homebrew-tap` repo at `https://github.com/kyleking/homebrew-tap` and copy the formula there.
 
-GitHub API tests use a mix of manual mocks and go-vcr v4 for HTTP recording/replay. See `internal/github/VCR_TESTING.md` for the VCR approach.
 
-### Known Issues
+## Troubleshooting
 
-- **DuckDB constraint violation** in update operations (workaround: delete + insert pattern)
-- Integration tests skipped in `-short` mode (expected)
-
-## Database Schema
-
-Primary table: `repositories` with metadata, activity metrics, structured data (JSON topics/languages/contributors), license, content tracking, and embedding storage.
-
-Indexes on: `language`, `updated_at`, `stargazers_count`, `full_name`.
-
-The `content_chunks` table is deprecated and being phased out.
-
-## Configuration
-
-Sources (precedence order):
-1. Command-line flags
-2. Environment variables (`GH_STAR_SEARCH_` prefix)
-3. Config file (`~/.config/gh-star-search/config.json`)
-4. Defaults
-
-Key settings: database path/pooling, cache directory/TTL, logging level, embedding provider, GitHub rate limiting delays.
-
-## Making Changes
-
-1. Create a feature branch
-2. Write tests for new functionality
-3. Ensure `go test ./...` passes
-4. Run `golangci-lint run`
-5. Commit with conventional format: `<type>(<scope>): <subject>`
-
-Types: `feat`, `fix`, `refactor`, `docs`, `test`, `perf`, `chore`
+```bash
+mise install --force   # Reinstall tools
+hk install --mise --force  # Reinstall hooks
+go test -v -run TestName ./package  # Debug specific test
+```

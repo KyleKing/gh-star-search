@@ -1,78 +1,283 @@
 # Configuration file for golangci-lint
 # For more options, see https://golangci-lint.run/usage/configuration/
-#
-# Adapted from:
-# - https://github.com/elastic/elastic-agent/blob/ad06a2989e715220009cd8b27b4a315c92a24b15/.golangci.yml
-# - https://github.com/virtual-kubelet/virtual-kubelet/blob/5c534ffcd6074044b00a5151da84ac2cc8ce3f12/.golangci.yml
-# - https://github.com/containerd/containerd/blob/b22a302a75d9a7d7955780e54cc5b32de6c8525d/.golangci.yml
 
-[linters] # Find the whole list here https://golangci-lint.run/usage/linters/
-default = "standard"
-disabled = [
-  "forbidigo", # forbids identifiers matched by reg exps # PLANNED: restore when fmt.Print is not necessary
+version = 2
+
+[linters]
+disable = [
+  "depguard", # requires allowlist/denylist configuration
+  "execinquery", # deprecated in favor of gosec G202
+  "exportloopref", # deprecated, replaced by copyloopvar
+  "forbidigo", # requires custom regex configuration
+  "gochecknoglobals", # BubbleTea/lipgloss styles use package-level vars
+  "goheader", # copyright headers add noise for personal projects
+  "gomnd", # replaced by mnd
+  "wsl" # deprecated, whitespace linting too nitpicky
 ]
 enable = [
-  "asciicheck", # simple linter to check that your code does not contain non-ASCII identifiers
-  "bodyclose", # checks whether HTTP response body is closed successfully
-  "copyloopvar", # A linter detects places where loop variables are copied
-  "cyclop", # Checks function and package cyclomatic complexity
-  "durationcheck", # check for two durations multiplied together
-  "errcheck", # checking for unchecked errors in go programs
-  "errorlint", # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13
-  "fatcontext", # Detects nested contexts in loops and function literals
-   # "gocritic", # Provides diagnostics that check for bugs, performance and style issues
-  "goimports", # Goimports does everything that gofmt does. Additionally it checks unused imports
-  "gomoddirectives", # Manage the use of 'replace', 'retract', and 'excludes' directives in go.mod
-  "gomodguard", # check for blocked imports from go.mod
-  "gosec", # inspects source code for security problems
-  "gosimple", # linter for Go source code that specializes in simplifying a code
-  "govet", # Vet examines Go source code and reports suspicious constructs, such as Printf calls whose arguments do not align with the format string
-  "iface", # Detect the incorrect use of interfaces, helping developers avoid interface pollution
-  "ineffassign", # detects when assignments to existing variables are not used
-  "intrange", # Intrange is a linter to find places where for loops could make use of an integer range
-  "misspell", # finds commonly misspelled English words in comments
-  "nakedret", # finds naked returns in functions greater than a specified function length
-  "nilerr", # finds the code that returns nil even if it checks that the error is not nil
-  "noctx", # noctx finds sending http request without context.Context
-  "nolintlint", # reports ill-formed or insufficient nolint directives
-  "perfsprint", # Checks that fmt.Sprintf can be replaced with a faster alternative
-  # "prealloc", # Finds slice declarations that could potentially be pre-allocated
-  "predeclared", # Find code that shadows one of Go's predeclared identifiers
-  "revive", # Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint
-  "sqlclosecheck", # Checks that sql.Rows, sql.Stmt, sqlx.NamedStmt, pgx.Query are closed
-  "staticcheck", # Staticcheck is a go vet on steroids, applying a ton of static analysis checks
-  "stylecheck", # a replacement for golint
-   "testifylint", # Checks usage of github.com/stretchr/testify
-  # "testpackage", # makes you use a separate _test package
-  "typecheck", # Like the front-end of a Go compiler, parses and type-checks Go code
-  "unconvert", # Remove unnecessary type conversions
-  "unused", # checks Go code for unused constants, variables, functions and types
-  "wastedassign", # wastedassign finds wasted assignment statements
-   # "wrapcheck", # Checks that errors returned from external packages are wrapped
-  "wsl", # Add or remove empty lines
+  "asciicheck",
+  "bidichk",
+  "bodyclose",
+  "containedctx",
+  "contextcheck",
+  "copyloopvar",
+  "cyclop",
+  "decorder",
+  "dogsled",
+  "dupl",
+  "dupword",
+  "durationcheck",
+  "err113",
+  "errcheck",
+  "errchkjson",
+  "errname",
+  "errorlint",
+  "exhaustive",
+  "fatcontext",
+  "forcetypeassert",
+  "funlen",
+  "gci",
+  "ginkgolinter",
+  "gocheckcompilerdirectives",
+  "gochecknoinits",
+  "gochecksumtype",
+  "gocognit",
+  "goconst",
+  "gocritic",
+  "gocyclo",
+  "godot",
+  "godox",
+  "gofmt",
+  "gofumpt",
+  "goimports",
+  "gomoddirectives",
+  "gomodguard",
+  "goprintffuncname",
+  "gosec",
+  "gosimple",
+  "gosmopolitan",
+  "govet",
+  "grouper",
+  "iface",
+  "importas",
+  "inamedparam",
+  "ineffassign",
+  "interfacebloat",
+  "intrange",
+  "ireturn", # revisit: BubbleTea Init/Update methods return interfaces by design
+  "lll",
+  "loggercheck",
+  "maintidx",
+  "makezero",
+  "mirror",
+  "misspell",
+  "mnd",
+  "musttag",
+  "nakedret",
+  "nestif",
+  "nilerr",
+  "nilnil",
+  "nlreturn",
+  "noctx",
+  "nolintlint",
+  "nonamedreturns",
+  "nosprintfhostport",
+  "paralleltest",
+  "perfsprint",
+  "prealloc",
+  "predeclared",
+  "promlinter",
+  "protogetter",
+  "reassign",
+  "revive",
+  "rowserrcheck",
+  "sloglint",
+  "spancheck",
+  "sqlclosecheck",
+  "staticcheck",
+  "stylecheck",
+  "tagalign",
+  "tagliatelle",
+  "tenv",
+  "testableexamples",
+  "testifylint",
+  "testpackage",
+  "thelper",
+  "tparallel",
+  "typecheck",
+  "unconvert",
+  "unparam",
+  "unused",
+  "usestdlibvars",
+  "wastedassign",
+  "whitespace",
+  "wrapcheck",
+  "zerologlint"
 ]
-relative-path-mode = "gomod"
 
-[linters-settings] # See all configuration here: https://golangci-lint.run/usage/linters
+[linters.settings.cyclop]
+max-complexity = 15
+skip-tests = true
 
-[linters-settings.cyclop]
-max-complexity = 50 # Default is 10
+[linters.settings.dupl]
+threshold = 100
 
-# [linters-settings.revive]
-# enable-all-rules = true
-# [[linters-settings.revive.rules]]
-# name = "line-length-limit"
-# severity = "warning"
-# arguments = [ 120 ]
+[linters.settings.errcheck]
+check-type-assertions = true
+check-blank = true
 
-[linters-settings.rowserrcheck]
-packages = ["github.com/jmoiron/sqlx"]
+[linters.settings.exhaustive]
+default-signifies-exhaustive = true
 
-[linters-settings.staticcheck]
+[linters.settings.funlen]
+lines = 100
+statements = 50
+ignore-comments = true
+
+[linters.settings.gci]
+sections = ["standard", "default", "prefix(github.com/kyleking/gh-start-search)"]
+
+[linters.settings.gocognit]
+min-complexity = 20
+
+[linters.settings.goconst]
+min-len = 3
+min-occurrences = 3
+ignore-tests = true
+
+[linters.settings.gocritic]
+enabled-tags = ["diagnostic", "style", "performance", "experimental", "opinionated"]
+disabled-checks = ["whyNoLint"]
+
+[linters.settings.gocyclo]
+min-complexity = 15
+
+[linters.settings.godot]
+scope = "declarations"
+capital = true
+
+[linters.settings.gofumpt]
+extra-rules = true
+lang-version = "1.23"
+
+[linters.settings.goimports]
+local-prefixes = "github.com/kyleking/gh-start-search"
+
+[linters.settings.gomodguard]
+blocked.modules = []
+
+[linters.settings.govet]
+enable-all = true
+disable = ["shadow"]
+
+[linters.settings.ireturn]
+allow = ["error", "empty", "stdlib"]
+
+[linters.settings.lll]
+line-length = 120
+tab-width = 4
+
+[linters.settings.misspell]
+locale = "US"
+
+[linters.settings.mnd]
+ignored-functions = ["make", "strconv.*"]
+
+[linters.settings.nakedret]
+max-func-lines = 30
+
+[linters.settings.nestif]
+min-complexity = 5
+
+[linters.settings.nlreturn]
+block-size = 2
+
+[linters.settings.nolintlint]
+allow-unused = false
+require-explanation = true
+require-specific = true
+
+[linters.settings.revive]
+enable-all-rules = false
+rules = [
+  {name = "atomic"},
+  {name = "blank-imports"},
+  {name = "bool-literal-in-expr"},
+  {name = "call-to-gc"},
+  {name = "confusing-naming"},
+  {name = "constant-logical-expr"},
+  {name = "context-as-argument"},
+  {name = "context-keys-type"},
+  {name = "defer"},
+  {name = "dot-imports"},
+  {name = "early-return"},
+  {name = "empty-block"},
+  {name = "empty-lines"},
+  {name = "error-naming"},
+  {name = "error-return"},
+  {name = "error-strings"},
+  {name = "errorf"},
+  {name = "exported"},
+  {name = "if-return"},
+  {name = "import-shadowing"},
+  {name = "increment-decrement"},
+  {name = "indent-error-flow"},
+  {name = "modifies-parameter"},
+  {name = "modifies-value-receiver"},
+  {name = "package-comments"},
+  {name = "range"},
+  {name = "range-val-address"},
+  {name = "range-val-in-closure"},
+  {name = "receiver-naming"},
+  {name = "redefines-builtin-id"},
+  {name = "string-of-int"},
+  {name = "struct-tag"},
+  {name = "superfluous-else"},
+  {name = "time-equal"},
+  {name = "time-naming"},
+  {name = "unexported-naming"},
+  {name = "unexported-return"},
+  {name = "unnecessary-stmt"},
+  {name = "unreachable-code"},
+  {name = "unused-parameter"},
+  {name = "unused-receiver"},
+  {name = "use-any"},
+  {name = "useless-break"},
+  {name = "var-declaration"},
+  {name = "var-naming"},
+  {name = "waitgroup-by-value"}
+]
+
+[linters.settings.staticcheck]
 checks = ["all"]
 
-[linters-settings.testifylint]
+[linters.settings.stylecheck]
+checks = ["all", "-ST1000"]
+dot-import-whitelist = []
+http-status-code-whitelist = []
+
+[linters.settings.tagliatelle]
+case.rules.json = "snake"
+case.rules.yaml = "kebab"
+
+[linters.settings.testifylint]
 enable-all = true
 
+[linters.settings.unparam]
+check-exported = true
+
+[linters.settings.wrapcheck]
+ignoreSigs = [
+  ".Errorf(",
+  "errors.New(",
+  "errors.Unwrap(",
+  "errors.Join(",
+  ".Wrap(",
+  ".Wrapf(",
+  ".WithMessage(",
+  ".WithMessagef(",
+  ".WithStack("
+]
+
 [run]
-timeout = "1m" # Default is 1 min
+timeout = "5m"
