@@ -64,10 +64,11 @@ func (m *SchemaManager) CreateLatestSchema(ctx context.Context) error {
 		);
 
 		-- Create content_chunks table (deprecated but kept for compatibility)
-		-- Note: Foreign key constraint temporarily removed due to DuckDB limitation with UPDATEs
+		-- Note: No FOREIGN KEY constraint because DuckDB doesn't support ON DELETE CASCADE
+		-- See: https://duckdb.org/docs/stable/sql/constraints
 		CREATE TABLE IF NOT EXISTS content_chunks (
 			id VARCHAR PRIMARY KEY,
-			repository_id VARCHAR,
+			repository_id VARCHAR NOT NULL,
 			source_path VARCHAR NOT NULL,
 			chunk_type VARCHAR NOT NULL,
 			content TEXT NOT NULL,
@@ -76,16 +77,16 @@ func (m *SchemaManager) CreateLatestSchema(ctx context.Context) error {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);
 
-		-- Indexes temporarily removed due to DuckDB UPDATE limitations
-		-- See: https://duckdb.org/docs/sql/indexes
-		-- CREATE INDEX IF NOT EXISTS idx_repositories_language ON repositories(language);
-		-- CREATE INDEX IF NOT EXISTS idx_repositories_updated_at ON repositories(updated_at);
-		-- CREATE INDEX IF NOT EXISTS idx_repositories_stargazers ON repositories(stargazers_count);
-		-- CREATE INDEX IF NOT EXISTS idx_repositories_full_name ON repositories(full_name);
-		-- CREATE INDEX IF NOT EXISTS idx_repositories_stars ON repositories(stargazers_count);
-		-- CREATE INDEX IF NOT EXISTS idx_repositories_commits_total ON repositories(commits_total);
-		-- CREATE INDEX IF NOT EXISTS idx_content_chunks_repo_type ON content_chunks(repository_id, chunk_type);
-		-- CREATE INDEX IF NOT EXISTS idx_content_chunks_repository_id ON content_chunks(repository_id);
+		-- Create indexes for query performance
+		-- Note: PRIMARY KEY and UNIQUE constraints automatically create ART indexes
+		-- See: https://duckdb.org/docs/stable/sql/indexes
+		CREATE INDEX IF NOT EXISTS idx_repositories_language ON repositories(language);
+		CREATE INDEX IF NOT EXISTS idx_repositories_updated_at ON repositories(updated_at);
+		CREATE INDEX IF NOT EXISTS idx_repositories_stargazers ON repositories(stargazers_count);
+		CREATE INDEX IF NOT EXISTS idx_repositories_full_name ON repositories(full_name);
+		CREATE INDEX IF NOT EXISTS idx_repositories_commits_total ON repositories(commits_total);
+		CREATE INDEX IF NOT EXISTS idx_content_chunks_repo_type ON content_chunks(repository_id, chunk_type);
+		CREATE INDEX IF NOT EXISTS idx_content_chunks_repository_id ON content_chunks(repository_id);
 	`
 
 	_, err := m.db.ExecContext(ctx, schemaSQL)

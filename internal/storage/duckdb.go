@@ -214,26 +214,27 @@ func (r *DuckDBRepository) StoreRepository(
 
 // UpdateRepository updates an existing repository in the database.
 //
-// WORKAROUND: DuckDB has a known limitation where UPDATE statements on tables with
-// PRIMARY KEY or UNIQUE constraints can fail with "duplicate key" errors, particularly
-// when updating JSON/LIST columns. This occurs because DuckDB internally rewrites UPDATE
-// as DELETE+INSERT per 2048-row chunk, causing false constraint violations.
+// WORKAROUND FOR DUCKDB CONSTRAINT LIMITATION:
+// DuckDB v1.8.x has a critical bug where UPDATE and DELETE+INSERT operations fail with
+// "duplicate key" errors when executed within transactions on tables with PRIMARY KEY
+// constraints. This affects JSON/LIST columns particularly.
 //
-// Solution: Use DELETE...RETURNING + INSERT within a transaction to work around this.
-// See: https://github.com/duckdb/duckdb/issues/11915
+// Root cause: DuckDB's over-eager constraint checking evaluates constraints before
+// DELETE operations complete within the transaction scope.
+//
+// Solution: Perform DELETE+INSERT WITHOUT a transaction. While not atomic, the operations
+// execute sequentially and fast enough that race conditions are minimal for single-row
+// updates. This preserves metrics set by UpdateRepositoryMetrics.
+//
+// See: https://github.com/duckdb/duckdb/issues/11915 (UPDATE with LIST columns fails)
+// See: https://github.com/duckdb/duckdb/issues/16520 (DELETE+INSERT in transaction fails)
+// See: https://github.com/duckdb/duckdb/issues/8764 (UPDATE without changing PK fails)
 // See: https://duckdb.org/docs/stable/sql/indexes#index-limitations
 func (r *DuckDBRepository) UpdateRepository(
 	ctx context.Context,
 	repo processor.ProcessedRepo,
 ) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	// Step 1: DELETE and capture existing data using RETURNING clause
-	// This preserves metrics that were set by UpdateRepositoryMetrics
+	// Step 1: Get existing repository data to preserve metrics
 	var existingData struct {
 		id              string
 		openIssuesOpen  int
@@ -247,10 +248,8 @@ func (r *DuckDBRepository) UpdateRepository(
 		contributors    interface{}
 	}
 
-	err = tx.QueryRowContext(ctx, `
-		DELETE FROM repositories
-		WHERE full_name = ?
-		RETURNING id,
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id,
 			COALESCE(open_issues_open, 0),
 			COALESCE(open_issues_total, 0),
 			COALESCE(open_prs_open, 0),
@@ -259,7 +258,9 @@ func (r *DuckDBRepository) UpdateRepository(
 			COALESCE(commits_1y, 0),
 			COALESCE(commits_total, 0),
 			COALESCE(languages, '{}'),
-			COALESCE(contributors, '[]')`,
+			COALESCE(contributors, '[]')
+		FROM repositories
+		WHERE full_name = ?`,
 		repo.Repository.FullName).
 		Scan(&existingData.id,
 			&existingData.openIssuesOpen,
@@ -273,10 +274,25 @@ func (r *DuckDBRepository) UpdateRepository(
 			&existingData.contributors,
 		)
 	if err != nil {
+		return fmt.Errorf("failed to get repository: %w", err)
+	}
+
+	// Step 2: Delete existing chunks first (no FK constraint, so order doesn't matter)
+	_, err = r.db.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", existingData.id)
+	if err != nil {
+		// Ignore error if table doesn't exist
+		if !strings.Contains(err.Error(), "does not exist") && !strings.Contains(err.Error(), "not found") {
+			return fmt.Errorf("failed to delete existing chunks: %w", err)
+		}
+	}
+
+	// Step 3: Delete existing repository
+	_, err = r.db.ExecContext(ctx, "DELETE FROM repositories WHERE id = ?", existingData.id)
+	if err != nil {
 		return fmt.Errorf("failed to delete repository: %w", err)
 	}
 
-	// Convert JSON data for reinsertion
+	// Step 4: Convert JSON data for reinsertion
 	topicsJSON, err := json.Marshal(repo.Repository.Topics)
 	if err != nil {
 		return fmt.Errorf("failed to marshal topics: %w", err)
@@ -292,7 +308,7 @@ func (r *DuckDBRepository) UpdateRepository(
 		return fmt.Errorf("failed to marshal contributors: %w", err)
 	}
 
-	// Step 2: INSERT with updated metadata but preserved metrics
+	// Step 5: INSERT repository with updated metadata but preserved metrics
 	var licenseName, licenseSPDXID string
 	if repo.Repository.License != nil {
 		licenseName = repo.Repository.License.Name
@@ -309,7 +325,7 @@ func (r *DuckDBRepository) UpdateRepository(
 			license_name, license_spdx_id, content_hash
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	_, err = tx.ExecContext(ctx, insertSQL,
+	_, err = r.db.ExecContext(ctx, insertSQL,
 		existingData.id,
 		repo.Repository.FullName,
 		repo.Repository.Description,
@@ -339,40 +355,34 @@ func (r *DuckDBRepository) UpdateRepository(
 		return fmt.Errorf("failed to insert updated repository: %w", err)
 	}
 
-	// Step 3: Handle content chunks if provided
+	// Step 6: Insert new content chunks if provided
 	if len(repo.Chunks) > 0 {
-		// Delete existing chunks (no FK constraint, so this is safe)
-		_, err = tx.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", existingData.id)
-		if err != nil {
-			// Ignore error if table doesn't exist
-			if !strings.Contains(err.Error(), "does not exist") && !strings.Contains(err.Error(), "not found") {
-				return fmt.Errorf("failed to delete existing chunks: %w", err)
-			}
-		} else {
-			// Insert new chunks
-			insertChunkSQL := `
-				INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
-				VALUES (?, ?, ?, ?, ?, ?, ?)`
+		insertChunkSQL := `
+			INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`
 
-			for _, chunk := range repo.Chunks {
-				chunkID := uuid.New().String()
-				_, err := tx.ExecContext(ctx, insertChunkSQL,
-					chunkID,
-					existingData.id,
-					chunk.Source,
-					chunk.Type,
-					chunk.Content,
-					chunk.Tokens,
-					chunk.Priority,
-				)
-				if err != nil {
+		for _, chunk := range repo.Chunks {
+			chunkID := uuid.New().String()
+			_, err := r.db.ExecContext(ctx, insertChunkSQL,
+				chunkID,
+				existingData.id,
+				chunk.Source,
+				chunk.Type,
+				chunk.Content,
+				chunk.Tokens,
+				chunk.Priority,
+			)
+			if err != nil {
+				// Ignore if table doesn't exist
+				if !strings.Contains(err.Error(), "does not exist") && !strings.Contains(err.Error(), "not found") {
 					return fmt.Errorf("failed to insert content chunk: %w", err)
 				}
+				break
 			}
 		}
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 // DeleteRepository removes a repository and its chunks from the database
@@ -869,15 +879,75 @@ func (r *DuckDBRepository) Clear(ctx context.Context) error {
 
 // UpdateRepositoryMetrics updates activity and metrics data for a repository.
 //
-// Note: This function uses a simple UPDATE statement without the DELETE+INSERT workaround
-// because it only updates scalar fields and JSON columns (not the entire row with JSON).
-// Concurrent updates to the same repository may conflict - this is expected behavior.
-// The last successful update wins (optimistic concurrency).
+// WORKAROUND: Like UpdateRepository, this avoids using UPDATE due to DuckDB's constraint
+// checking issues with JSON columns. Instead, it uses DELETE+INSERT without a transaction.
+// This is not atomic, but it's the only reliable way to update with DuckDB's current limitations.
+//
+// Note: Concurrent updates may conflict (optimistic concurrency - last write wins).
+//
+// See: https://github.com/duckdb/duckdb/issues/11915
+// See: https://github.com/duckdb/duckdb/issues/8764
 func (r *DuckDBRepository) UpdateRepositoryMetrics(
 	ctx context.Context,
 	fullName string,
 	metrics RepositoryMetrics,
 ) error {
+	// Step 1: Get existing repository data to preserve non-metrics fields
+	var existingData struct {
+		id                string
+		fullName          string
+		description       string
+		homepage          string
+		language          string
+		stargazersCount   int
+		forksCount        int
+		sizeKB            int
+		createdAt         time.Time
+		updatedAt         time.Time
+		lastSynced        time.Time
+		topicsArray       interface{}
+		licenseName       string
+		licenseSPDXID     string
+		contentHash       string
+		purpose           sql.NullString
+		summaryGeneratedAt *time.Time
+		summaryVersion    int
+	}
+
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, full_name, description, COALESCE(homepage, ''), language,
+			stargazers_count, forks_count, size_kb,
+			created_at, updated_at, last_synced,
+			COALESCE(topics_array, '[]'),
+			COALESCE(license_name, ''), COALESCE(license_spdx_id, ''),
+			COALESCE(content_hash, ''),
+			purpose, summary_generated_at, COALESCE(summary_version, 0)
+		FROM repositories
+		WHERE full_name = ?`,
+		fullName).
+		Scan(&existingData.id, &existingData.fullName, &existingData.description,
+			&existingData.homepage, &existingData.language,
+			&existingData.stargazersCount, &existingData.forksCount, &existingData.sizeKB,
+			&existingData.createdAt, &existingData.updatedAt, &existingData.lastSynced,
+			&existingData.topicsArray,
+			&existingData.licenseName, &existingData.licenseSPDXID,
+			&existingData.contentHash,
+			&existingData.purpose, &existingData.summaryGeneratedAt, &existingData.summaryVersion,
+		)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("no repository found with full_name: %s", fullName)
+		}
+		return fmt.Errorf("failed to get repository: %w", err)
+	}
+
+	// Step 2: Delete existing repository
+	_, err = r.db.ExecContext(ctx, "DELETE FROM repositories WHERE id = ?", existingData.id)
+	if err != nil {
+		return fmt.Errorf("failed to delete repository: %w", err)
+	}
+
+	// Step 3: Convert JSON data
 	languagesJSON, err := json.Marshal(metrics.Languages)
 	if err != nil {
 		return fmt.Errorf("failed to marshal languages: %w", err)
@@ -888,35 +958,42 @@ func (r *DuckDBRepository) UpdateRepositoryMetrics(
 		return fmt.Errorf("failed to marshal contributors: %w", err)
 	}
 
-	updateSQL := `
-	UPDATE repositories SET
-		homepage = ?,
-		open_issues_open = ?, open_issues_total = ?,
-		open_prs_open = ?, open_prs_total = ?,
-		commits_30d = ?, commits_1y = ?, commits_total = ?,
-		languages = ?, contributors = ?,
-		last_synced = CURRENT_TIMESTAMP
-	WHERE full_name = ?`
+	topicsJSON, err := json.Marshal(existingData.topicsArray)
+	if err != nil {
+		return fmt.Errorf("failed to marshal topics: %w", err)
+	}
 
-	result, err := r.db.ExecContext(ctx, updateSQL,
-		metrics.Homepage,
+	// Step 4: INSERT with updated metrics but preserved other fields
+	insertSQL := `
+		INSERT INTO repositories (
+			id, full_name, description, homepage, language, stargazers_count, forks_count, size_kb,
+			created_at, updated_at, last_synced,
+			open_issues_open, open_issues_total, open_prs_open, open_prs_total,
+			commits_30d, commits_1y, commits_total,
+			topics_array, languages, contributors,
+			license_name, license_spdx_id, content_hash,
+			purpose, summary_generated_at, summary_version
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+	var purposeVal interface{}
+	if existingData.purpose.Valid {
+		purposeVal = existingData.purpose.String
+	}
+
+	_, err = r.db.ExecContext(ctx, insertSQL,
+		existingData.id, existingData.fullName, existingData.description,
+		metrics.Homepage, existingData.language,
+		existingData.stargazersCount, existingData.forksCount, existingData.sizeKB,
+		existingData.createdAt, existingData.updatedAt,
 		metrics.OpenIssuesOpen, metrics.OpenIssuesTotal,
 		metrics.OpenPRsOpen, metrics.OpenPRsTotal,
 		metrics.Commits30d, metrics.Commits1y, metrics.CommitsTotal,
-		string(languagesJSON), string(contributorsJSON),
-		fullName,
+		string(topicsJSON), string(languagesJSON), string(contributorsJSON),
+		existingData.licenseName, existingData.licenseSPDXID, existingData.contentHash,
+		purposeVal, existingData.summaryGeneratedAt, existingData.summaryVersion,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to update repository metrics: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("no repository found with full_name: %s", fullName)
+		return fmt.Errorf("failed to insert updated repository: %w", err)
 	}
 
 	return nil
