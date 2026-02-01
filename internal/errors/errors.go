@@ -172,7 +172,7 @@ func NewGitHubAPIError(message string, statusCode int) *Error {
 }
 
 // NewDatabaseError creates a database error
-func NewDatabaseError(message string, operation string) *Error {
+func NewDatabaseError(message, operation string) *Error {
 	return New(ErrTypeDatabase, message).
 		WithContext("operation", operation).
 		WithSuggestion("Check database file permissions").
@@ -180,7 +180,7 @@ func NewDatabaseError(message string, operation string) *Error {
 }
 
 // NewConfigError creates a configuration error
-func NewConfigError(message string, field string) *Error {
+func NewConfigError(message, field string) *Error {
 	return New(ErrTypeConfig, message).
 		WithContext("field", field).
 		WithSuggestion("Check your configuration file syntax").
@@ -195,7 +195,7 @@ func NewValidationError(message string, value interface{}) *Error {
 }
 
 // NewRateLimitError creates a rate limit error
-func NewRateLimitError(message string, resetTime string) *Error {
+func NewRateLimitError(message, resetTime string) *Error {
 	return New(ErrTypeRateLimit, message).
 		WithContext("reset_time", resetTime).
 		WithSuggestion("Wait for the rate limit to reset").
@@ -203,7 +203,7 @@ func NewRateLimitError(message string, resetTime string) *Error {
 }
 
 // NewNotFoundError creates a not found error
-func NewNotFoundError(resource string, identifier string) *Error {
+func NewNotFoundError(resource, identifier string) *Error {
 	return New(ErrTypeNotFound, fmt.Sprintf("%s not found: %s", resource, identifier)).
 		WithContext("resource", resource).
 		WithContext("identifier", identifier).
@@ -218,7 +218,7 @@ func NewAuthError(message string) *Error {
 }
 
 // NewNetworkError creates a network error
-func NewNetworkError(message string, url string) *Error {
+func NewNetworkError(message, url string) *Error {
 	return New(ErrTypeNetwork, message).
 		WithContext("url", url).
 		WithSuggestion("Check your internet connection").
@@ -226,7 +226,7 @@ func NewNetworkError(message string, url string) *Error {
 }
 
 // NewFileSystemError creates a filesystem error
-func NewFileSystemError(message string, path string) *Error {
+func NewFileSystemError(message, path string) *Error {
 	return New(ErrTypeFileSystem, message).
 		WithContext("path", path).
 		WithSuggestion("Check file/directory permissions").

@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -337,6 +338,329 @@ func TestDuckDBRepositoryErrors(t *testing.T) {
 			t.Errorf("Delete should not error for nonexistent repository: %v", err)
 		}
 	})
+}
+
+func setupSearchTestDB(t *testing.T) (*DuckDBRepository, context.Context) {
+	t.Helper()
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "search_test.db")
+
+	repo, err := NewDuckDBRepository(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to create repository: %v", err)
+	}
+	t.Cleanup(func() { repo.Close() })
+
+	ctx := context.Background()
+
+	err = repo.Initialize(ctx)
+	if err != nil {
+		t.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	testRepos := []processor.ProcessedRepo{
+		{
+			Repository: github.Repository{
+				FullName:        "org/terraform-provider",
+				Description:     "Infrastructure as code tool for cloud resources",
+				Language:        "Go",
+				StargazersCount: 300,
+				ForksCount:      50,
+				Size:            2048,
+				CreatedAt:       time.Now().Add(-60 * 24 * time.Hour),
+				UpdatedAt:       time.Now().Add(-2 * time.Hour),
+				Topics:          []string{"terraform", "infrastructure", "cloud"},
+			},
+			Chunks: []processor.ContentChunk{
+				{
+					Source:   "README.md",
+					Type:     processor.ContentTypeReadme,
+					Content:  "# Terraform Provider\n\nManage cloud infrastructure with declarative config.",
+					Tokens:   30,
+					Priority: processor.PriorityHigh,
+				},
+			},
+			ProcessedAt: time.Now(),
+			ContentHash: "hash-terraform",
+		},
+		{
+			Repository: github.Repository{
+				FullName:        "dev/react-dashboard",
+				Description:     "A beautiful analytics dashboard built with React",
+				Language:        "TypeScript",
+				StargazersCount: 1500,
+				ForksCount:      200,
+				Size:            4096,
+				CreatedAt:       time.Now().Add(-90 * 24 * time.Hour),
+				UpdatedAt:       time.Now().Add(-1 * time.Hour),
+				Topics:          []string{"react", "dashboard", "analytics"},
+			},
+			Chunks: []processor.ContentChunk{
+				{
+					Source:   "README.md",
+					Type:     processor.ContentTypeReadme,
+					Content:  "# React Dashboard\n\nReal-time analytics with interactive charts.",
+					Tokens:   25,
+					Priority: processor.PriorityHigh,
+				},
+			},
+			ProcessedAt: time.Now(),
+			ContentHash: "hash-react",
+		},
+		{
+			Repository: github.Repository{
+				FullName:        "utils/json-parser",
+				Description:     "Fast and lightweight JSON parsing library",
+				Language:        "Rust",
+				StargazersCount: 800,
+				ForksCount:      30,
+				Size:            512,
+				CreatedAt:       time.Now().Add(-120 * 24 * time.Hour),
+				UpdatedAt:       time.Now().Add(-5 * time.Hour),
+				Topics:          []string{"json", "parser", "rust"},
+			},
+			Chunks: []processor.ContentChunk{
+				{
+					Source:   "README.md",
+					Type:     processor.ContentTypeReadme,
+					Content:  "# JSON Parser\n\nZero-copy JSON parsing for high-performance applications.",
+					Tokens:   20,
+					Priority: processor.PriorityHigh,
+				},
+			},
+			ProcessedAt: time.Now(),
+			ContentHash: "hash-json",
+		},
+	}
+
+	for _, r := range testRepos {
+		if err := repo.StoreRepository(ctx, r); err != nil {
+			t.Fatalf("Failed to store repository %s: %v", r.Repository.FullName, err)
+		}
+	}
+
+	return repo, ctx
+}
+
+func TestSearchRepositories(t *testing.T) {
+	repo, ctx := setupSearchTestDB(t)
+
+	t.Run("SearchByFullName", func(t *testing.T) {
+		results, err := repo.SearchRepositories(ctx, "terraform")
+		if err != nil {
+			t.Fatalf("Search failed: %v", err)
+		}
+
+		if len(results) != 1 {
+			t.Fatalf("Expected 1 result, got %d", len(results))
+		}
+
+		if results[0].Repository.FullName != "org/terraform-provider" {
+			t.Errorf("Expected org/terraform-provider, got %s", results[0].Repository.FullName)
+		}
+
+		hasFullNameMatch := false
+		for _, m := range results[0].Matches {
+			if m.Field == "full_name" {
+				hasFullNameMatch = true
+			}
+		}
+
+		if !hasFullNameMatch {
+			t.Errorf("Expected a full_name match field in results")
+		}
+	})
+
+	t.Run("SearchByDescription", func(t *testing.T) {
+		results, err := repo.SearchRepositories(ctx, "analytics")
+		if err != nil {
+			t.Fatalf("Search failed: %v", err)
+		}
+
+		if len(results) != 1 {
+			t.Fatalf("Expected 1 result, got %d", len(results))
+		}
+
+		if results[0].Repository.FullName != "dev/react-dashboard" {
+			t.Errorf("Expected dev/react-dashboard, got %s", results[0].Repository.FullName)
+		}
+
+		hasDescriptionMatch := false
+		for _, m := range results[0].Matches {
+			if m.Field == "description" {
+				hasDescriptionMatch = true
+			}
+		}
+
+		if !hasDescriptionMatch {
+			t.Errorf("Expected a description match field in results")
+		}
+	})
+
+	t.Run("SearchByChunkContent", func(t *testing.T) {
+		results, err := repo.SearchRepositories(ctx, "declarative")
+		if err != nil {
+			t.Fatalf("Search failed: %v", err)
+		}
+
+		if len(results) != 1 {
+			t.Fatalf("Expected 1 result for chunk content match, got %d", len(results))
+		}
+
+		if results[0].Repository.FullName != "org/terraform-provider" {
+			t.Errorf("Expected org/terraform-provider, got %s", results[0].Repository.FullName)
+		}
+	})
+
+	t.Run("SearchMatchesMultipleRepos", func(t *testing.T) {
+		results, err := repo.SearchRepositories(ctx, "json")
+		if err != nil {
+			t.Fatalf("Search failed: %v", err)
+		}
+
+		if len(results) < 1 {
+			t.Fatalf("Expected at least 1 result, got %d", len(results))
+		}
+
+		foundJSONParser := false
+		for _, r := range results {
+			if r.Repository.FullName == "utils/json-parser" {
+				foundJSONParser = true
+			}
+		}
+
+		if !foundJSONParser {
+			t.Errorf("Expected utils/json-parser in results")
+		}
+	})
+
+	t.Run("SearchCaseInsensitive", func(t *testing.T) {
+		results, err := repo.SearchRepositories(ctx, "REACT")
+		if err != nil {
+			t.Fatalf("Search failed: %v", err)
+		}
+
+		if len(results) == 0 {
+			t.Fatalf("Expected results for case-insensitive search, got none")
+		}
+
+		foundReact := false
+		for _, r := range results {
+			if r.Repository.FullName == "dev/react-dashboard" {
+				foundReact = true
+			}
+		}
+
+		if !foundReact {
+			t.Errorf("Expected dev/react-dashboard in case-insensitive results")
+		}
+	})
+}
+
+func TestSearchRepositories_EdgeCases(t *testing.T) {
+	repo, ctx := setupSearchTestDB(t)
+
+	t.Run("EmptyResults", func(t *testing.T) {
+		results, err := repo.SearchRepositories(ctx, "zyxwvutsrqp-nonexistent")
+		if err != nil {
+			t.Fatalf("Search failed: %v", err)
+		}
+
+		if len(results) != 0 {
+			t.Errorf("Expected 0 results for nonexistent term, got %d", len(results))
+		}
+	})
+
+	t.Run("ShortQuery", func(t *testing.T) {
+		_, err := repo.SearchRepositories(ctx, "a")
+		if err != nil {
+			t.Fatalf("Short query should not error at storage layer: %v", err)
+		}
+	})
+
+	t.Run("EmptyString", func(t *testing.T) {
+		results, err := repo.SearchRepositories(ctx, "")
+		if err != nil {
+			t.Fatalf("Empty string search should not error at storage layer: %v", err)
+		}
+
+		if len(results) != 3 {
+			t.Errorf("Expected 3 results for empty search (matches all), got %d", len(results))
+		}
+	})
+
+	t.Run("ResultScore", func(t *testing.T) {
+		results, err := repo.SearchRepositories(ctx, "terraform")
+		if err != nil {
+			t.Fatalf("Search failed: %v", err)
+		}
+
+		if len(results) == 0 {
+			t.Fatalf("Expected results, got none")
+		}
+
+		if results[0].Score <= 0 {
+			t.Errorf("Expected positive score, got %f", results[0].Score)
+		}
+	})
+
+	t.Run("ResultsOrderedByStars", func(t *testing.T) {
+		results, err := repo.SearchRepositories(ctx, "")
+		if err != nil {
+			t.Fatalf("Search failed: %v", err)
+		}
+
+		if len(results) < 2 {
+			t.Fatalf("Expected at least 2 results, got %d", len(results))
+		}
+
+		for i := 1; i < len(results); i++ {
+			if results[i-1].Repository.StargazersCount < results[i].Repository.StargazersCount {
+				t.Errorf(
+					"Results not ordered by stars DESC: %s (%d) before %s (%d)",
+					results[i-1].Repository.FullName, results[i-1].Repository.StargazersCount,
+					results[i].Repository.FullName, results[i].Repository.StargazersCount,
+				)
+			}
+		}
+	})
+}
+
+func TestSearchRepositories_SQLInjection(t *testing.T) {
+	repo, ctx := setupSearchTestDB(t)
+
+	cases := []struct {
+		name  string
+		query string
+	}{
+		{"SELECT", "SELECT * FROM repositories"},
+		{"select_lowercase", "select full_name from repositories"},
+		{"DROP", "DROP TABLE repositories"},
+		{"INSERT", "INSERT INTO repositories VALUES (1)"},
+		{"DELETE", "DELETE FROM repositories"},
+		{"UPDATE", "UPDATE repositories SET description = 'hacked'"},
+		{"CREATE", "CREATE TABLE evil (id int)"},
+		{"ALTER", "ALTER TABLE repositories ADD COLUMN evil TEXT"},
+		{"TRUNCATE", "TRUNCATE TABLE repositories"},
+		{"SELECT_with_whitespace", "  SELECT * FROM repositories  "},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			results, err := repo.SearchRepositories(ctx, tc.query)
+			if err == nil {
+				t.Fatalf(
+					"Expected error for SQL injection attempt %q, got %d results",
+					tc.query,
+					len(results),
+				)
+			}
+
+			if !strings.Contains(err.Error(), "SQL queries are not supported") {
+				t.Errorf("Expected error containing 'SQL queries are not supported', got: %v", err)
+			}
+		})
+	}
 }
 
 // Helper function to create test data

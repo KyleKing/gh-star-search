@@ -24,7 +24,7 @@ type Repository interface {
 	// New methods for enhanced functionality
 	UpdateRepositoryMetrics(ctx context.Context, fullName string, metrics RepositoryMetrics) error
 	UpdateRepositoryEmbedding(ctx context.Context, fullName string, embedding []float32) error
-	UpdateRepositorySummary(ctx context.Context, fullName string, purpose string) error
+	UpdateRepositorySummary(ctx context.Context, fullName, purpose string) error
 	GetRepositoriesNeedingMetricsUpdate(ctx context.Context, staleDays int) ([]string, error)
 	GetRepositoriesNeedingSummaryUpdate(ctx context.Context, forceUpdate bool) ([]string, error)
 }

@@ -124,7 +124,11 @@ func (p *LocalProvider) GenerateEmbedding(ctx context.Context, text string) ([]f
 	}
 
 	if result.Dimension != p.dimensions {
-		return nil, fmt.Errorf("dimension mismatch: expected %d, got %d", p.dimensions, result.Dimension)
+		return nil, fmt.Errorf(
+			"dimension mismatch: expected %d, got %d",
+			p.dimensions,
+			result.Dimension,
+		)
 	}
 
 	// Convert float64 to float32
@@ -137,7 +141,10 @@ func (p *LocalProvider) GenerateEmbedding(ctx context.Context, text string) ([]f
 }
 
 // GenerateEmbeddings generates embeddings for multiple texts (batch operation)
-func (p *LocalProvider) GenerateEmbeddings(ctx context.Context, texts []string) ([][]float32, error) {
+func (p *LocalProvider) GenerateEmbeddings(
+	ctx context.Context,
+	texts []string,
+) ([][]float32, error) {
 	if len(texts) == 0 {
 		return nil, nil
 	}

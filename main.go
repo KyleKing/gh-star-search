@@ -144,7 +144,8 @@ func initializeGlobalConfig(ctx context.Context, cmd *cli.Command) (context.Cont
 		slog.String("version", getVersion()),
 		slog.String("config", cfg.Database.Path))
 
-	if cfg.Debug.Enabled {
+	debugMode = cfg.Debug.Enabled
+	if debugMode {
 		slog.Debug("Debug mode enabled")
 		slog.Debug("Configuration loaded", slog.Any("config", cfg))
 	}
@@ -161,6 +162,8 @@ type contextKey string
 const (
 	configContextKey contextKey = "config"
 )
+
+var debugMode bool
 
 // printStructuredError prints a user-friendly error message
 func printStructuredError(err *gherrors.Error) {
@@ -186,11 +189,11 @@ func printStructuredError(err *gherrors.Error) {
 		}
 	}
 
-	if err.Cause != nil && false { // TODO: Add debug flag check
+	if err.Cause != nil && debugMode {
 		fmt.Fprintf(os.Stderr, "\nUnderlying error: %v\n", err.Cause)
 	}
 
-	if err.Stack != "" && false { // TODO: Add debug flag check
+	if err.Stack != "" && debugMode {
 		fmt.Fprintf(os.Stderr, "\nStack trace:\n%s\n", err.Stack)
 	}
 }

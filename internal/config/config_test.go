@@ -36,7 +36,7 @@ func TestLoadConfigFromFile(t *testing.T) {
 	data, err := json.MarshalIndent(testConfig, "", "  ")
 	require.NoError(t, err)
 
-	err = os.WriteFile(configPath, data, 0600)
+	err = os.WriteFile(configPath, data, 0o600)
 	require.NoError(t, err)
 
 	// Test loading
@@ -61,7 +61,7 @@ func TestLoadConfigFromFileInvalidJSON(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
 
-	err := os.WriteFile(configPath, []byte("invalid json"), 0600)
+	err := os.WriteFile(configPath, []byte("invalid json"), 0o600)
 	require.NoError(t, err)
 
 	config, err := LoadConfigWithOverrides(nil)
@@ -83,8 +83,7 @@ func TestApplyFlagOverrides(t *testing.T) {
 		"cache-dir": "/flag/cache",
 	}
 
-	err = applyFlagOverrides(config, overrides)
-	require.NoError(t, err)
+	applyFlagOverrides(config, overrides)
 
 	assert.Equal(t, "/flag/db/path.db", config.Database.Path)
 	assert.Equal(t, "error", config.Logging.Level)

@@ -97,7 +97,8 @@ func NewManager(config Config) (*Manager, error) {
 
 // GenerateEmbedding generates an embedding using the configured provider
 func (m *Manager) GenerateEmbedding(ctx context.Context,
-	text string) ([]float32, error) {
+	text string,
+) ([]float32, error) {
 	if !m.provider.IsEnabled() {
 		return nil, errors.New("embedding provider is disabled")
 	}
@@ -119,7 +120,8 @@ func (m *Manager) GetDimensions() int {
 type DisabledProvider struct{}
 
 func (p *DisabledProvider) GenerateEmbedding(_ context.Context,
-	_ string) ([]float32, error) {
+	_ string,
+) ([]float32, error) {
 	return nil, errors.New("embedding provider is disabled")
 }
 
@@ -147,7 +149,8 @@ func NewRemoteProvider(config Config) (*RemoteProvider, error) {
 }
 
 func (p *RemoteProvider) GenerateEmbedding(_ context.Context,
-	_ string) ([]float32, error) {
+	_ string,
+) ([]float32, error) {
 	// TODO: Implement remote embedding generation
 	// For now, return a placeholder embedding
 	return make([]float32, p.config.Dimensions), nil

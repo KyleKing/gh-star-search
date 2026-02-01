@@ -29,7 +29,7 @@ builds:
         goarch: "386"
       - goos: windows
         goarch: arm64
-    binary: gh-start-search-{{ .Os }}-{{ .Arch }}
+    binary: gh-star-search-{{ .Os }}-{{ .Arch }}
     no_unique_dist_dir: true
 
 archives:

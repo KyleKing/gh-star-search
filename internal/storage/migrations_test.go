@@ -86,7 +86,6 @@ func TestNewSchemaFields(t *testing.T) {
 		FROM information_schema.columns 
 		WHERE table_name = 'repositories' AND column_name = 'open_issues_open'
 	`).Scan(&columnExists)
-
 	if err != nil {
 		t.Fatalf("Failed to check column existence: %v", err)
 	}

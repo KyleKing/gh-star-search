@@ -15,7 +15,7 @@ type WorkerPool struct {
 }
 
 // NewWorkerPool creates a new worker pool for GitHub API calls
-func NewWorkerPool(workers int, rateLimit int, backoffBase, maxBackoff time.Duration) *WorkerPool {
+func NewWorkerPool(workers, rateLimit int, backoffBase, maxBackoff time.Duration) *WorkerPool {
 	// Create rate limiter channel
 	rateLimiter := make(chan struct{}, rateLimit)
 
@@ -220,7 +220,7 @@ type BatchExecutor struct {
 }
 
 // NewBatchExecutor creates a new batch executor
-func NewBatchExecutor(client Client, workers int, rateLimit int) *BatchExecutor {
+func NewBatchExecutor(client Client, workers, rateLimit int) *BatchExecutor {
 	pool := NewWorkerPool(workers, rateLimit, 1*time.Second, 30*time.Second)
 
 	return &BatchExecutor{

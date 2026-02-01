@@ -280,7 +280,7 @@ func (c *CachedClient) GetCommitActivity(
 func (c *CachedClient) GetPullCounts(
 	ctx context.Context,
 	fullName string,
-) (open int, total int, err error) {
+) (int, int, error) {
 	cacheKey := "prs:" + fullName
 	ttl := time.Duration(c.config.Cache.StatsStaleDays) * 24 * time.Hour
 
@@ -322,7 +322,7 @@ func (c *CachedClient) GetPullCounts(
 func (c *CachedClient) GetIssueCounts(
 	ctx context.Context,
 	fullName string,
-) (open int, total int, err error) {
+) (int, int, error) {
 	cacheKey := "issues:" + fullName
 	ttl := time.Duration(c.config.Cache.StatsStaleDays) * 24 * time.Hour
 

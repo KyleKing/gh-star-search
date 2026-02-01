@@ -23,12 +23,12 @@ type Config struct {
 
 // DatabaseConfig represents database configuration
 type DatabaseConfig struct {
-	Path              string `json:"path"                env:"DB_PATH"                  envDefault:"~/.config/gh-star-search/database.db"`
-	MaxConnections    int    `json:"max_connections"     env:"DB_MAX_CONNECTIONS"       envDefault:"10"`
-	MaxIdleConns      int    `json:"max_idle_conns"      env:"DB_MAX_IDLE_CONNS"        envDefault:"5"`
-	ConnMaxLifetime   string `json:"conn_max_lifetime"   env:"DB_CONN_MAX_LIFETIME"     envDefault:"30m"`
-	ConnMaxIdleTime   string `json:"conn_max_idle_time"  env:"DB_CONN_MAX_IDLE_TIME"    envDefault:"5m"`
-	QueryTimeout      string `json:"query_timeout"       env:"DB_QUERY_TIMEOUT"         envDefault:"30s"`
+	Path            string `json:"path"               env:"DB_PATH"               envDefault:"~/.config/gh-star-search/database.db"`
+	MaxConnections  int    `json:"max_connections"    env:"DB_MAX_CONNECTIONS"    envDefault:"10"`
+	MaxIdleConns    int    `json:"max_idle_conns"     env:"DB_MAX_IDLE_CONNS"     envDefault:"5"`
+	ConnMaxLifetime string `json:"conn_max_lifetime"  env:"DB_CONN_MAX_LIFETIME"  envDefault:"30m"`
+	ConnMaxIdleTime string `json:"conn_max_idle_time" env:"DB_CONN_MAX_IDLE_TIME" envDefault:"5m"`
+	QueryTimeout    string `json:"query_timeout"      env:"DB_QUERY_TIMEOUT"      envDefault:"30s"`
 }
 
 // CacheConfig represents caching configuration
@@ -95,9 +95,7 @@ func LoadConfigWithOverrides(flagOverrides map[string]interface{}) (*Config, err
 
 	// Apply command-line flag overrides
 	if flagOverrides != nil {
-		if err := applyFlagOverrides(config, flagOverrides); err != nil {
-			return nil, fmt.Errorf("failed to apply flag overrides: %w", err)
-		}
+		applyFlagOverrides(config, flagOverrides)
 	}
 
 	// Validate configuration
@@ -128,7 +126,7 @@ func loadConfigFromFile(config *Config, configPath string) error {
 }
 
 // applyFlagOverrides applies command-line flag overrides to configuration
-func applyFlagOverrides(config *Config, overrides map[string]interface{}) error {
+func applyFlagOverrides(config *Config, overrides map[string]interface{}) {
 	for key, value := range overrides {
 		switch key {
 		case "db-path":
@@ -153,8 +151,6 @@ func applyFlagOverrides(config *Config, overrides map[string]interface{}) error 
 			}
 		}
 	}
-
-	return nil
 }
 
 // mergeConfigs merges source configuration into target configuration
@@ -236,7 +232,7 @@ func SaveConfig(config *Config) error {
 	configPath := getConfigPath()
 
 	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
@@ -247,7 +243,7 @@ func SaveConfig(config *Config) error {
 	}
 
 	// Write to file
-	if err := os.WriteFile(configPath, data, 0600); err != nil {
+	if err := os.WriteFile(configPath, data, 0o600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
@@ -333,7 +329,7 @@ func (c *Config) EnsureDirectories() error {
 
 	for _, dir := range dirs {
 		if dir != "" && dir != "." {
-			if err := os.MkdirAll(dir, 0755); err != nil {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", dir, err)
 			}
 		}

@@ -11,12 +11,13 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
+	"github.com/urfave/cli/v3"
+
 	"github.com/kyleking/gh-star-search/internal/cache"
 	"github.com/kyleking/gh-star-search/internal/config"
 	"github.com/kyleking/gh-star-search/internal/github"
 	"github.com/kyleking/gh-star-search/internal/processor"
 	"github.com/kyleking/gh-star-search/internal/storage"
-	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -324,7 +325,15 @@ func (s *SyncService) performFullSync(ctx context.Context, batchSize int, force 
 	allToProcess = append(allToProcess, operations.toUpdate...)
 
 	if len(allToProcess) > 0 {
-		if err := s.processRepositoriesInBatchesWithForceAndMonitor(ctx, allToProcess, batchSize, stats, operations, force, nil); err != nil {
+		if err := s.processRepositoriesInBatchesWithForceAndMonitor(
+			ctx,
+			allToProcess,
+			batchSize,
+			stats,
+			operations,
+			force,
+			nil,
+		); err != nil {
 			return fmt.Errorf("failed to process repositories: %w", err)
 		}
 	} else {
@@ -959,10 +968,17 @@ func (s *SyncService) processRepositoryWithChangeTrackingAndForce(
 						changes = append(changes, "metadata")
 					}
 
-					fmt.Printf("  Updated repository (%s changed)\n", strings.Join(changes, " and "))
+					fmt.Printf(
+						"  Updated repository (%s changed)\n",
+						strings.Join(changes, " and "),
+					)
 
 					if contentChanged {
-						fmt.Printf("    Content hash: %s → %s\n", existing.ContentHash[:8], processed.ContentHash[:8])
+						fmt.Printf(
+							"    Content hash: %s → %s\n",
+							existing.ContentHash[:8],
+							processed.ContentHash[:8],
+						)
 					}
 
 					if metadataChanged {

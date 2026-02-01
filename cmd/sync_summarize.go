@@ -48,7 +48,13 @@ func (s *SyncService) generateSummaries(ctx context.Context, force bool) error {
 		}
 
 		// Build text to summarize from repository metadata
-		text := buildSummaryInput(repo.FullName, repo.Description, repo.Homepage, repo.Topics, repo.Language)
+		text := buildSummaryInput(
+			repo.FullName,
+			repo.Description,
+			repo.Homepage,
+			repo.Topics,
+			repo.Language,
+		)
 
 		// Generate summary
 		result, err := sum.Summarize(ctx, text, summarizer.MethodAuto)
@@ -94,7 +100,11 @@ func (s *SyncService) generateSummaries(ctx context.Context, force bool) error {
 }
 
 // buildSummaryInput creates text input for summarization from repository metadata
-func buildSummaryInput(fullName, description, homepage string, topics []string, language string) string {
+func buildSummaryInput(
+	fullName, description, homepage string,
+	topics []string,
+	language string,
+) string {
 	var parts []string
 
 	// Add repository name

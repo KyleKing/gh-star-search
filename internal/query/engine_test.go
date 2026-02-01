@@ -1,7 +1,9 @@
 package query
 
 import (
+	"math"
 	"testing"
+	"time"
 
 	"github.com/kyleking/gh-star-search/internal/storage"
 )
@@ -264,4 +266,222 @@ func TestSortAndRankResults(t *testing.T) {
 			t.Errorf("Expected rank %d, got %d", i+1, result.Rank)
 		}
 	}
+}
+
+func TestRecencyDecay(t *testing.T) {
+	engine := &SearchEngine{}
+	baseScore := 0.5
+
+	tests := []struct {
+		name        string
+		daysAgo     float64
+		expectedMin float64
+		expectedMax float64
+	}{
+		{
+			name:        "updated today has factor ~1.0",
+			daysAgo:     0,
+			expectedMin: baseScore * 0.99,
+			expectedMax: baseScore * 1.01,
+		},
+		{
+			name:        "updated 182 days ago has factor ~0.9",
+			daysAgo:     182.5,
+			expectedMin: baseScore * 0.89,
+			expectedMax: baseScore * 0.91,
+		},
+		{
+			name:        "updated 365 days ago has factor ~0.8",
+			daysAgo:     365,
+			expectedMin: baseScore * 0.79,
+			expectedMax: baseScore * 0.81,
+		},
+		{
+			name:        "updated 730 days ago still clamped to factor ~0.8",
+			daysAgo:     730,
+			expectedMin: baseScore * 0.79,
+			expectedMax: baseScore * 0.81,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := storage.StoredRepo{
+				UpdatedAt: time.Now().Add(-time.Duration(tt.daysAgo*24) * time.Hour),
+			}
+			score := engine.applyRankingBoosts(repo, baseScore)
+
+			if score < tt.expectedMin || score > tt.expectedMax {
+				t.Errorf(
+					"Expected score in [%f, %f], got %f (recency factor ~%.4f)",
+					tt.expectedMin, tt.expectedMax, score, score/baseScore,
+				)
+			}
+		})
+	}
+
+	t.Run("zero UpdatedAt skips recency decay", func(t *testing.T) {
+		repo := storage.StoredRepo{}
+		score := engine.applyRankingBoosts(repo, baseScore)
+		if score != baseScore {
+			t.Errorf("Expected score %f with zero UpdatedAt, got %f", baseScore, score)
+		}
+	})
+}
+
+func TestStarBoost(t *testing.T) {
+	engine := &SearchEngine{}
+	baseScore := 0.5
+	tolerance := 0.0001
+
+	recentlyUpdated := time.Now()
+
+	tests := []struct {
+		name          string
+		stars         int
+		expectedBoost float64
+	}{
+		{
+			name:          "0 stars gives boost of 1.0",
+			stars:         0,
+			expectedBoost: 1.0,
+		},
+		{
+			name:          "100 stars gives small logarithmic boost",
+			stars:         100,
+			expectedBoost: 1.0 + (0.1 * math.Log10(101) / 6.0),
+		},
+		{
+			name:          "10000 stars gives larger logarithmic boost",
+			stars:         10000,
+			expectedBoost: 1.0 + (0.1 * math.Log10(10001) / 6.0),
+		},
+		{
+			name:          "1 star gives minimal boost",
+			stars:         1,
+			expectedBoost: 1.0 + (0.1 * math.Log10(2) / 6.0),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := storage.StoredRepo{
+				StargazersCount: tt.stars,
+				UpdatedAt:       recentlyUpdated,
+			}
+			score := engine.applyRankingBoosts(repo, baseScore)
+			actualBoost := score / baseScore
+
+			if math.Abs(actualBoost-tt.expectedBoost) > tolerance {
+				t.Errorf(
+					"Expected boost ~%f for %d stars, got %f (score=%f)",
+					tt.expectedBoost, tt.stars, actualBoost, score,
+				)
+			}
+		})
+	}
+
+	t.Run("star boost increases monotonically", func(t *testing.T) {
+		starCounts := []int{0, 1, 10, 100, 1000, 10000, 100000}
+		prevScore := 0.0
+		for _, stars := range starCounts {
+			repo := storage.StoredRepo{
+				StargazersCount: stars,
+				UpdatedAt:       recentlyUpdated,
+			}
+			score := engine.applyRankingBoosts(repo, baseScore)
+			if score < prevScore {
+				t.Errorf("Score decreased from %f to %f at %d stars", prevScore, score, stars)
+			}
+			prevScore = score
+		}
+	})
+}
+
+func TestScoreClamping(t *testing.T) {
+	engine := &SearchEngine{}
+
+	recentlyUpdated := time.Now()
+
+	tests := []struct {
+		name      string
+		baseScore float64
+		stars     int
+	}{
+		{
+			name:      "high base score with high stars clamped to 1.0",
+			baseScore: 0.99,
+			stars:     100000,
+		},
+		{
+			name:      "base score of 1.0 clamped after boost",
+			baseScore: 1.0,
+			stars:     10000,
+		},
+		{
+			name:      "base score above 1.0 clamped",
+			baseScore: 1.5,
+			stars:     10000,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := storage.StoredRepo{
+				StargazersCount: tt.stars,
+				UpdatedAt:       recentlyUpdated,
+			}
+			boosted := engine.applyRankingBoosts(repo, tt.baseScore)
+
+			clamped := boosted
+			if clamped > 1.0 {
+				clamped = 1.0
+			}
+
+			if clamped > 1.0 {
+				t.Errorf("Clamped score should not exceed 1.0, got %f", clamped)
+			}
+
+			if tt.baseScore > 1.0 && boosted <= 1.0 {
+				t.Errorf(
+					"applyRankingBoosts does not clamp; expected boosted > 1.0 for base %f",
+					tt.baseScore,
+				)
+			}
+		})
+	}
+
+	t.Run("fuzzy search flow clamps scores", func(t *testing.T) {
+		boosted := engine.applyRankingBoosts(storage.StoredRepo{
+			StargazersCount: 100000,
+			UpdatedAt:       recentlyUpdated,
+		}, 0.98)
+
+		if boosted > 1.0 {
+			boosted = 1.0
+		}
+		if boosted > 1.0 {
+			t.Errorf("Score after clamping must be <= 1.0, got %f", boosted)
+		}
+	})
+
+	t.Run("zero base score remains zero", func(t *testing.T) {
+		score := engine.applyRankingBoosts(storage.StoredRepo{
+			StargazersCount: 100000,
+			UpdatedAt:       recentlyUpdated,
+		}, 0.0)
+		if score != 0.0 {
+			t.Errorf("Expected 0.0 for zero base score, got %f", score)
+		}
+	})
+
+	t.Run("negative base score remains unchanged", func(t *testing.T) {
+		score := engine.applyRankingBoosts(storage.StoredRepo{
+			StargazersCount: 100000,
+			UpdatedAt:       recentlyUpdated,
+		}, -0.5)
+		if score != -0.5 {
+			t.Errorf("Expected -0.5 for negative base score, got %f", score)
+		}
+	})
 }

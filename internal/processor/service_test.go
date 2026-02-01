@@ -329,7 +329,6 @@ Run go install.`))
 	// Process repository
 	ctx := context.Background()
 	processed, err := service.ProcessRepository(ctx, repo, content)
-
 	if err != nil {
 		t.Fatalf("ProcessRepository failed: %v", err)
 	}
@@ -372,7 +371,6 @@ func TestExtractContent(t *testing.T) {
 
 	ctx := context.Background()
 	extracted, err := service.ExtractContent(ctx, repo)
-
 	if err != nil {
 		t.Fatalf("ExtractContent failed: %v", err)
 	}

@@ -1,9 +1,13 @@
-
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+
+	"github.com/urfave/cli/v3"
+
+	"github.com/kyleking/gh-star-search/cmd"
 )
 
 var (
@@ -13,38 +17,24 @@ var (
 )
 
 func main() {
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
-		case "-v", "--version":
-			fmt.Printf("gh-start-search %s (commit: %s, built: %s)\n", version, commit, date)
-			os.Exit(0)
-		case "-h", "--help":
-			printHelp()
-			os.Exit(0)
-		}
+	app := &cli.Command{
+		Name:    "gh-star-search",
+		Usage:   "Search your starred GitHub repositories using natural language",
+		Version: fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date),
+		Commands: []*cli.Command{
+			cmd.SyncCommand(),
+			cmd.ListCommand(),
+			cmd.InfoCommand(),
+			cmd.StatsCommand(),
+			cmd.ClearCommand(),
+			cmd.QueryCommand(),
+			cmd.RelatedCommand(),
+			cmd.ConfigCommand(),
+		},
 	}
 
-	if err := run(); err != nil {
+	if err := app.Run(context.Background(), os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-}
-
-func run() error {
-	// TODO: Implement main logic here
-	// Consider using internal/ packages for organization
-	fmt.Println("gh-start-search: Not yet implemented")
-	return nil
-}
-
-func printHelp() {
-	fmt.Printf(`gh-start-search - GH CLI extension to search your stars 
-
-Usage:
-  gh-start-search [options]
-
-Options:
-  -h, --help     Show this help message
-  -v, --version  Show version information
-`)
 }

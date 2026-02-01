@@ -74,7 +74,7 @@ func NewFileCache(
 	}
 
 	// Create directory if it doesn't exist
-	if err := os.MkdirAll(directory, 0755); err != nil {
+	if err := os.MkdirAll(directory, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
@@ -179,7 +179,7 @@ func (c *FileCache) Set(ctx context.Context, key string, data []byte, ttl time.D
 	}
 
 	// Write data file
-	if err := os.WriteFile(filePath, data, 0600); err != nil {
+	if err := os.WriteFile(filePath, data, 0o600); err != nil {
 		return fmt.Errorf("failed to write cache data: %w", err)
 	}
 
@@ -190,7 +190,7 @@ func (c *FileCache) Set(ctx context.Context, key string, data []byte, ttl time.D
 		return fmt.Errorf("failed to marshal cache metadata: %w", err)
 	}
 
-	if err := os.WriteFile(metaPath, metaData, 0600); err != nil {
+	if err := os.WriteFile(metaPath, metaData, 0o600); err != nil {
 		os.Remove(filePath) // Clean up data file on error
 		return fmt.Errorf("failed to write cache metadata: %w", err)
 	}

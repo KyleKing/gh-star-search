@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -97,20 +98,13 @@ func TestQueryIntegration(t *testing.T) {
 		ORDER BY stargazers_count DESC
 		LIMIT 5`
 
-		results, err := repo.SearchRepositories(ctx, sqlQuery)
-		if err != nil {
-			t.Errorf("SQL query failed: %v", err)
+		_, err := repo.SearchRepositories(ctx, sqlQuery)
+		if err == nil {
+			t.Error("Expected error for SQL query, got nil")
 		}
 
-		if len(results) == 0 {
-			t.Error("Expected results from SQL query")
-		}
-
-		// Verify results are sorted by stars
-		for i := 1; i < len(results); i++ {
-			if results[i-1].Repository.StargazersCount < results[i].Repository.StargazersCount {
-				t.Error("Results should be sorted by stargazers_count DESC")
-			}
+		if err != nil && !strings.Contains(err.Error(), "SQL queries are not supported") {
+			t.Errorf("Expected SQL rejection error, got: %v", err)
 		}
 	})
 

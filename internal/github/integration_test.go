@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
+
 	"github.com/kyleking/gh-star-search/internal/cache"
 	"github.com/kyleking/gh-star-search/internal/config"
 )

@@ -84,8 +84,6 @@ Languages: Lang1 (LOC/approx), Lang2 (...)
 Related Stars: <count_same_org> in <org>, <count_shared_contrib> by top contributors
 Last synced: <humanized (now - last_synced)>
 Summary: <purpose/combined summary> (optional)
-(PLANNED: dependencies count)
-(PLANNED: 'used by' count)
 ```
 
 ### Short-form

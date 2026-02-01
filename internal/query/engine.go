@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/kyleking/gh-star-search/internal/embedding"
 	"github.com/kyleking/gh-star-search/internal/storage"
@@ -320,10 +321,12 @@ func (e *SearchEngine) applyRankingBoosts(repo storage.StoredRepo, baseScore flo
 		starBoost = 1.0 + (0.1 * math.Log10(float64(repo.StargazersCount+1)) / 6.0)
 	}
 
-	// Recency decay (small penalty for very old repos)
+	// Recency decay: 0-20% penalty for stale repos (not updated in past year)
 	recencyFactor := 1.0
-	// TODO: Implement proper recency calculation based on repo.UpdatedAt
-	// For now, use a placeholder that doesn't change the score
+	if !repo.UpdatedAt.IsZero() {
+		daysSinceUpdate := time.Since(repo.UpdatedAt).Hours() / 24
+		recencyFactor = 1.0 - 0.2*math.Min(1.0, daysSinceUpdate/365.0)
+	}
 
 	return baseScore * starBoost * recencyFactor
 }

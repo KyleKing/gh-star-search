@@ -113,7 +113,7 @@ func (m *MockGitHubClient) GetCommitActivity(
 func (m *MockGitHubClient) GetPullCounts(
 	_ context.Context,
 	fullName string,
-) (open int, total int, err error) {
+) (int, int, error) {
 	if err, exists := m.errors[fullName+"_prs"]; exists {
 		return 0, 0, err
 	}
@@ -124,7 +124,7 @@ func (m *MockGitHubClient) GetPullCounts(
 func (m *MockGitHubClient) GetIssueCounts(
 	_ context.Context,
 	fullName string,
-) (open int, total int, err error) {
+) (int, int, error) {
 	if err, exists := m.errors[fullName+"_issues"]; exists {
 		return 0, 0, err
 	}

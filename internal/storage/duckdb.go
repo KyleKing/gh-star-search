@@ -12,8 +12,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/kyleking/gh-star-search/internal/processor"
 	_ "github.com/marcboeker/go-duckdb" // DuckDB driver
+
+	"github.com/kyleking/gh-star-search/internal/processor"
 )
 
 const (
@@ -42,10 +43,13 @@ func NewDuckDBRepository(dbPath string) (*DuckDBRepository, error) {
 }
 
 // NewDuckDBRepositoryWithTimeout creates a new DuckDB repository instance with custom timeout
-func NewDuckDBRepositoryWithTimeout(dbPath string, queryTimeout time.Duration) (*DuckDBRepository, error) {
+func NewDuckDBRepositoryWithTimeout(
+	dbPath string,
+	queryTimeout time.Duration,
+) (*DuckDBRepository, error) {
 	// Ensure the directory exists
 	dir := filepath.Dir(dbPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
 
@@ -79,7 +83,9 @@ func NewDuckDBRepositoryWithTimeout(dbPath string, queryTimeout time.Duration) (
 
 // withQueryTimeout creates a new context with the configured query timeout
 // If the parent context already has a deadline, it keeps the earlier deadline
-func (r *DuckDBRepository) withQueryTimeout(parent context.Context) (context.Context, context.CancelFunc) {
+func (r *DuckDBRepository) withQueryTimeout(
+	parent context.Context,
+) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(parent, r.queryTimeout)
 }
 
@@ -107,14 +113,24 @@ func (r *DuckDBRepository) StoreRepository(
 	defer func() { _ = tx.Rollback() }()
 
 	// Convert arrays and objects to JSON
-	languagesJSON, _ := json.Marshal(map[string]int64{}) // Default empty, will be populated by sync
-	contributorsJSON, _ := json.Marshal([]Contributor{}) // Default empty, will be populated by sync
+	languagesJSON, err := json.Marshal(map[string]int64{})
+	if err != nil {
+		return fmt.Errorf("failed to marshal languages: %w", err)
+	}
+
+	contributorsJSON, err := json.Marshal([]Contributor{})
+	if err != nil {
+		return fmt.Errorf("failed to marshal contributors: %w", err)
+	}
 
 	// Generate a new UUID for the repository
 	repoID := uuid.New().String()
 
 	// Convert topics to JSON for storage (DuckDB doesn't handle []string directly)
-	topicsJSON, _ := json.Marshal(repo.Repository.Topics)
+	topicsJSON, err := json.Marshal(repo.Repository.Topics)
+	if err != nil {
+		return fmt.Errorf("failed to marshal topics: %w", err)
+	}
 
 	// Insert repository with new schema
 	insertRepoSQL := `
@@ -234,9 +250,20 @@ func (r *DuckDBRepository) UpdateRepository(
 	}
 
 	// Convert arrays and objects to JSON
-	topicsJSON, _ := json.Marshal(repo.Repository.Topics)
-	languagesJSON, _ := json.Marshal(map[string]int64{}) // Default empty, will be populated by sync
-	contributorsJSON, _ := json.Marshal([]Contributor{}) // Default empty, will be populated by sync
+	topicsJSON, err := json.Marshal(repo.Repository.Topics)
+	if err != nil {
+		return fmt.Errorf("failed to marshal topics: %w", err)
+	}
+
+	languagesJSON, err := json.Marshal(map[string]int64{})
+	if err != nil {
+		return fmt.Errorf("failed to marshal languages: %w", err)
+	}
+
+	contributorsJSON, err := json.Marshal([]Contributor{})
+	if err != nil {
+		return fmt.Errorf("failed to marshal contributors: %w", err)
+	}
 
 	// Insert the repository with the same ID using new schema
 	insertRepoSQL := `
@@ -419,50 +446,6 @@ func (r *DuckDBRepository) GetRepository(
 	return &repo, nil
 }
 
-// getRepositoryChunks retrieves all chunks for a repository
-func (r *DuckDBRepository) getRepositoryChunks(
-	ctx context.Context,
-	repoID string,
-) ([]processor.ContentChunk, error) {
-	// Check if content_chunks table exists
-	var tableExists bool
-	err := r.db.QueryRowContext(ctx, `
-		SELECT COUNT(*) > 0 
-		FROM information_schema.tables 
-		WHERE table_name = 'content_chunks'
-	`).Scan(&tableExists)
-
-	if err != nil || !tableExists {
-		return []processor.ContentChunk{}, nil
-	}
-
-	query := `
-	SELECT source_path, chunk_type, content, tokens, priority
-	FROM content_chunks WHERE repository_id = ?
-	ORDER BY priority, source_path`
-
-	rows, err := r.db.QueryContext(ctx, query, repoID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var chunks []processor.ContentChunk
-
-	for rows.Next() {
-		var chunk processor.ContentChunk
-
-		err := rows.Scan(&chunk.Source, &chunk.Type, &chunk.Content, &chunk.Tokens, &chunk.Priority)
-		if err != nil {
-			return nil, err
-		}
-
-		chunks = append(chunks, chunk)
-	}
-
-	return chunks, rows.Err()
-}
-
 // ListRepositories retrieves a paginated list of repositories with a timeout
 func (r *DuckDBRepository) ListRepositories(
 	ctx context.Context,
@@ -575,11 +558,22 @@ func (r *DuckDBRepository) SearchRepositories(
 	// Validate that the query is not a SQL statement
 	// This is a defense-in-depth measure to prevent SQL injection
 	trimmedQuery := strings.TrimSpace(strings.ToUpper(query))
-	sqlKeywords := []string{"SELECT", "INSERT", "UPDATE", "DELETE", "DROP", "CREATE", "ALTER", "TRUNCATE"}
+	sqlKeywords := []string{
+		"SELECT",
+		"INSERT",
+		"UPDATE",
+		"DELETE",
+		"DROP",
+		"CREATE",
+		"ALTER",
+		"TRUNCATE",
+	}
 
 	for _, keyword := range sqlKeywords {
 		if strings.HasPrefix(trimmedQuery, keyword) {
-			return nil, fmt.Errorf("SQL queries are not supported for security reasons. Please use simple search terms instead")
+			return nil, fmt.Errorf(
+				"SQL queries are not supported for security reasons. Please use simple search terms instead",
+			)
 		}
 	}
 
@@ -809,6 +803,10 @@ func (r *DuckDBRepository) GetStats(ctx context.Context) (*Stats, error) {
 		stats.LanguageBreakdown[language] = count
 	}
 
+	if err := langRows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate language rows: %w", err)
+	}
+
 	return stats, nil
 }
 
@@ -870,7 +868,6 @@ func (r *DuckDBRepository) UpdateRepositoryMetrics(
 		string(languagesJSON), string(contributorsJSON),
 		fullName,
 	)
-
 	if err != nil {
 		return fmt.Errorf("failed to update repository metrics: %w", err)
 	}
@@ -894,11 +891,14 @@ func (r *DuckDBRepository) UpdateRepositoryEmbedding(
 	embedding []float32,
 ) error {
 	// Convert []float32 to the format DuckDB expects for FLOAT arrays
-	embeddingJSON, _ := json.Marshal(embedding)
+	embeddingJSON, err := json.Marshal(embedding)
+	if err != nil {
+		return fmt.Errorf("failed to marshal embedding: %w", err)
+	}
 
 	updateSQL := `UPDATE repositories SET repo_embedding = ? WHERE full_name = ?`
 
-	_, err := r.db.ExecContext(ctx, updateSQL, string(embeddingJSON), fullName)
+	_, err = r.db.ExecContext(ctx, updateSQL, string(embeddingJSON), fullName)
 	if err != nil {
 		return fmt.Errorf("failed to update repository embedding: %w", err)
 	}

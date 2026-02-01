@@ -10,8 +10,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/kyleking/gh-star-search/internal/storage"
 	"github.com/urfave/cli/v3"
+
+	"github.com/kyleking/gh-star-search/internal/storage"
 )
 
 func ListCommand() *cli.Command {
@@ -114,7 +115,7 @@ func outputTable(repos []storage.StoredRepo) error {
 
 		language := repo.Language
 		if language == "" {
-			language = "N/A"
+			language = notAvailable
 		}
 
 		fmt.Fprintf(w, "%s\t%s\t%d\t%d\t%s\t%s\n",
@@ -142,7 +143,9 @@ func outputCSV(repos []storage.StoredRepo) error {
 	defer writer.Flush()
 
 	// Header
-	if err := writer.Write([]string{"Name", "Language", "Stars", "Forks", "Updated", "Description"}); err != nil {
+	if err := writer.Write(
+		[]string{"Name", "Language", "Stars", "Forks", "Updated", "Description"},
+	); err != nil {
 		return err
 	}
 
@@ -150,7 +153,7 @@ func outputCSV(repos []storage.StoredRepo) error {
 	for _, repo := range repos {
 		language := repo.Language
 		if language == "" {
-			language = "N/A"
+			language = notAvailable
 		}
 
 		record := []string{

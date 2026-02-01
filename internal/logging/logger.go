@@ -15,8 +15,8 @@ import (
 
 const (
 	// File permissions for log directories and files
-	logDirPerm  = 0755
-	logFilePerm = 0644
+	logDirPerm  = 0o755
+	logFilePerm = 0o644
 )
 
 // parseLogLevel parses a string log level into slog.Level

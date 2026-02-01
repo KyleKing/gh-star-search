@@ -1,4 +1,4 @@
-# AI Agent Guidelines for gh-start-search
+# AI Agent Guidelines for gh-star-search
 
 This document provides guidelines for AI coding assistants working on this Go project.
 
@@ -7,9 +7,9 @@ This document provides guidelines for AI coding assistants working on this Go pr
 ### Package Structure
 
 ```
-gh-start-search/
+gh-star-search/
 
-├── cmd/gh-start-search/  # CLI entry point
+├── cmd/gh-star-search/  # CLI entry point
 
 ├── internal/         # Private packages (not importable by other modules)
 │   ├── app/          # Application logic

@@ -25,12 +25,12 @@ func TestRunConfig(t *testing.T) {
 					QueryTimeout:   "30s",
 				},
 				Cache: config.CacheConfig{
-					Directory:        "~/.cache/gh-star-search",
-					MaxSizeMB:        500,
-					TTLHours:         24,
-					CleanupFreq:      "1h",
+					Directory:         "~/.cache/gh-star-search",
+					MaxSizeMB:         500,
+					TTLHours:          24,
+					CleanupFreq:       "1h",
 					MetadataStaleDays: 7,
-					StatsStaleDays:   1,
+					StatsStaleDays:    1,
 				},
 				Logging: config.LoggingConfig{
 					Level:  "info",
@@ -38,8 +38,8 @@ func TestRunConfig(t *testing.T) {
 					Output: "stdout",
 				},
 				Debug: config.DebugConfig{
-					Enabled: false,
-					Verbose: false,
+					Enabled:  false,
+					Verbose:  false,
 					TraceAPI: false,
 				},
 			},
@@ -73,12 +73,12 @@ func TestRunConfig(t *testing.T) {
 					QueryTimeout:   "10s",
 				},
 				Cache: config.CacheConfig{
-					Directory:        "/tmp/cache",
-					MaxSizeMB:        100,
-					TTLHours:         12,
-					CleanupFreq:      "30m",
+					Directory:         "/tmp/cache",
+					MaxSizeMB:         100,
+					TTLHours:          12,
+					CleanupFreq:       "30m",
 					MetadataStaleDays: 3,
-					StatsStaleDays:   1,
+					StatsStaleDays:    1,
 				},
 				Logging: config.LoggingConfig{
 					Level:      "debug",
@@ -154,7 +154,11 @@ func TestRunConfig(t *testing.T) {
 			// Check output contains expected strings
 			for _, expected := range tt.contains {
 				if !strings.Contains(output, expected) {
-					t.Errorf("RunConfigWithConfig() output does not contain %q\nOutput: %s", expected, output)
+					t.Errorf(
+						"RunConfigWithConfig() output does not contain %q\nOutput: %s",
+						expected,
+						output,
+					)
 				}
 			}
 		})

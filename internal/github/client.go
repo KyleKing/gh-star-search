@@ -52,10 +52,10 @@ type Client interface {
 	GetCommitActivity(ctx context.Context, fullName string) (*CommitActivity, error)
 
 	// GetPullCounts fetches pull request counts (open and total) for a repository.
-	GetPullCounts(ctx context.Context, fullName string) (open int, total int, err error)
+	GetPullCounts(ctx context.Context, fullName string) (int, int, error)
 
 	// GetIssueCounts fetches issue counts (open and total) for a repository.
-	GetIssueCounts(ctx context.Context, fullName string) (open int, total int, err error)
+	GetIssueCounts(ctx context.Context, fullName string) (int, int, error)
 
 	// GetHomepageText fetches text content from an external homepage URL.
 	// This is optional and used for additional context extraction.
@@ -189,8 +189,11 @@ func (c *clientImpl) GetStarredRepos(ctx context.Context, _ string) ([]Repositor
 
 	page := 1
 	// Support test-only overrides for perPage and maxPages
-	perPage := c.getPerPageWithOverride(50, "GH_STAR_SEARCH_TEST_PER_PAGE") // Default for testing to limit recorded data
-	maxPages := 0                                                           // Default limit pages for testing to prevent timeouts
+	perPage := c.getPerPageWithOverride(
+		50,
+		"GH_STAR_SEARCH_TEST_PER_PAGE",
+	) // Default for testing to limit recorded data
+	maxPages := 0 // Default limit pages for testing to prevent timeouts
 
 	// Check for test maxPages override
 	if testMaxPages := os.Getenv("GH_STAR_SEARCH_TEST_MAX_PAGES"); testMaxPages != "" {
@@ -331,7 +334,12 @@ func (c *clientImpl) fetchCommitCount(
 	perPage := c.getPerPageWithOverride(1, "GH_STAR_SEARCH_TEST_COMMITS_PER_PAGE")
 
 	err := c.apiClient.Get(
-		fmt.Sprintf("repos/%s/commits?sha=%s&per_page=%d", repo.FullName, repo.DefaultBranch, perPage),
+		fmt.Sprintf(
+			"repos/%s/commits?sha=%s&per_page=%d",
+			repo.FullName,
+			repo.DefaultBranch,
+			perPage,
+		),
 		&commits,
 	)
 	if err != nil {
@@ -427,7 +435,10 @@ func (c *clientImpl) fetchLatestRelease(
 
 	perPage := c.getPerPageWithOverride(1, "GH_STAR_SEARCH_TEST_RELEASES_PER_PAGE")
 
-	err = c.apiClient.Get(fmt.Sprintf("repos/%s/releases?per_page=%d", repo.FullName, perPage), &releases)
+	err = c.apiClient.Get(
+		fmt.Sprintf("repos/%s/releases?per_page=%d", repo.FullName, perPage),
+		&releases,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to fetch release count: %w", err)
 	}
@@ -546,7 +557,7 @@ func (c *clientImpl) GetCommitActivity(
 func (c *clientImpl) GetPullCounts(
 	ctx context.Context,
 	fullName string,
-) (open int, total int, err error) {
+) (int, int, error) {
 	select {
 	case <-ctx.Done():
 		return 0, 0, ctx.Err()
@@ -558,15 +569,13 @@ func (c *clientImpl) GetPullCounts(
 	// Get open PRs
 	var openResult SearchResult
 
-	err = c.apiClient.Get(
+	err := c.apiClient.Get(
 		fmt.Sprintf("search/issues?q=repo:%s+type:pr+state:open&per_page=%d", fullName, perPage),
 		&openResult,
 	)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to fetch open PR count for %s: %w", fullName, err)
 	}
-
-	open = openResult.TotalCount
 
 	// Get total PRs (open + closed)
 	var totalResult SearchResult
@@ -579,16 +588,14 @@ func (c *clientImpl) GetPullCounts(
 		return 0, 0, fmt.Errorf("failed to fetch total PR count for %s: %w", fullName, err)
 	}
 
-	total = totalResult.TotalCount
-
-	return open, total, nil
+	return openResult.TotalCount, totalResult.TotalCount, nil
 }
 
 // GetIssueCounts fetches issue counts for a repository
 func (c *clientImpl) GetIssueCounts(
 	ctx context.Context,
 	fullName string,
-) (open int, total int, err error) {
+) (int, int, error) {
 	select {
 	case <-ctx.Done():
 		return 0, 0, ctx.Err()
@@ -600,15 +607,13 @@ func (c *clientImpl) GetIssueCounts(
 	// Get open issues (excluding PRs)
 	var openResult SearchResult
 
-	err = c.apiClient.Get(
+	err := c.apiClient.Get(
 		fmt.Sprintf("search/issues?q=repo:%s+type:issue+state:open&per_page=%d", fullName, perPage),
 		&openResult,
 	)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to fetch open issue count for %s: %w", fullName, err)
 	}
-
-	open = openResult.TotalCount
 
 	// Get total issues (open + closed, excluding PRs)
 	var totalResult SearchResult
@@ -621,9 +626,7 @@ func (c *clientImpl) GetIssueCounts(
 		return 0, 0, fmt.Errorf("failed to fetch total issue count for %s: %w", fullName, err)
 	}
 
-	total = totalResult.TotalCount
-
-	return open, total, nil
+	return openResult.TotalCount, totalResult.TotalCount, nil
 }
 
 // stripHTMLTags removes HTML tags from text and cleans whitespace
@@ -668,7 +671,7 @@ func (c *clientImpl) GetHomepageText(ctx context.Context, urlStr string) (string
 		Timeout: 10 * time.Second,
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}

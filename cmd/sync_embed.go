@@ -9,7 +9,7 @@ import (
 )
 
 // generateEmbeddings generates vector embeddings for repositories
-func (s *SyncService) generateEmbeddings(ctx context.Context, force bool) error {
+func (s *SyncService) generateEmbeddings(ctx context.Context, _ bool) error {
 	s.logVerbose("\nGenerating repository embeddings...")
 
 	// Get all repositories (we need to check which ones have embeddings)
@@ -23,12 +23,7 @@ func (s *SyncService) generateEmbeddings(ctx context.Context, force bool) error 
 	// Filter repositories that need embeddings
 	var needEmbedding []string
 	for _, repo := range repos {
-		// For force mode, regenerate all
-		// Otherwise, skip if already has embedding (we'd need to check repo_embedding field)
-		// For simplicity, in force mode process all, otherwise process all (first implementation)
-		if force || true { // TODO: Add proper check for existing embeddings
-			needEmbedding = append(needEmbedding, repo.FullName)
-		}
+		needEmbedding = append(needEmbedding, repo.FullName)
 	}
 
 	if len(needEmbedding) == 0 {

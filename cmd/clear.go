@@ -7,8 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kyleking/gh-star-search/internal/storage"
 	"github.com/urfave/cli/v3"
+
+	"github.com/kyleking/gh-star-search/internal/storage"
 )
 
 func ClearCommand() *cli.Command {
@@ -80,7 +81,7 @@ func RunClearWithStorage(ctx context.Context, force bool, repo storage.Repositor
 
 		response = strings.TrimSpace(strings.ToLower(response))
 		if response != "yes" {
-			fmt.Println("Operation cancelled.")
+			fmt.Println("Operation canceled.")
 			return nil
 		}
 	}

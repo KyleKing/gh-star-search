@@ -1,4 +1,4 @@
-# Contributing to gh-start-search
+# Contributing to gh-star-search
 
 ## Setup
 
@@ -60,18 +60,18 @@ GitHub Actions builds binaries for Linux, macOS, Windows, and FreeBSD (amd64/arm
 
 ### Updating the Homebrew Formula
 
-After a release, update `Formula/gh-start-search.rb`:
+After a release, update `Formula/gh-star-search.rb`:
 
 1. Download the release binaries from the GitHub release page
 2. Generate SHA256 checksums:
 
    ```bash
-   shasum -a 256 gh-start-search-darwin-arm64 gh-start-search-darwin-amd64 gh-start-search-linux-arm64 gh-start-search-linux-amd64
+   shasum -a 256 gh-star-search-darwin-arm64 gh-star-search-darwin-amd64 gh-star-search-linux-arm64 gh-star-search-linux-amd64
    ```
 
    Or run `mise run brew:sha` for a reminder of these steps.
 
-3. Update the `version` and `sha256` values in `Formula/gh-start-search.rb`
+3. Update the `version` and `sha256` values in `Formula/gh-star-search.rb`
 4. Commit and push the formula changes
 
 ### Installing via Homebrew
@@ -79,16 +79,16 @@ After a release, update `Formula/gh-start-search.rb`:
 Users can install directly from the repository formula:
 
 ```bash
-brew install --formula https://github.com/kyleking/gh-start-search/raw/main/Formula/gh-start-search.rb
+brew install --formula https://github.com/kyleking/gh-star-search/raw/main/Formula/gh-star-search.rb
 ```
 
 Or from a local checkout:
 
 ```bash
-brew install --formula ./Formula/gh-start-search.rb
+brew install --formula ./Formula/gh-star-search.rb
 ```
 
-To set up a [homebrew tap](https://docs.brew.sh/Taps) for `brew install kyleking/tap/gh-start-search`, create a `homebrew-tap` repo at `https://github.com/kyleking/homebrew-tap` and copy the formula there.
+To set up a [homebrew tap](https://docs.brew.sh/Taps) for `brew install kyleking/tap/gh-star-search`, create a `homebrew-tap` repo at `https://github.com/kyleking/homebrew-tap` and copy the formula there.
 
 
 ## Troubleshooting

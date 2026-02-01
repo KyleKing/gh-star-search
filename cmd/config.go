@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/urfave/cli/v3"
+
 	"github.com/kyleking/gh-star-search/internal/config"
 	"github.com/kyleking/gh-star-search/internal/errors"
-	"github.com/urfave/cli/v3"
 )
 
 // Ensure config package is used

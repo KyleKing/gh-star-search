@@ -8,11 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/urfave/cli/v3"
+
 	"github.com/kyleking/gh-star-search/internal/errors"
 	"github.com/kyleking/gh-star-search/internal/query"
 	"github.com/kyleking/gh-star-search/internal/related"
 	"github.com/kyleking/gh-star-search/internal/storage"
-	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -51,7 +52,11 @@ Examples:
 				Name:    "limit",
 				Aliases: []string{"l"},
 				Value:   DefaultQueryLimit,
-				Usage:   fmt.Sprintf("Maximum number of results (%d-%d)", MinQueryLimit, MaxQueryLimit),
+				Usage: fmt.Sprintf(
+					"Maximum number of results (%d-%d)",
+					MinQueryLimit,
+					MaxQueryLimit,
+				),
 			},
 			&cli.BoolFlag{
 				Name:    "long",
@@ -328,10 +333,6 @@ func displayLongFormResult(rank int, result query.Result, _ bool) {
 
 	// Score
 	fmt.Printf("Score: %.2f\n", result.Score)
-
-	// Planned placeholders
-	fmt.Printf("(PLANNED: dependencies count)\n")
-	fmt.Printf("(PLANNED: 'used by' count)\n")
 }
 
 // displayShortFormResult displays a search result in short format
@@ -455,7 +456,5 @@ func formatLanguages(languages map[string]int64) string {
 }
 
 func formatRelatedStars(_ storage.StoredRepo) string {
-	// TODO: Implement actual related star counting
-	// For now, return placeholder
-	return "- in same org, - by top contributors"
+	return "(use 'related' command for details)"
 }

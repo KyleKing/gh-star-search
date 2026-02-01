@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kyleking/gh-star-search/internal/storage"
 	"github.com/urfave/cli/v3"
+
+	"github.com/kyleking/gh-star-search/internal/storage"
 )
+
+const notAvailable = "N/A"
 
 func InfoCommand() *cli.Command {
 	return &cli.Command{
@@ -95,7 +98,7 @@ func RunInfoWithStorage(ctx context.Context, repoName string, repo storage.Repos
 
 func getStringOrNA(s string) string {
 	if s == "" {
-		return "N/A"
+		return notAvailable
 	}
 
 	return s

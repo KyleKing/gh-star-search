@@ -62,7 +62,12 @@ func TestValidateRepositoryName(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateRepositoryName(tt.repoName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("validateRepositoryName(%q) error = %v, wantErr %v", tt.repoName, err, tt.wantErr)
+				t.Errorf(
+					"validateRepositoryName(%q) error = %v, wantErr %v",
+					tt.repoName,
+					err,
+					tt.wantErr,
+				)
 			}
 		})
 	}
@@ -186,7 +191,11 @@ func TestDisplayRelatedRepository(t *testing.T) {
 			// Check output contains expected strings
 			for _, expected := range tt.contains {
 				if !strings.Contains(output, expected) {
-					t.Errorf("displayRelatedRepository() output does not contain %q\nOutput: %s", expected, output)
+					t.Errorf(
+						"displayRelatedRepository() output does not contain %q\nOutput: %s",
+						expected,
+						output,
+					)
 				}
 			}
 		})

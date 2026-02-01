@@ -183,8 +183,8 @@ func TestSyncIntegration(t *testing.T) {
 		t.Errorf("Expected 100 stars for active-repo, got %d", activeRepo.StargazersCount)
 	}
 
-	if len(activeRepo.Chunks) == 0 {
-		t.Error("Expected content chunks for active-repo")
+	if len(activeRepo.Chunks) != 0 {
+		t.Error("Expected no content chunks for active-repo (chunks are deprecated)")
 	}
 
 	// Step 2: Simulate repository changes and perform incremental sync
@@ -823,7 +823,12 @@ func TestSyncProgressTracking(t *testing.T) {
 		if err != nil {
 			t.Errorf("Repository %s was not stored: %v", repoName, err)
 		} else if stored.StargazersCount != (i+1)*10 {
-			t.Errorf("Repository %s has wrong star count: expected %d, got %d", repoName, (i+1)*10, stored.StargazersCount)
+			t.Errorf(
+				"Repository %s has wrong star count: expected %d, got %d",
+				repoName,
+				(i+1)*10,
+				stored.StargazersCount,
+			)
 		}
 	}
 

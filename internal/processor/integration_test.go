@@ -89,7 +89,6 @@ func TestIntegrationContentExtraction(t *testing.T) {
 	// Test full processing pipeline
 	ctx := context.Background()
 	processed, err := service.ProcessRepository(ctx, repo, content)
-
 	if err != nil {
 		t.Fatalf("ProcessRepository failed: %v", err)
 	}
@@ -202,7 +201,6 @@ func TestIntegrationContentExtractionWithLargeContent(t *testing.T) {
 
 	ctx := context.Background()
 	processed, err := service.ProcessRepository(ctx, repo, content)
-
 	if err != nil {
 		t.Fatalf("ProcessRepository failed: %v", err)
 	}
@@ -260,7 +258,6 @@ func TestIntegrationContentExtractionErrorHandling(t *testing.T) {
 
 	ctx := context.Background()
 	processed, err := service.ProcessRepository(ctx, repo, invalidContent)
-
 	// Should not fail completely, but should handle errors gracefully
 	if err != nil {
 		t.Fatalf("ProcessRepository should handle decode errors gracefully: %v", err)
