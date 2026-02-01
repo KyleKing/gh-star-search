@@ -2,6 +2,8 @@
 
 A GitHub CLI extension to search, explore, and discover relationships across your starred repositories using a simple query string with fuzzy or vector (semantic) matching plus optional related‑repository insights.
 
+![demo](.github/assets/demo.gif)
+
 ## Overview
 
 `gh-star-search` ingests your starred repositories into a local DuckDB database, capturing structured metadata (stars, forks, issues, pull requests, commit activity, contributors, topics, languages, license) and minimal unstructured content (repository description + primary README). A lightweight summarization step (transformers / heuristic fallback) produces summary fields used for search and (optionally) embeddings.
