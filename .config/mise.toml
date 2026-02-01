@@ -26,6 +26,19 @@ description = "View last run test coverage. Alternatively, use `gocovsh`"
 # https://go.dev/blog/cover#heat-maps
 run = "go tool cover -html=coverage.out"
 
+[tasks."test:coverage-min"]
+description = "Verify minimum coverage threshold (70%)"
+run = '''
+go test -coverprofile=coverage.out -coverpkg=./... ./...
+coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+echo "Current coverage: ${coverage}%"
+if (( $(awk "BEGIN {print ($coverage < 70)}") )); then
+    echo "❌ Coverage ${coverage}% is below 70% minimum threshold"
+    exit 1
+fi
+echo "✓ Coverage ${coverage}% meets 70% minimum threshold"
+'''
+
 [tasks.build]
 description = "Build the project"
 run = "go build -o gh-star-search"

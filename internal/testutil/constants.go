@@ -1,5 +1,5 @@
-// Package testing provides common constants and utilities for tests
-package testing
+// Package testutil provides common constants and utilities for tests
+package testutil
 
 import "time"
 
@@ -48,4 +48,16 @@ const (
 
 	// TestLanguage is a default programming language
 	TestLanguage = "Go"
+)
+
+// Coverage targets
+const (
+	// MinOverallCoverage is the minimum acceptable test coverage percentage across all packages
+	MinOverallCoverage = 70.0
+
+	// MinCriticalPathCoverage is the minimum coverage for critical data paths (transactions, concurrency)
+	MinCriticalPathCoverage = 85.0
+
+	// MinErrorHandlerCoverage is the minimum coverage for error handling code
+	MinErrorHandlerCoverage = 60.0
 )
