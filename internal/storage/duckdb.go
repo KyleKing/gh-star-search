@@ -347,7 +347,8 @@ func (r *DuckDBRepository) GetRepository(
 		   COALESCE(contributors, '[]') as contributors,
 		   license_name, license_spdx_id,
 		   content_hash,
-		   purpose, summary_generated_at, COALESCE(summary_version, 0) as summary_version
+		   purpose, summary_generated_at, COALESCE(summary_version, 0) as summary_version,
+		   repo_embedding
 	FROM repositories WHERE full_name = ?`
 
 	row := r.db.QueryRowContext(ctx, query, fullName)
@@ -360,6 +361,8 @@ func (r *DuckDBRepository) GetRepository(
 
 	var purpose sql.NullString
 
+	var embeddingData interface{}
+
 	err := row.Scan(
 		&repo.ID, &repo.FullName, &repo.Description, &repo.Homepage,
 		&repo.Language, &repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,
@@ -370,6 +373,7 @@ func (r *DuckDBRepository) GetRepository(
 		&repo.LicenseName, &repo.LicenseSPDXID,
 		&repo.ContentHash,
 		&purpose, &repo.SummaryGeneratedAt, &repo.SummaryVersion,
+		&embeddingData,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -404,6 +408,12 @@ func (r *DuckDBRepository) GetRepository(
 		}
 	}
 
+	if embeddingData != nil {
+		if embBytes, err := json.Marshal(embeddingData); err == nil {
+			_ = json.Unmarshal(embBytes, &repo.RepoEmbedding)
+		}
+	}
+
 	return &repo, nil
 }
 
@@ -433,7 +443,8 @@ func (r *DuckDBRepository) ListRepositories(
 		   COALESCE(contributors, '[]') as contributors,
 		   license_name, license_spdx_id,
 		   content_hash,
-		   purpose, summary_generated_at, COALESCE(summary_version, 0) as summary_version
+		   purpose, summary_generated_at, COALESCE(summary_version, 0) as summary_version,
+		   repo_embedding
 	FROM repositories
 	ORDER BY stargazers_count DESC, full_name
 	LIMIT ? OFFSET ?`
@@ -455,6 +466,8 @@ func (r *DuckDBRepository) ListRepositories(
 
 		var purpose sql.NullString
 
+		var embeddingData interface{}
+
 		err := rows.Scan(
 			&repo.ID, &repo.FullName, &repo.Description, &repo.Homepage,
 			&repo.Language, &repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,
@@ -465,6 +478,7 @@ func (r *DuckDBRepository) ListRepositories(
 			&repo.LicenseName, &repo.LicenseSPDXID,
 			&repo.ContentHash,
 			&purpose, &repo.SummaryGeneratedAt, &repo.SummaryVersion,
+			&embeddingData,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan repository: %w", err)
@@ -496,10 +510,9 @@ func (r *DuckDBRepository) ListRepositories(
 			}
 		}
 
-		// Parse topics array
-		if topicsData != nil {
-			if topicsBytes, err := json.Marshal(topicsData); err == nil {
-				_ = json.Unmarshal(topicsBytes, &repo.Topics)
+		if embeddingData != nil {
+			if embBytes, err := json.Marshal(embeddingData); err == nil {
+				_ = json.Unmarshal(embBytes, &repo.RepoEmbedding)
 			}
 		}
 
@@ -1107,6 +1120,58 @@ func (r *DuckDBRepository) SearchByEmbedding(
 	}
 
 	return results, rows.Err()
+}
+
+// GetRelatedCounts returns the count of same-org repos and repos sharing top contributors
+func (r *DuckDBRepository) GetRelatedCounts(
+	ctx context.Context,
+	fullName string,
+) (sameOrg int, sharedContrib int, err error) {
+	queryCtx, cancel := r.withQueryTimeout(ctx)
+	defer cancel()
+
+	parts := strings.SplitN(fullName, "/", 2)
+	if len(parts) != 2 {
+		return 0, 0, fmt.Errorf("invalid full_name format: %s", fullName)
+	}
+	orgPrefix := parts[0] + "/%"
+
+	err = r.db.QueryRowContext(queryCtx,
+		"SELECT COUNT(*) FROM repositories WHERE full_name LIKE ? AND full_name != ?",
+		orgPrefix, fullName,
+	).Scan(&sameOrg)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to count same-org repos: %w", err)
+	}
+
+	target, err := r.GetRepository(ctx, fullName)
+	if err != nil {
+		return sameOrg, 0, nil
+	}
+
+	if len(target.Contributors) == 0 {
+		return sameOrg, 0, nil
+	}
+
+	limit := 10
+	if len(target.Contributors) < limit {
+		limit = len(target.Contributors)
+	}
+	var logins []string
+	for i := range limit {
+		logins = append(logins, strings.ToLower(target.Contributors[i].Login))
+	}
+
+	pattern := `\b(` + strings.Join(logins, "|") + `)\b`
+	err = r.db.QueryRowContext(queryCtx,
+		"SELECT COUNT(*) FROM repositories WHERE full_name != ? AND regexp_matches(LOWER(contributors_text), ?)",
+		fullName, pattern,
+	).Scan(&sharedContrib)
+	if err != nil {
+		return sameOrg, 0, nil
+	}
+
+	return sameOrg, sharedContrib, nil
 }
 
 // Close closes the database connection

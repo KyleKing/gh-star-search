@@ -8,7 +8,5 @@ License: MPL-2.0
 Top 10 Contributors: mitchellh (2500), apparentlymart (1800), jbardin (1200)
 GitHub Topics: terraform, infrastructure, iac, devops
 Languages: Go (8000), HCL (2000), Shell (100)
-Related Stars: ? in hashicorp, ? by top contributors
+Related Stars: 0 in hashicorp, 0 by top contributors
 Last synced: today
-(PLANNED: dependencies count)
-(PLANNED: 'used by' count)

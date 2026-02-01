@@ -113,6 +113,10 @@ func (m *mockQueryRepo) SearchByEmbedding(_ context.Context, _ []float32, _ int,
 	return nil, nil
 }
 
+func (m *mockQueryRepo) GetRelatedCounts(_ context.Context, _ string) (int, int, error) {
+	return 0, 0, nil
+}
+
 func TestSearchVector_ReturnsErrorWithoutEmbeddings(t *testing.T) {
 	mockRepo := &mockQueryRepo{
 		repos: []storage.StoredRepo{

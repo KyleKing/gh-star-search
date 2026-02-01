@@ -381,6 +381,65 @@ func TestCosineSimilarity(t *testing.T) {
 	}
 }
 
+func TestEngineImpl_CalculateVectorSimilarityScore(t *testing.T) {
+	engine := &EngineImpl{}
+
+	tests := []struct {
+		name        string
+		target      storage.StoredRepo
+		candidate   storage.StoredRepo
+		expectedMin float64
+		expectedMax float64
+	}{
+		{
+			name:        "identical vectors",
+			target:      storage.StoredRepo{RepoEmbedding: []float32{1.0, 0.0, 0.0}},
+			candidate:   storage.StoredRepo{RepoEmbedding: []float32{1.0, 0.0, 0.0}},
+			expectedMin: 0.99,
+			expectedMax: 1.01,
+		},
+		{
+			name:        "orthogonal vectors",
+			target:      storage.StoredRepo{RepoEmbedding: []float32{1.0, 0.0}},
+			candidate:   storage.StoredRepo{RepoEmbedding: []float32{0.0, 1.0}},
+			expectedMin: 0.0,
+			expectedMax: 0.0,
+		},
+		{
+			name:        "nil target embedding",
+			target:      storage.StoredRepo{RepoEmbedding: nil},
+			candidate:   storage.StoredRepo{RepoEmbedding: []float32{1.0, 0.0}},
+			expectedMin: 0.0,
+			expectedMax: 0.0,
+		},
+		{
+			name:        "nil candidate embedding",
+			target:      storage.StoredRepo{RepoEmbedding: []float32{1.0, 0.0}},
+			candidate:   storage.StoredRepo{RepoEmbedding: nil},
+			expectedMin: 0.0,
+			expectedMax: 0.0,
+		},
+		{
+			name:        "opposite vectors clamped to zero",
+			target:      storage.StoredRepo{RepoEmbedding: []float32{1.0, 0.0}},
+			candidate:   storage.StoredRepo{RepoEmbedding: []float32{-1.0, 0.0}},
+			expectedMin: 0.0,
+			expectedMax: 0.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			score := engine.calculateVectorSimilarityScore(tt.target, tt.candidate)
+
+			if score < tt.expectedMin || score > tt.expectedMax {
+				t.Errorf("Expected score between %f and %f, got %f",
+					tt.expectedMin, tt.expectedMax, score)
+			}
+		})
+	}
+}
+
 // Helper functions
 
 func contains(s, substr string) bool {

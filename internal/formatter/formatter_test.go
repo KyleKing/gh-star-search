@@ -71,8 +71,6 @@ func TestFormatter_FormatResult(t *testing.T) {
 				"Top 10 Contributors: alice (150), bob (75)",
 				"GitHub Topics: golang, cli, testing",
 				"Languages: Go (200), Shell (10)",
-				"(PLANNED: dependencies count)",
-				"(PLANNED: 'used by' count)",
 			},
 		},
 		{
@@ -449,10 +447,8 @@ License: MPL-2.0
 Top 10 Contributors: mitchellh (2500), apparentlymart (1800), jbardin (1200)
 GitHub Topics: terraform, infrastructure, iac, devops
 Languages: Go (8000), HCL (2000), Shell (100)
-Related Stars: ? in hashicorp, ? by top contributors
-Last synced: today
-(PLANNED: dependencies count)
-(PLANNED: 'used by' count)`
+Related Stars: 0 in hashicorp, 0 by top contributors
+Last synced: today`
 
 	result := formatter.FormatRepository(repo, FormatLong)
 

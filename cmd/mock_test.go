@@ -130,3 +130,7 @@ func (m *MockRepository) RebuildFTSIndex(_ context.Context) error {
 func (m *MockRepository) SearchByEmbedding(_ context.Context, _ []float32, _ int, _ float64) ([]storage.SearchResult, error) {
 	return nil, nil
 }
+
+func (m *MockRepository) GetRelatedCounts(_ context.Context, _ string) (int, int, error) {
+	return 0, 0, nil
+}

@@ -53,8 +53,6 @@ func NewProvider(config Config, uvPath, projectDir string) (Provider, error) {
 	switch config.Provider {
 	case "local":
 		provider, err = NewLocalProvider(config, uvPath, projectDir)
-	case "remote":
-		provider, err = NewRemoteProvider(config)
 	default:
 		return nil, fmt.Errorf("unsupported embedding provider: %s", config.Provider)
 	}
@@ -81,20 +79,3 @@ func (p *DisabledProvider) GenerateEmbedding(_ context.Context, _ string) ([]flo
 func (*DisabledProvider) GetDimensions() int { return zeroDimensions }
 func (*DisabledProvider) IsEnabled() bool    { return false }
 func (*DisabledProvider) GetName() string    { return "disabled" }
-
-// RemoteProvider implements remote API embedding generation (placeholder)
-type RemoteProvider struct {
-	config Config
-}
-
-func NewRemoteProvider(config Config) (*RemoteProvider, error) {
-	return &RemoteProvider{config: config}, nil
-}
-
-func (p *RemoteProvider) GenerateEmbedding(_ context.Context, _ string) ([]float32, error) {
-	return make([]float32, p.config.Dimensions), nil
-}
-
-func (p *RemoteProvider) GetDimensions() int { return p.config.Dimensions }
-func (p *RemoteProvider) IsEnabled() bool    { return false }
-func (p *RemoteProvider) GetName() string    { return "remote:" + p.config.Model }

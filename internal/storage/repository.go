@@ -30,6 +30,9 @@ type Repository interface {
 	// FTS and vector search
 	RebuildFTSIndex(ctx context.Context) error
 	SearchByEmbedding(ctx context.Context, queryEmbedding []float32, limit int, minScore float64) ([]SearchResult, error)
+
+	// Related counts
+	GetRelatedCounts(ctx context.Context, fullName string) (sameOrg int, sharedContrib int, err error)
 }
 
 // StoredRepo represents a repository as stored in the database
@@ -71,6 +74,13 @@ type StoredRepo struct {
 	Purpose            string     `json:"purpose,omitempty"`
 	SummaryGeneratedAt *time.Time `json:"summary_generated_at,omitempty"`
 	SummaryVersion     int        `json:"summary_version"`
+
+	// Embedding
+	RepoEmbedding []float32 `json:"repo_embedding,omitempty"`
+
+	// Transient computed fields (not persisted)
+	RelatedSameOrgCount       int `json:"-"`
+	RelatedSharedContribCount int `json:"-"`
 }
 
 // Contributor represents a repository contributor

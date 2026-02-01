@@ -305,9 +305,14 @@ func (e *EngineImpl) calculateSharedContribScore(target, candidate storage.Store
 
 // calculateVectorSimilarityScore calculates cosine similarity of embeddings
 func (e *EngineImpl) calculateVectorSimilarityScore(target, candidate storage.StoredRepo) float64 {
-	// TODO: Implement when embeddings are available
-	// For now, return 0.0 (will be excluded from scoring)
-	return 0.0
+	if len(target.RepoEmbedding) == 0 || len(candidate.RepoEmbedding) == 0 {
+		return 0.0
+	}
+	score := cosineSimilarity(target.RepoEmbedding, candidate.RepoEmbedding)
+	if score < 0 {
+		return 0.0
+	}
+	return score
 }
 
 // generateExplanation creates a human-readable explanation of the relationship

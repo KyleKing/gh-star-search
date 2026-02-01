@@ -591,6 +591,167 @@ func TestSearchRepositories_SQLInjection(t *testing.T) {
 	}
 }
 
+func TestGetRelatedCounts(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "related_counts_test.db")
+
+	repo, err := NewDuckDBRepository(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to create repository: %v", err)
+	}
+	defer repo.Close()
+
+	ctx := context.Background()
+	if err := repo.Initialize(ctx); err != nil {
+		t.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	repos := []processor.ProcessedRepo{
+		{
+			Repository: github.Repository{
+				FullName:        "org1/repo-a",
+				Description:     "First repo in org1",
+				Language:        "Go",
+				StargazersCount: 100,
+				CreatedAt:       time.Now().Add(-30 * 24 * time.Hour),
+				UpdatedAt:       time.Now(),
+				Topics:          []string{"go"},
+			},
+			ProcessedAt: time.Now(),
+			ContentHash: "hash-a",
+		},
+		{
+			Repository: github.Repository{
+				FullName:        "org1/repo-b",
+				Description:     "Second repo in org1",
+				Language:        "Go",
+				StargazersCount: 50,
+				CreatedAt:       time.Now().Add(-20 * 24 * time.Hour),
+				UpdatedAt:       time.Now(),
+				Topics:          []string{"go"},
+			},
+			ProcessedAt: time.Now(),
+			ContentHash: "hash-b",
+		},
+		{
+			Repository: github.Repository{
+				FullName:        "org2/repo-c",
+				Description:     "Repo in org2",
+				Language:        "Go",
+				StargazersCount: 75,
+				CreatedAt:       time.Now().Add(-10 * 24 * time.Hour),
+				UpdatedAt:       time.Now(),
+				Topics:          []string{"go"},
+			},
+			ProcessedAt: time.Now(),
+			ContentHash: "hash-c",
+		},
+	}
+
+	for _, r := range repos {
+		if err := repo.StoreRepository(ctx, r); err != nil {
+			t.Fatalf("Failed to store repository %s: %v", r.Repository.FullName, err)
+		}
+	}
+
+	// Update metrics for repo-a and repo-c to have shared contributors
+	if err := repo.UpdateRepositoryMetrics(ctx, "org1/repo-a", RepositoryMetrics{
+		Contributors: []Contributor{
+			{Login: "alice", Contributions: 100},
+			{Login: "bob", Contributions: 50},
+		},
+	}); err != nil {
+		t.Fatalf("Failed to update metrics for repo-a: %v", err)
+	}
+
+	if err := repo.UpdateRepositoryMetrics(ctx, "org2/repo-c", RepositoryMetrics{
+		Contributors: []Contributor{
+			{Login: "alice", Contributions: 80},
+			{Login: "charlie", Contributions: 30},
+		},
+	}); err != nil {
+		t.Fatalf("Failed to update metrics for repo-c: %v", err)
+	}
+
+	t.Run("same org count", func(t *testing.T) {
+		sameOrg, _, err := repo.GetRelatedCounts(ctx, "org1/repo-a")
+		if err != nil {
+			t.Fatalf("GetRelatedCounts failed: %v", err)
+		}
+		if sameOrg != 1 {
+			t.Errorf("Expected 1 same-org repo, got %d", sameOrg)
+		}
+	})
+
+	t.Run("shared contributor count", func(t *testing.T) {
+		_, sharedContrib, err := repo.GetRelatedCounts(ctx, "org1/repo-a")
+		if err != nil {
+			t.Fatalf("GetRelatedCounts failed: %v", err)
+		}
+		if sharedContrib < 1 {
+			t.Errorf("Expected at least 1 shared-contributor repo, got %d", sharedContrib)
+		}
+	})
+
+	t.Run("no same org for unique org", func(t *testing.T) {
+		sameOrg, _, err := repo.GetRelatedCounts(ctx, "org2/repo-c")
+		if err != nil {
+			t.Fatalf("GetRelatedCounts failed: %v", err)
+		}
+		if sameOrg != 0 {
+			t.Errorf("Expected 0 same-org repos, got %d", sameOrg)
+		}
+	})
+}
+
+func TestEmbeddingRoundTrip(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "embedding_test.db")
+
+	repo, err := NewDuckDBRepository(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to create repository: %v", err)
+	}
+	defer repo.Close()
+
+	ctx := context.Background()
+	if err := repo.Initialize(ctx); err != nil {
+		t.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	testRepo := createTestProcessedRepo()
+	if err := repo.StoreRepository(ctx, testRepo); err != nil {
+		t.Fatalf("Failed to store repository: %v", err)
+	}
+
+	embedding := []float32{0.1, 0.2, 0.3, 0.4, 0.5}
+	if err := repo.UpdateRepositoryEmbedding(ctx, testRepo.Repository.FullName, embedding); err != nil {
+		t.Fatalf("Failed to update embedding: %v", err)
+	}
+
+	stored, err := repo.GetRepository(ctx, testRepo.Repository.FullName)
+	if err != nil {
+		t.Fatalf("Failed to get repository: %v", err)
+	}
+
+	if len(stored.RepoEmbedding) != len(embedding) {
+		t.Fatalf("Expected embedding length %d, got %d", len(embedding), len(stored.RepoEmbedding))
+	}
+
+	for i, v := range embedding {
+		if abs32(stored.RepoEmbedding[i]-v) > 0.001 {
+			t.Errorf("Embedding[%d]: expected %f, got %f", i, v, stored.RepoEmbedding[i])
+		}
+	}
+}
+
+func abs32(x float32) float32 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
 // Helper function to create test data
 func createTestProcessedRepo() processor.ProcessedRepo {
 	return processor.ProcessedRepo{

@@ -12,53 +12,24 @@ Fixed: `embedding.Manager` is injected via constructor. Query-time vector search
 
 ---
 
-## `RemoteProvider` stub
+## ~~`RemoteProvider` stub~~ (RESOLVED)
 
-**Location:** `internal/embedding/provider.go:140-170`
-
-`RemoteProvider` is a complete stub:
-- `GenerateEmbedding` returns a zero vector
-- `IsEnabled` returns `false`
-- No API key validation
-
-**Plan:** If a remote provider is desired (OpenAI, Cohere, etc.):
-1. Accept an API key via config
-2. Implement HTTP client with rate limiting
-3. Wire `IsEnabled` to check key presence and validity
-4. Otherwise, delete the stub to avoid dead code
+Deleted the `RemoteProvider` placeholder struct, `NewRemoteProvider`, and the `"remote"` case from `NewProvider`. Dead code removed.
 
 ---
 
-## Planned placeholders rendered in user output
+## ~~Planned placeholders rendered in user output~~ (RESOLVED)
 
-**Location:** `internal/formatter/formatter.go:146-148`
-
-`formatLong` appends literal strings to output:
-```
-(PLANNED: dependencies count)
-(PLANNED: 'used by' count)
-```
-
-These are visible to end users.
-
-**Fix:** Remove these lines. If/when dependency data is available, add them back with real values.
+Removed the `(PLANNED: dependencies count)` and `(PLANNED: 'used by' count)` lines from `formatLong` output. Golden test files updated.
 
 ---
 
-## `formatRelatedStars` returns placeholder
+## ~~`formatRelatedStars` returns placeholder~~ (RESOLVED)
 
-**Location:** `internal/formatter/formatter.go:322-327`
-
-Always returns `"? in {org}, ? by top contributors"` regardless of data.
-
-**Plan:** This needs a query that counts how many other starred repos share the same org or top contributors. The data is available in the database -- the `related` engine already computes these signals. Wire the formatter to accept pre-computed related counts, or remove the field from output until it's implemented.
+Implemented: `GetRelatedCounts` queries same-org repo count and shared-contributor repo count from the database. Transient fields `RelatedSameOrgCount` and `RelatedSharedContribCount` on `StoredRepo` are populated before display. Formatter now shows real counts.
 
 ---
 
-## `calculateVectorSimilarityScore` in related engine returns 0
+## ~~`calculateVectorSimilarityScore` in related engine returns 0~~ (RESOLVED)
 
-**Location:** `internal/related/engine.go:307-311`
-
-Always returns `0.0` with a TODO comment. The related scoring weights allocate 20% to vector similarity (`:156`) but it's always zero, so the remaining components are renormalized to fill 100%.
-
-**Plan:** Once embeddings are stored in the database, read the `repo_embedding` for both target and candidate repos and compute cosine similarity. The `cosineSimilarity` function already exists in the same file (`:440`).
+Implemented: reads `RepoEmbedding` from both target and candidate `StoredRepo` and computes cosine similarity. Negative scores are clamped to 0. Repos without embeddings return 0 and are excluded via weight renormalization.

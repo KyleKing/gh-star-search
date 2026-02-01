@@ -143,10 +143,6 @@ func (f *Formatter) formatLong(repo storage.StoredRepo) string {
 	lastSynced := f.humanizeAge(repo.LastSynced)
 	lines = append(lines, "Last synced: "+lastSynced)
 
-	// Line 14-15: Planned placeholders
-	lines = append(lines, "(PLANNED: dependencies count)")
-	lines = append(lines, "(PLANNED: 'used by' count)")
-
 	return strings.Join(lines, "\n")
 }
 
@@ -318,8 +314,7 @@ func (f *Formatter) getPrimaryLanguage(languages map[string]int64) string {
 
 // formatRelatedStars formats the related stars counts
 func (f *Formatter) formatRelatedStars(repo storage.StoredRepo) string {
-	// TODO: Implement actual related stars calculation
-	// For now, return placeholder values
 	orgName := strings.Split(repo.FullName, "/")[0]
-	return fmt.Sprintf("? in %s, ? by top contributors", orgName)
+	return fmt.Sprintf("%d in %s, %d by top contributors",
+		repo.RelatedSameOrgCount, orgName, repo.RelatedSharedContribCount)
 }

@@ -176,6 +176,17 @@ func runQuery(ctx context.Context, cmd *cli.Command) error {
 	longForm := queryLong ||
 		(!queryShort && len(results) <= 3) // Default to long for small result sets
 
+	// Populate related counts for long-form display
+	if longForm {
+		for i := range results {
+			sameOrg, sharedContrib, countErr := repo.GetRelatedCounts(ctx, results[i].Repository.FullName)
+			if countErr == nil {
+				results[i].Repository.RelatedSameOrgCount = sameOrg
+				results[i].Repository.RelatedSharedContribCount = sharedContrib
+			}
+		}
+	}
+
 	// Display results
 	for i, result := range results {
 		if longForm {
@@ -477,6 +488,8 @@ func formatLanguages(languages map[string]int64) string {
 	return strings.Join(parts, ", ")
 }
 
-func formatRelatedStars(_ storage.StoredRepo) string {
-	return "(use 'related' command for details)"
+func formatRelatedStars(repo storage.StoredRepo) string {
+	orgName := strings.Split(repo.FullName, "/")[0]
+	return fmt.Sprintf("%d in %s, %d by top contributors",
+		repo.RelatedSameOrgCount, orgName, repo.RelatedSharedContribCount)
 }

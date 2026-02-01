@@ -11,7 +11,7 @@ cmd/                      CLI command definitions (urfave/cli/v3)
 internal/
   cache/                  File-based cache with TTL and background cleanup
   config/                 Multi-source configuration (file, env, CLI flags)
-  embedding/              Vector embedding providers (local Python, remote stub)
+  embedding/              Vector embedding providers (local Python)
   errors/                 Structured error types with context and suggestions
   formatter/              Output formatting (long-form and short-form)
   github/                 GitHub API client wrapping go-gh
@@ -73,7 +73,7 @@ All major subsystems are defined as interfaces to enable testing and future alte
 | `github.Client` | `clientImpl` | GitHub API calls (starred repos, metadata, contributors) |
 | `query.Engine` | `SearchEngine` | Search dispatch (fuzzy/vector) with scoring |
 | `related.Engine` | `EngineImpl` | Related repository discovery with streaming batches |
-| `embedding.Provider` | `LocalProvider`, `RemoteProvider`, `DisabledProvider` | Vector embedding generation |
+| `embedding.Provider` | `LocalProvider`, `DisabledProvider` | Vector embedding generation |
 | `processor.Service` | `serviceImpl` | Content extraction and chunking |
 | `cache.Cache` | `FileCache` | TTL-based file cache with background cleanup |
 
@@ -101,7 +101,7 @@ The related engine processes repositories in batches of 100 and maintains a top-
 | Same organization | 0.30 | Binary match on owner prefix |
 | Topic overlap | 0.25 | Jaccard similarity of topic sets |
 | Shared contributors | 0.25 | Intersection of top-10 contributor sets, normalized by smaller set |
-| Vector similarity | 0.20 | Cosine similarity of embeddings (currently unimplemented) |
+| Vector similarity | 0.20 | Cosine similarity of repo embeddings |
 
 Weights are renormalized across only the available (non-zero) components, so missing data gracefully reduces the score rather than penalizing it.
 
