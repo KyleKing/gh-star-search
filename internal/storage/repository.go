@@ -24,7 +24,9 @@ type Repository interface {
 	// New methods for enhanced functionality
 	UpdateRepositoryMetrics(ctx context.Context, fullName string, metrics RepositoryMetrics) error
 	UpdateRepositoryEmbedding(ctx context.Context, fullName string, embedding []float32) error
+	UpdateRepositorySummary(ctx context.Context, fullName string, purpose string) error
 	GetRepositoriesNeedingMetricsUpdate(ctx context.Context, staleDays int) ([]string, error)
+	GetRepositoriesNeedingSummaryUpdate(ctx context.Context, forceUpdate bool) ([]string, error)
 }
 
 // StoredRepo represents a repository as stored in the database
@@ -61,6 +63,11 @@ type StoredRepo struct {
 
 	// Content tracking
 	ContentHash string `json:"content_hash"`
+
+	// Summarization (AI-generated summaries)
+	Purpose            string     `json:"purpose,omitempty"`
+	SummaryGeneratedAt *time.Time `json:"summary_generated_at,omitempty"`
+	SummaryVersion     int        `json:"summary_version"`
 
 	// Legacy chunks (deprecated, will be removed)
 	Chunks []processor.ContentChunk `json:"chunks,omitempty"`

@@ -116,6 +116,10 @@ func (m *MockRepository) UpdateRepositoryEmbedding(_ context.Context, _ string, 
 	return nil
 }
 
+func (m *MockRepository) UpdateRepositorySummary(_ context.Context, _ string, _ string) error {
+	return nil
+}
+
 func (m *MockRepository) UpdateRepositoryMetrics(
 	_ context.Context,
 	_ string,
