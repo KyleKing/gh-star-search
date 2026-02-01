@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `gh-star-search` GitHub CLI extension provides intelligent search, inspection, and related-repository discovery over a user's starred repositories. After simplification (per `new.md` guidance), the system now:
+The `gh-star-search` GitHub CLI extension provides intelligent search, inspection, and related-repository discovery over a user's starred repositories. The system:
 
 - Accepts a direct user query string (no natural language → SQL translation, no user-visible SQL)
 - Supports two search modes: fuzzy (full‑text) and vector (semantic embeddings)
@@ -15,7 +15,7 @@ The `gh-star-search` GitHub CLI extension provides intelligent search, inspectio
 - Uses a conservative caching & refresh policy (metadata refresh after staleness threshold; summaries only when forced)
 - Minimizes file downloads (no full git clone)
 
-LLM summarization, natural language query parsing, and extensive repository crawling are explicitly deferred (see Future Work).
+LLM summarization, structured filtering, and extensive repository crawling are deferred (see Future Work).
 
 ## Architecture
 
@@ -68,8 +68,6 @@ Primary packages (updated):
 - **internal/cache/**: Local caching + freshness timestamps & content hash tracking
 - **internal/config/**: Configuration (search defaults, staleness thresholds, embedding provider switch)
 - **internal/logging/**: Structured logging utilities
-
-(Former **internal/llm/** module removed temporarily.)
 
 ## Components and Interfaces
 
@@ -375,23 +373,6 @@ Performance:
 - TUI interface (Bubble Tea) for interactive browsing
 - Migration engine (golang-migrate) when schema stabilizes
 
-### 16. Changes from Previous Design (Delta vs original & earlier simplified draft)
-
-Referencing `new.md` guidance:
-- Removed natural language → SQL parser & interfaces
-- Removed temporary LLM integration; summaries now transformer/heuristic only
-- Limited summary input strictly to main README + Description (other sources not fed into summary)
-- Added explicit long-form output specification with metric definitions
-- Added issue/PR counts, commit activity, contributor list, languages, related star metrics to schema
-- Eliminated chunk-level embeddings (deferred) and broad file crawling
-- Added contributor & language ingestion endpoints; refined caching TTLs
-- Added explicit prohibition of structured filtering (only free-text ranking)
-- Added Related engine design & scoring weights
-- Added summary provenance fields & version gating
-- Adjusted storage schema to include activity & count fields
-- Clarified ranking heuristics are boosts (not user filters)
-- Added precise derivations & placeholder handling for missing stats
-
 ## Rationale Summary
 
-The redesign enforces a minimal, deterministic surface aligned with `new.md`: simpler ingestion, low overhead summarization, explicit formatting, and explainable related recommendations. Complexity (LLM parsing, wide crawling, advanced filters) is deferred, improving maintainability and reducing API & cost footprint while retaining meaningful semantic and relational discovery capabilities.
+The design enforces a minimal, deterministic surface: simpler ingestion, low overhead summarization, explicit formatting, and explainable related recommendations. Complexity (LLM parsing, wide crawling, advanced filters) is deferred, improving maintainability and reducing API & cost footprint while retaining meaningful semantic and relational discovery capabilities.

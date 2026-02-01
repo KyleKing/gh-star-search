@@ -1,0 +1,48 @@
+[tasks.bench]
+description = "Run benchmarks"
+run = "go test -bench=. -benchmem -run=^$ ./..."
+
+[tasks."brew:sha"]
+description = "Print SHA256 for Homebrew formula (run after release)"
+run = """
+echo "Download binaries from the latest release and run:"
+echo "  shasum -a 256 gh-start-search-darwin-arm64 gh-start-search-darwin-amd64 gh-start-search-linux-arm64 gh-start-search-linux-amd64"
+echo ""
+echo "Then update Formula/gh-start-search.rb with the SHA256 values and version."
+"""
+
+[tasks.build]
+description = "Build binary"
+run = "go build -v -o gh-start-search ./cmd/gh-start-search"
+
+[tasks.ci]
+description = "Run all checks (used in GitHub Actions)"
+run = ["go test -v -coverprofile=coverage.out ./...", "go build -v -o gh-start-search ./cmd/gh-start-search"]
+
+[tasks.clean]
+description = "Clean build artifacts"
+run = "rm -f coverage.out"
+
+[tasks.demo]
+description = "Generate VHS demo recordings"
+run = 'find . -name "*.tape" -not -path "./.git/*" -exec vhs {} +'
+
+[tasks.format]
+description = "Format code with golangci-lint and golines"
+run = ["golangci-lint run --fix ./...", "golines -w ."]
+
+[tasks.hooks]
+description = "Run git hooks"
+run = "hk fix --quiet"
+
+[tasks.lint]
+description = "Run linter"
+run = "golangci-lint run ./..."
+
+[tasks.test]
+description = "Run tests with coverage"
+run = "go test -coverprofile=coverage.out ./..."
+
+[tasks."test:view-coverage"]
+description = "View coverage report in browser"
+run = "go tool cover -html=coverage.out"

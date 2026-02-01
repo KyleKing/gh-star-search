@@ -292,5 +292,4 @@ Check for:
 ## References
 
 - [go-vcr documentation](https://github.com/dnaeon/go-vcr)
-- [VCR Migration Plan](../../../vcr_migration_plan.md)
 - [GitHub API Documentation](https://docs.github.com/en/rest)

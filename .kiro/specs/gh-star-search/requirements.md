@@ -107,16 +107,3 @@ This feature will create a GitHub CLI extension called `gh-star-search` that ing
 2. WHEN documenting THEN the system SHALL list the GitHub API endpoints used and their rate limits
 3. WHEN documenting THEN the system SHALL include other relevant technical details for contributors
 
-## Changes
-
-This section summarizes the modifications made to the requirements document based on the new guidance:
-
-- **Introduction**: Updated to reflect simplified search queries instead of natural language to DuckDB, added mention of fuzzy/vector search, scored results, and long/short form output.
-- **Requirement 2**: Replaced natural language query parsing with direct search query string acceptance, added fuzzy/vector search options, scored results with configurable number (default 10), removed DuckDB query editing, updated display to long/short form, added note that structured data search is not supported.
-- **Requirement 3**: Added new requirement for "Related" CLI feature to show related starred repositories based on organization, contributors, topics, and vector similarity, displayed in short-form with match explanations.
-- **Requirements 4-9**: Renumbered due to insertion of new requirement.
-- **Requirement 1**: Updated unstructured content collection to focus on main README, GitHub Description, docs/README.md, and scraped URLs; modified summarization to support both LLM and non-LLM (transformers) with non-LLM as default; changed file handling to download minimum files instead of cloning and remove them after processing.
-- **Requirement 6**: Added caching logic to update metadata only after 14 days (configurable) and summaries only when forced.
-- **Requirement 7**: Updated output for list to short-form and info to long-form as specified in the new guidance.
-- **Requirement 8**: Updated content prioritization to main README, GitHub Description, docs/README.md, and scraped URLs.
-- **Requirement 9**: Added new requirement for CONTRIBUTING.md documentation including architecture overview, GitHub API details, and rate limits.

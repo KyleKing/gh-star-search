@@ -1,29 +1,22 @@
 // Install with `hk install --mise` to ensure local tools are available
+// Update hk_version when upgrading hk in the template
 
-amends "package://github.com/jdx/hk/releases/download/v1.2.0/hk@1.2.0#/Config.pkl"
-import "package://github.com/jdx/hk/releases/download/v1.2.0/hk@1.2.0#/Builtins.pkl"
+local hk_version = "1.32.0"
 
-min_hk_version = "1.12.0"
+amends "package://github.com/jdx/hk/releases/download/v\(hk_version)/hk@\(hk_version)#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v\(hk_version)/hk@\(hk_version)#/Builtins.pkl"
 
-// PLANNED: I'm not sure how to filter for only files. Created with: `cloc . --vcs=git`
-local file_list = List("**/*.{gitignore,go,md,pkl,py,sql,toml,json,yaml,yml}")
+min_hk_version = hk_version
 
+local file_list = List("**/*.{gitignore,go,md,pkl,toml,yaml,yml}")
 
 local linters = new Mapping<String, Step> {
     ["actionlint"] = Builtins.actionlint
-    // TODO: can't use `{{ files }}` because of error: `typechecking error: named files must all be in one directory; have cmd/config and cmd`
-    // ["golangci_lint"] = Builtins.golangci_lint
-    // ["golangci_lint"] {
-    //     glob = List("**/*.go")
-    //     check = "golangci-lint run {{ files }}"
-    //     fix = "golangci-lint run --fix {{ files }}"
-    //     workspace_indicator = "go.mod"
-    // }
     ["ls-lint"] {
         check = "ls-lint"
     }
     ["pkl"] {
-        glob = "*.pkl"
+        glob = List("*.pkl")
         check = "pkl eval {{files}} >/dev/null"
     }
     ["pch-check-added-large-files"] {
@@ -43,13 +36,12 @@ local linters = new Mapping<String, Step> {
         check = "check-vcs-permalinks {{ files }}"
     }
     ["pch-check-yaml"] {
-        glob = "**/*.{yml,yaml}"
+        glob = List("**/*.{yml,yaml}")
         check = "check-yaml {{ files }}"
     }
     ["pch-end-of-file-fixer"] {
         glob = file_list
-        // FYI: without check, these fixers are always run!
-        check_first = false  // FYI: without check_first, these linters request write-locks on all files
+        check_first = false
         fix = "end-of-file-fixer {{ files }}"
     }
     ["pch-mixed-line-ending"] {
@@ -62,9 +54,8 @@ local linters = new Mapping<String, Step> {
         check_first = false
         fix = "trailing-whitespace-fixer {{ files }}"
     }
-    ["sql_fluff"] = Builtins.sql_fluff
     ["toml-sort"] {
-        glob = "**/*.toml"
+        glob = List("**/*.toml")
         check = "toml-sort --check {{ files }}"
         fix = "toml-sort --in-place {{ files }}"
     }
@@ -84,19 +75,14 @@ local pre_push_checks = new Mapping<String, Step> {
     }
 }
 
-// FYI: there are additional configuration options for batch, workspace_indicator, etc. https://hk.jdx.dev/configuration.html
 hooks = new {
     ["pre-commit"] {
         fix = true
-        stash = "git" // stashes unstaged changes while running fix steps
+        stash = "patch-file"
         steps = linters
     }
     ["pre-push"] {
         steps = new {
-            // FYI: PRs aren't required for this project
-            // ["pch-no-commit-to-branch"] {
-            //     run = "no-commit-to-branch --branch=main"
-            // }
             ...pre_push_checks
             ...linters
         }
@@ -104,8 +90,6 @@ hooks = new {
     ["commit-msg"] {
         steps = commit_msg_checks
     }
-
-    // "fix" and "check" are special steps for `hk fix` and `hk check` commands
     ["fix"] {
         fix = true
         steps = linters

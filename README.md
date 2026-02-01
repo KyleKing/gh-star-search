@@ -4,17 +4,15 @@ A GitHub CLI extension to search, explore, and discover relationships across you
 
 ## Overview
 
-`gh-star-search` ingests your starred repositories into a local DuckDB database, capturing structured metadata (stars, forks, issues, pull requests, commit activity, contributors, topics, languages, license, timestamps) and minimal unstructured content (repository description + primary README, optionally `docs/README.md` and one external homepage link text). A lightweight summarization step (transformers / heuristic fallback) produces structured summary fields used for search and (optionally) embeddings.
+`gh-star-search` ingests your starred repositories into a local DuckDB database, capturing structured metadata (stars, forks, issues, pull requests, commit activity, contributors, topics, languages, license) and minimal unstructured content (repository description + primary README). A lightweight summarization step (transformers / heuristic fallback) produces summary fields used for search and (optionally) embeddings.
 
-Key simplifications vs the prior design:
-- Direct query string input (no natural language → SQL translation or user-visible SQL)
-- Two search modes: fuzzy full‑text and vector (semantic) search (configurable; fuzzy default)
-- Scored results with configurable limit (default 10, max 50) and long/short output formats
-- Related repository discovery (same org, shared contributors, topic overlap, vector similarity) with explanation
-- Minimal content ingestion (no full git clone; no broad file crawling; summary limited to description + main README)
-- Summarization defaults to non‑LLM (transformers) with optional future LLM reintroduction
-- Structured filtering (e.g. by stars/language) intentionally deferred; only ranking boosts internally applied (star & recency)
-- Conservative refresh policy (metadata after staleness threshold; summaries only when forced/version mismatch)
+Features:
+- Fuzzy full-text and vector (semantic) search with relevance scoring (default 10, max 50 results)
+- Related repository discovery (same org, shared contributors, topic overlap, vector similarity)
+- Long-form and short-form output formats
+- Incremental sync with staleness-based refresh (default 14 days)
+- Non-LLM summarization (Python `transformers` / heuristic fallback)
+- Minimal content ingestion (no full git clone)
 
 ## Installation
 
@@ -119,26 +117,30 @@ GitHub Description: High performance toolkit for ...
 ## Related Repository Computation
 Combines (weighted & renormalized): same org, topic overlap (Jaccard), shared top contributors (intersection of top 10), vector similarity (if embeddings enabled). Explanations list the contributing factors (e.g. `Shared org 'hashicorp' and 3 overlapping topics (terraform, cloud, plugin)`).
 
-## Project Structure (Target Simplified Architecture)
+## Project Structure
 ```
 gh-star-search/
 ├── cmd/                    # CLI commands (sync, query, list, info, stats, clear, related)
 ├── internal/
-│   ├── github/             # GitHub API client
-│   ├── processor/          # Extraction, summarization, embeddings
-│   ├── storage/            # DuckDB persistence & search primitives
-│   ├── query/              # Search engine (fuzzy + vector)
-│   ├── related/            # Related repository engine (may start inside query/)
 │   ├── cache/              # Local caching & freshness tracking
 │   ├── config/             # Configuration models & defaults
+│   ├── embedding/          # Embedding provider interface
+│   ├── errors/             # Error categories / helpers
+│   ├── formatter/          # Output formatting (long/short)
+│   ├── github/             # GitHub API client
 │   ├── logging/            # Structured logging utilities
-│   └── errors/             # Error categories / helpers
+│   ├── processor/          # Content extraction & processing
+│   ├── query/              # Search engine (fuzzy + vector)
+│   ├── related/            # Related repository engine
+│   ├── storage/            # DuckDB persistence layer
+│   ├── summarizer/         # Python-based summarization
+│   └── types/              # Shared type definitions
+├── scripts/                # Python helper scripts (summarize.py, embed.py)
 ├── main.go                 # Entry point
 ├── go.mod                  # Module definition
 ├── README.md               # Project documentation
-└── CONTRIBUTING.md         # (Planned) Architecture & contributor guide
+└── CONTRIBUTING.md         # Architecture & contributor guide
 ```
-(Legacy natural language parser & LLM modules scheduled for removal.)
 
 ## Development
 
@@ -152,8 +154,8 @@ mise run build
 mise run test
 ```
 
-### Configuration (High-Level)
-Configuration (JSON/YAML/TOML) includes: search defaults (`mode`, `min_score`), embedding provider & dimensions, summary model/version, refresh thresholds, GitHub behavior. See forthcoming `CONTRIBUTING.md` for details.
+### Configuration
+Configuration (JSON) includes: search defaults, embedding provider & dimensions, refresh thresholds, GitHub behavior. See `CONTRIBUTING.md` for details.
 
 ## Roadmap / Future Work
 - Reintroduce optional LLM summarization (complement transformers)
@@ -163,19 +165,6 @@ Configuration (JSON/YAML/TOML) includes: search defaults (`mode`, `min_score`), 
 - Background incremental refresh scheduling
 - TUI (Bubble Tea) interactive interface
 - Migration engine (golang-migrate) once schema stabilizes
-
-## Changes (This Revision)
-Concise delta vs previous README and original design:
-1. Replaced natural language → SQL concept with direct query string (no user-visible DuckDB queries)
-2. Added dual search modes (fuzzy & vector) + `--mode`, `--limit`, `--long/--short`, `--related` flags
-3. Added Related feature with weighted components (org, topics, contributors, vector similarity)
-4. Documented long-form & short-form output templates with explicit field derivations
-5. Introduced minimal content ingestion scope & non‑LLM (transformers) summarization default; LLM integration deferred
-6. Added caching/refresh policy (metadata staleness threshold, forced summary updates only)
-7. Clarified absence of structured filtering (deferred feature)
-8. Updated target project structure (removal of legacy NL parser / LLM modules; addition of related engine)
-9. Added roadmap & future work alignment with specification documents
-10. Added summary of ranking heuristics & embedding usage, plus explicit disclaimer for planned vs legacy code
 
 ## License
 
