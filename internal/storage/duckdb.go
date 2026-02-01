@@ -358,7 +358,8 @@ func (r *DuckDBRepository) GetRepository(
 		   COALESCE(languages, '{}') as languages,
 		   COALESCE(contributors, '[]') as contributors,
 		   license_name, license_spdx_id,
-		   content_hash
+		   content_hash,
+		   purpose, summary_generated_at, COALESCE(summary_version, 0) as summary_version
 	FROM repositories WHERE full_name = ?`
 
 	row := r.db.QueryRowContext(ctx, query, fullName)
@@ -369,6 +370,8 @@ func (r *DuckDBRepository) GetRepository(
 
 	var topicsData interface{}
 
+	var purpose sql.NullString
+
 	err := row.Scan(
 		&repo.ID, &repo.FullName, &repo.Description, &repo.Homepage,
 		&repo.Language, &repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,
@@ -378,6 +381,7 @@ func (r *DuckDBRepository) GetRepository(
 		&topicsData, &languagesData, &contributorsData,
 		&repo.LicenseName, &repo.LicenseSPDXID,
 		&repo.ContentHash,
+		&purpose, &repo.SummaryGeneratedAt, &repo.SummaryVersion,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -385,6 +389,11 @@ func (r *DuckDBRepository) GetRepository(
 		}
 
 		return nil, fmt.Errorf("failed to scan repository: %w", err)
+	}
+
+	// Set purpose if it's valid
+	if purpose.Valid {
+		repo.Purpose = purpose.String
 	}
 
 	// Parse topics array
@@ -479,7 +488,8 @@ func (r *DuckDBRepository) ListRepositories(
 		   COALESCE(languages, '{}') as languages,
 		   COALESCE(contributors, '[]') as contributors,
 		   license_name, license_spdx_id,
-		   content_hash
+		   content_hash,
+		   purpose, summary_generated_at, COALESCE(summary_version, 0) as summary_version
 	FROM repositories
 	ORDER BY stargazers_count DESC, full_name
 	LIMIT ? OFFSET ?`
@@ -499,6 +509,8 @@ func (r *DuckDBRepository) ListRepositories(
 
 		var topicsData interface{}
 
+		var purpose sql.NullString
+
 		err := rows.Scan(
 			&repo.ID, &repo.FullName, &repo.Description, &repo.Homepage,
 			&repo.Language, &repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,
@@ -508,9 +520,15 @@ func (r *DuckDBRepository) ListRepositories(
 			&topicsData, &languagesData, &contributorsData,
 			&repo.LicenseName, &repo.LicenseSPDXID,
 			&repo.ContentHash,
+			&purpose, &repo.SummaryGeneratedAt, &repo.SummaryVersion,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan repository: %w", err)
+		}
+
+		// Set purpose if it's valid
+		if purpose.Valid {
+			repo.Purpose = purpose.String
 		}
 
 		// Parse topics array
@@ -883,6 +901,36 @@ func (r *DuckDBRepository) UpdateRepositoryEmbedding(
 	_, err := r.db.ExecContext(ctx, updateSQL, string(embeddingJSON), fullName)
 	if err != nil {
 		return fmt.Errorf("failed to update repository embedding: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateRepositorySummary updates the AI-generated summary for a repository
+func (r *DuckDBRepository) UpdateRepositorySummary(
+	ctx context.Context,
+	fullName string,
+	purpose string,
+) error {
+	updateSQL := `
+	UPDATE repositories SET
+		purpose = ?,
+		summary_generated_at = CURRENT_TIMESTAMP,
+		summary_version = 1
+	WHERE full_name = ?`
+
+	result, err := r.db.ExecContext(ctx, updateSQL, purpose, fullName)
+	if err != nil {
+		return fmt.Errorf("failed to update repository summary: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("no repository found with full_name: %s", fullName)
 	}
 
 	return nil

@@ -135,37 +135,6 @@ func (*DisabledProvider) GetName() string {
 	return "disabled"
 }
 
-// LocalProvider implements local embedding generation (placeholder)
-type LocalProvider struct {
-	config Config
-}
-
-func NewLocalProvider(config Config) (*LocalProvider, error) {
-	// TODO: Implement local embedding provider
-	// This would typically use a local model or Python subprocess
-	return &LocalProvider{config: config}, nil
-}
-
-func (p *LocalProvider) GenerateEmbedding(_ context.Context,
-	_ string) ([]float32, error) {
-	// TODO: Implement local embedding generation
-	// For now, return a placeholder embedding
-	return make([]float32, p.config.Dimensions), nil
-}
-
-func (p *LocalProvider) GetDimensions() int {
-	return p.config.Dimensions
-}
-
-func (p *LocalProvider) IsEnabled() bool {
-	// TODO: Check if local model is available
-	return false // Disabled for now
-}
-
-func (p *LocalProvider) GetName() string {
-	return "local:" + p.config.Model
-}
-
 // RemoteProvider implements remote API embedding generation (placeholder)
 type RemoteProvider struct {
 	config Config
