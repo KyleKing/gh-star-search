@@ -109,8 +109,8 @@ GitHub Description: High performance toolkit for ...
 - Summary fields: Purpose, Technologies, Use Cases, Features, Installation, Usage (+ generated timestamp, version, generator)
 
 ## Search Modes
-- Fuzzy: Full‑text / BM25 style scoring across name, description, summary fields, topics, top contributor logins
-- Vector: Cosine similarity over repository-level embedding of summary text
+- Fuzzy: DuckDB native FTS with BM25 scoring across name, description, purpose, topics, top contributor logins. FTS index is rebuilt after each sync (Porter stemmer, English stopwords).
+- Vector: Cosine similarity over pre-computed repository embeddings, computed in DuckDB SQL via `array_cosine_similarity`. Requires `sync --embed` first; returns an error if embeddings are unavailable (no silent fallback).
 - Ranking boosts (internal, not filters): logarithmic stars, mild recency decay; final score capped at 1.0
 - No structured filtering yet (stars/language/topic queries deferred)
 

@@ -113,6 +113,9 @@ func (r *DuckDBRepository) StoreRepository(
 		return fmt.Errorf("failed to marshal topics: %w", err)
 	}
 
+	// Build FTS text columns
+	topicsText := strings.Join(repo.Repository.Topics, " ")
+
 	// Insert repository with new schema
 	insertRepoSQL := `
 	INSERT INTO repositories (
@@ -122,8 +125,9 @@ func (r *DuckDBRepository) StoreRepository(
 		commits_30d, commits_1y, commits_total,
 		topics_array, languages, contributors,
 		license_name, license_spdx_id,
-		content_hash
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		content_hash,
+		topics_text, contributors_text
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	var licenseName, licenseSPDXID string
 	if repo.Repository.License != nil {
@@ -151,6 +155,8 @@ func (r *DuckDBRepository) StoreRepository(
 		licenseName,
 		licenseSPDXID,
 		repo.ContentHash,
+		topicsText,
+		"", // contributors_text empty on initial store, populated by UpdateRepositoryMetrics
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert repository: %w", err)
@@ -253,6 +259,8 @@ func (r *DuckDBRepository) UpdateRepository(
 		licenseSPDXID = repo.Repository.License.SPDXID
 	}
 
+	topicsText := strings.Join(repo.Repository.Topics, " ")
+
 	insertSQL := `
 		INSERT INTO repositories (
 			id, full_name, description, homepage, language, stargazers_count, forks_count, size_kb,
@@ -260,8 +268,9 @@ func (r *DuckDBRepository) UpdateRepository(
 			open_issues_open, open_issues_total, open_prs_open, open_prs_total,
 			commits_30d, commits_1y, commits_total,
 			topics_array, languages, contributors,
-			license_name, license_spdx_id, content_hash
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			license_name, license_spdx_id, content_hash,
+			topics_text
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err = r.db.ExecContext(ctx, insertSQL,
 		existingData.id,
@@ -288,6 +297,7 @@ func (r *DuckDBRepository) UpdateRepository(
 		licenseName,
 		licenseSPDXID,
 		repo.ContentHash,
+		topicsText,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert updated repository: %w", err)
@@ -532,69 +542,60 @@ func (r *DuckDBRepository) SearchRepositories(
 	return r.executeTextSearch(ctx, query)
 }
 
-// executeTextSearch performs simple text search with a timeout
+// executeTextSearch performs FTS-based text search with BM25 scoring
 func (r *DuckDBRepository) executeTextSearch(
 	ctx context.Context,
 	query string,
 ) ([]SearchResult, error) {
-	// Apply query timeout to prevent long-running queries
 	queryCtx, cancel := r.withQueryTimeout(ctx)
 	defer cancel()
 
 	searchQuery := `
 	SELECT r.id, r.full_name, r.description, r.language, r.stargazers_count, r.forks_count, r.size_kb,
 		   r.created_at, r.updated_at, r.last_synced, r.topics_array, r.license_name, r.license_spdx_id,
-		   r.content_hash,
-		   CAST(1.0 AS DOUBLE) as score
+		   r.content_hash, r.purpose,
+		   fts_main_repositories.match_bm25(r.id, ?,
+			   fields := 'full_name,description,purpose,topics_text,contributors_text') AS score
 	FROM repositories r
-	WHERE r.full_name ILIKE ?
-		OR r.description ILIKE ?
-	ORDER BY r.stargazers_count DESC
+	WHERE score IS NOT NULL
+	ORDER BY score DESC
 	LIMIT 50`
 
-	searchTerm := "%" + query + "%"
-
-	rows, err := r.db.QueryContext(
-		queryCtx,
-		searchQuery,
-		searchTerm,
-		searchTerm,
-	)
+	rows, err := r.db.QueryContext(queryCtx, searchQuery, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search repositories: %w", err)
 	}
-
 	defer rows.Close()
 
 	var results []SearchResult
-
 	for rows.Next() {
 		var repo StoredRepo
-
 		var score float64
-
 		var topicsData interface{}
+		var purpose sql.NullString
 
 		err := rows.Scan(
 			&repo.ID, &repo.FullName, &repo.Description, &repo.Language,
 			&repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,
 			&repo.CreatedAt, &repo.UpdatedAt, &repo.LastSynced,
 			&topicsData, &repo.LicenseName, &repo.LicenseSPDXID,
-			&repo.ContentHash,
+			&repo.ContentHash, &purpose,
 			&score,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan search result: %w", err)
 		}
 
-		// Parse topics array
+		if purpose.Valid {
+			repo.Purpose = purpose.String
+		}
+
 		if topicsData != nil {
 			if topicsBytes, err := json.Marshal(topicsData); err == nil {
 				_ = json.Unmarshal(topicsBytes, &repo.Topics)
 			}
 		}
 
-		// Create matches based on which fields matched
 		matches := r.findMatches(repo, query)
 
 		results = append(results, SearchResult{
@@ -846,6 +847,13 @@ func (r *DuckDBRepository) UpdateRepositoryMetrics(
 		return fmt.Errorf("failed to marshal topics: %w", err)
 	}
 
+	// Build contributors_text from metrics
+	var contributorLogins []string
+	for _, c := range metrics.Contributors {
+		contributorLogins = append(contributorLogins, c.Login)
+	}
+	contributorsText := strings.Join(contributorLogins, " ")
+
 	// Step 4: INSERT with updated metrics but preserved other fields
 	insertSQL := `
 		INSERT INTO repositories (
@@ -855,8 +863,9 @@ func (r *DuckDBRepository) UpdateRepositoryMetrics(
 			commits_30d, commits_1y, commits_total,
 			topics_array, languages, contributors,
 			license_name, license_spdx_id, content_hash,
-			purpose, summary_generated_at, summary_version
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			purpose, summary_generated_at, summary_version,
+			contributors_text
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	var purposeVal interface{}
 	if existingData.purpose.Valid {
@@ -874,6 +883,7 @@ func (r *DuckDBRepository) UpdateRepositoryMetrics(
 		string(topicsJSON), string(languagesJSON), string(contributorsJSON),
 		existingData.licenseName, existingData.licenseSPDXID, existingData.contentHash,
 		purposeVal, existingData.summaryGeneratedAt, existingData.summaryVersion,
+		contributorsText,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert updated repository: %w", err)
@@ -1005,6 +1015,98 @@ func (r *DuckDBRepository) GetRepositoriesNeedingSummaryUpdate(
 	}
 
 	return fullNames, rows.Err()
+}
+
+// RebuildFTSIndex installs the FTS extension and creates a full-text search index
+func (r *DuckDBRepository) RebuildFTSIndex(ctx context.Context) error {
+	statements := []string{
+		"INSTALL fts",
+		"LOAD fts",
+		"PRAGMA create_fts_index('repositories', 'id', 'full_name', 'description', 'purpose', 'topics_text', 'contributors_text', stemmer = 'porter', stopwords = 'english', overwrite = 1)",
+	}
+	for _, stmt := range statements {
+		if _, err := r.db.ExecContext(ctx, stmt); err != nil {
+			return fmt.Errorf("failed to execute FTS statement %q: %w", stmt, err)
+		}
+	}
+	return nil
+}
+
+// SearchByEmbedding performs vector similarity search using pre-computed embeddings
+func (r *DuckDBRepository) SearchByEmbedding(
+	ctx context.Context,
+	queryEmbedding []float32,
+	limit int,
+	minScore float64,
+) ([]SearchResult, error) {
+	queryCtx, cancel := r.withQueryTimeout(ctx)
+	defer cancel()
+
+	embeddingJSON, err := json.Marshal(queryEmbedding)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal query embedding: %w", err)
+	}
+
+	searchQuery := `
+	SELECT r.id, r.full_name, r.description, r.language, r.stargazers_count, r.forks_count, r.size_kb,
+		   r.created_at, r.updated_at, r.last_synced, r.topics_array, r.license_name, r.license_spdx_id,
+		   r.content_hash, r.purpose,
+		   array_cosine_similarity(
+			   CAST(repo_embedding AS FLOAT[384]),
+			   ?::FLOAT[384]
+		   ) AS score
+	FROM repositories r
+	WHERE repo_embedding IS NOT NULL
+		AND array_cosine_similarity(
+			CAST(repo_embedding AS FLOAT[384]),
+			?::FLOAT[384]
+		) >= ?
+	ORDER BY score DESC
+	LIMIT ?`
+
+	rows, err := r.db.QueryContext(queryCtx, searchQuery,
+		string(embeddingJSON), string(embeddingJSON), minScore, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search by embedding: %w", err)
+	}
+	defer rows.Close()
+
+	var results []SearchResult
+	for rows.Next() {
+		var repo StoredRepo
+		var score float64
+		var topicsData interface{}
+		var purpose sql.NullString
+
+		err := rows.Scan(
+			&repo.ID, &repo.FullName, &repo.Description, &repo.Language,
+			&repo.StargazersCount, &repo.ForksCount, &repo.SizeKB,
+			&repo.CreatedAt, &repo.UpdatedAt, &repo.LastSynced,
+			&topicsData, &repo.LicenseName, &repo.LicenseSPDXID,
+			&repo.ContentHash, &purpose,
+			&score,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan embedding search result: %w", err)
+		}
+
+		if purpose.Valid {
+			repo.Purpose = purpose.String
+		}
+
+		if topicsData != nil {
+			if topicsBytes, err := json.Marshal(topicsData); err == nil {
+				_ = json.Unmarshal(topicsBytes, &repo.Topics)
+			}
+		}
+
+		results = append(results, SearchResult{
+			Repository: repo,
+			Score:      score,
+		})
+	}
+
+	return results, rows.Err()
 }
 
 // Close closes the database connection

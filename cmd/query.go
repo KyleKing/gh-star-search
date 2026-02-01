@@ -10,6 +10,7 @@ import (
 
 	"github.com/urfave/cli/v3"
 
+	"github.com/KyleKing/gh-star-search/internal/embedding"
 	"github.com/KyleKing/gh-star-search/internal/errors"
 	"github.com/KyleKing/gh-star-search/internal/query"
 	"github.com/KyleKing/gh-star-search/internal/related"
@@ -123,8 +124,18 @@ func runQuery(ctx context.Context, cmd *cli.Command) error {
 		slog.String("mode", queryMode),
 		slog.Int("limit", queryLimit))
 
+	// Initialize embedding manager (nil if not configured/enabled)
+	embConfig := embedding.DefaultConfig()
+	if queryMode == "vector" {
+		embConfig.Enabled = true
+	}
+	embManager, err := embedding.NewManager(embConfig)
+	if err != nil {
+		slog.Warn("Failed to initialize embedding manager", slog.String("error", err.Error()))
+	}
+
 	// Initialize search engine
-	searchEngine := query.NewSearchEngine(repo)
+	searchEngine := query.NewSearchEngine(repo, embManager)
 
 	// Create query object
 	searchQuery := query.Query{

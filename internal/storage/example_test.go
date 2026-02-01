@@ -78,6 +78,12 @@ func ExampleDuckDBRepository() {
 		log.Fatalf("Failed to store repository: %v", err)
 	}
 
+	// Build FTS index before searching
+	err = repo.RebuildFTSIndex(ctx)
+	if err != nil {
+		log.Fatalf("Failed to rebuild FTS index: %v", err)
+	}
+
 	// Search for repositories
 	results, err := repo.SearchRepositories(ctx, "awesome")
 	if err != nil {

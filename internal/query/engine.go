@@ -2,11 +2,13 @@ package query
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/KyleKing/gh-star-search/internal/embedding"
 	"github.com/KyleKing/gh-star-search/internal/storage"
 )
 
@@ -46,13 +48,15 @@ type Engine interface {
 
 // SearchEngine implements the Engine interface
 type SearchEngine struct {
-	repo storage.Repository
+	repo       storage.Repository
+	embManager *embedding.Manager
 }
 
 // NewSearchEngine creates a new search engine instance
-func NewSearchEngine(repo storage.Repository) *SearchEngine {
+func NewSearchEngine(repo storage.Repository, embManager *embedding.Manager) *SearchEngine {
 	return &SearchEngine{
-		repo: repo,
+		repo:       repo,
+		embManager: embManager,
 	}
 }
 
@@ -64,45 +68,37 @@ func (e *SearchEngine) Search(ctx context.Context, q Query, opts SearchOptions) 
 	case ModeVector:
 		return e.searchVector(ctx, q.Raw, opts)
 	default:
-		return e.searchFuzzy(ctx, q.Raw, opts) // Default to fuzzy
+		return e.searchFuzzy(ctx, q.Raw, opts)
 	}
 }
 
-// searchFuzzy performs fuzzy text search with BM25-like scoring
+// searchFuzzy performs FTS search with BM25 scoring from DuckDB
 func (e *SearchEngine) searchFuzzy(
 	ctx context.Context,
 	query string,
 	opts SearchOptions,
 ) ([]Result, error) {
-	// Get raw search results from storage layer
 	storageResults, err := e.repo.SearchRepositories(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 
-	// Convert to enhanced results with improved scoring
 	var results []Result
-
 	queryTerms := tokenizeQuery(query)
 
 	for _, sr := range storageResults {
-		// Calculate enhanced BM25-like score
-		score := e.calculateFuzzyScore(sr.Repository, queryTerms)
+		score := sr.Score
 
-		// Apply ranking boosts
 		score = e.applyRankingBoosts(sr.Repository, score)
 
-		// Clamp score to 1.0
 		if score > 1.0 {
 			score = 1.0
 		}
 
-		// Skip results below minimum score
 		if score < opts.MinScore {
 			continue
 		}
 
-		// Identify matched fields
 		matchFields := e.identifyMatchedFields(sr.Repository, queryTerms)
 
 		results = append(results, Result{
@@ -113,10 +109,8 @@ func (e *SearchEngine) searchFuzzy(
 		})
 	}
 
-	// Sort by score (descending) and assign ranks
 	results = sortAndRankResults(results)
 
-	// Apply limit
 	if opts.Limit > 0 && len(results) > opts.Limit {
 		results = results[:opts.Limit]
 	}
@@ -124,75 +118,50 @@ func (e *SearchEngine) searchFuzzy(
 	return results, nil
 }
 
-// searchVector falls back to fuzzy search until embeddings are fully implemented
+// searchVector performs semantic search using pre-computed embeddings
 func (e *SearchEngine) searchVector(
 	ctx context.Context,
 	query string,
 	opts SearchOptions,
 ) ([]Result, error) {
-	return e.searchFuzzy(ctx, query, opts)
-}
-
-
-// calculateFuzzyScore computes a BM25-like relevance score
-func (e *SearchEngine) calculateFuzzyScore(repo storage.StoredRepo, queryTerms []string) float64 {
-	if len(queryTerms) == 0 {
-		return 0.0
+	if e.embManager == nil || !e.embManager.IsEnabled() {
+		return nil, fmt.Errorf("vector search requires embeddings to be enabled; run 'sync --embed' first")
 	}
 
-	// Define field weights (higher = more important)
-	fieldWeights := map[string]float64{
-		"full_name":    1.0,
-		"description":  0.8,
-		"purpose":      0.9,
-		"technologies": 0.7,
-		"features":     0.6,
-		"topics":       0.5,
-		"contributors": 0.4,
+	queryEmbedding, err := e.embManager.GenerateEmbedding(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate query embedding: %w", err)
 	}
 
-	totalScore := 0.0
-	matchedTerms := 0
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 50
+	}
 
-	for _, term := range queryTerms {
-		termLower := strings.ToLower(term)
-		termScore := 0.0
+	storageResults, err := e.repo.SearchByEmbedding(ctx, queryEmbedding, limit, opts.MinScore)
+	if err != nil {
+		return nil, fmt.Errorf("embedding search failed: %w", err)
+	}
 
-		// Check each field for matches
-		for field, weight := range fieldWeights {
-			fieldContent := e.getFieldContent(repo, field)
-			if fieldContent == "" {
-				continue
-			}
+	var results []Result
+	for _, sr := range storageResults {
+		score := e.applyRankingBoosts(sr.Repository, sr.Score)
 
-			fieldContentLower := strings.ToLower(fieldContent)
-
-			// Simple term frequency calculation
-			tf := float64(strings.Count(fieldContentLower, termLower))
-			if tf > 0 {
-				// Apply BM25-like scoring with field weight
-				// Simplified: tf / (tf + k1) * weight
-				k1 := 1.2 // BM25 parameter
-				fieldScore := (tf / (tf + k1)) * weight
-				termScore += fieldScore
-			}
+		if score > 1.0 {
+			score = 1.0
 		}
 
-		if termScore > 0 {
-			matchedTerms++
-			totalScore += termScore
-		}
+		results = append(results, Result{
+			RepoID:      sr.Repository.ID,
+			Score:       score,
+			Repository:  sr.Repository,
+			MatchFields: []string{"embedding"},
+		})
 	}
 
-	// Normalize by number of query terms and apply coverage bonus
-	if matchedTerms > 0 {
-		avgScore := totalScore / float64(len(queryTerms))
-		coverageBonus := float64(matchedTerms) / float64(len(queryTerms))
+	results = sortAndRankResults(results)
 
-		return avgScore * (0.7 + 0.3*coverageBonus) // Base score + coverage bonus
-	}
-
-	return 0.0
+	return results, nil
 }
 
 // applyRankingBoosts applies logarithmic star boost and recency decay
@@ -201,15 +170,11 @@ func (e *SearchEngine) applyRankingBoosts(repo storage.StoredRepo, baseScore flo
 		return baseScore
 	}
 
-	// Logarithmic star boost (small boost)
 	starBoost := 1.0
 	if repo.StargazersCount > 0 {
-		// Small logarithmic boost: 1 + 0.1 * log10(stars+1) / 6
-		// This gives ~0.05 boost for 100 stars, ~0.1 boost for 10k stars
 		starBoost = 1.0 + (0.1 * math.Log10(float64(repo.StargazersCount+1)) / 6.0)
 	}
 
-	// Recency decay: 0-20% penalty for stale repos (not updated in past year)
 	recencyFactor := 1.0
 	if !repo.UpdatedAt.IsZero() {
 		daysSinceUpdate := time.Since(repo.UpdatedAt).Hours() / 24
@@ -229,6 +194,7 @@ func (e *SearchEngine) identifyMatchedFields(
 	fieldMap := map[string]string{
 		"name":        repo.FullName,
 		"description": repo.Description,
+		"purpose":     repo.Purpose,
 		"topics":      strings.Join(repo.Topics, " "),
 	}
 
@@ -241,7 +207,7 @@ func (e *SearchEngine) identifyMatchedFields(
 		for _, term := range queryTerms {
 			if strings.Contains(contentLower, strings.ToLower(term)) {
 				matchedFields = append(matchedFields, field)
-				break // Only add field once
+				break
 			}
 		}
 	}
@@ -249,34 +215,11 @@ func (e *SearchEngine) identifyMatchedFields(
 	return matchedFields
 }
 
-// getFieldContent extracts content from a specific field
-func (e *SearchEngine) getFieldContent(repo storage.StoredRepo, field string) string {
-	switch field {
-	case "full_name":
-		return repo.FullName
-	case "description":
-		return repo.Description
-	case "topics":
-		return strings.Join(repo.Topics, " ")
-	case "contributors":
-		var names []string
-		for _, contrib := range repo.Contributors {
-			names = append(names, contrib.Login)
-		}
-
-		return strings.Join(names, " ")
-	default:
-		return ""
-	}
-}
-
 // tokenizeQuery splits the query into search terms
 func tokenizeQuery(query string) []string {
-	// Simple tokenization: split by whitespace and remove empty strings
 	parts := strings.Fields(strings.TrimSpace(query))
 
 	var terms []string
-
 	for _, part := range parts {
 		if len(part) > 0 {
 			terms = append(terms, part)

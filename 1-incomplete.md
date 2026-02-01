@@ -1,44 +1,14 @@
 # Incomplete Features
 
-## Fuzzy scoring ignores 3 of 7 field weights (bug)
+## ~~Fuzzy scoring ignores 3 of 7 field weights~~ (RESOLVED)
 
-**Location:** `internal/query/engine.go:256-264` and `:365-383`
-
-`calculateFuzzyScore` defines weights for 7 fields:
-```
-full_name:    1.0
-description:  0.8
-purpose:      0.9
-technologies: 0.7
-features:     0.6
-topics:       0.5
-contributors: 0.4
-```
-
-But `getFieldContent` only handles 4: `full_name`, `description`, `topics`, `contributors`. The remaining 3 fall through to `return ""` and never contribute to scores.
-
-**Fix:**
-- `purpose`: `StoredRepo` has a `Purpose` field. Add `case "purpose": return repo.Purpose` to `getFieldContent`.
-- `technologies` and `features`: These fields don't exist on `StoredRepo`. Either remove these weights or define what data they would draw from. If they were intended to be parsed from `Purpose` or `Description`, that extraction logic doesn't exist yet.
-
-**Recommendation:** Wire up `purpose`, remove `technologies` and `features` weights until the data source exists.
+Replaced custom BM25-like scoring with DuckDB native FTS. The FTS index covers `full_name`, `description`, `purpose`, `topics_text`, and `contributors_text`. DuckDB handles BM25 scoring internally. The `technologies` and `features` fields were removed since no data source exists.
 
 ---
 
-## Vector search is non-functional at scale
+## ~~Vector search is non-functional at scale~~ (RESOLVED)
 
-**Location:** `internal/query/engine.go:128-205`
-
-Current problems:
-1. Creates a new `embedding.Manager` per query call with hardcoded config (`:134-140`), ignoring any user configuration.
-2. Never reads the `repo_embedding` column from storage. Instead, generates embeddings on-the-fly for up to 1000 repos at query time (`:157, 175`).
-3. Silently falls back to fuzzy search on any error (`:143-153`), including when the local Python provider isn't installed.
-
-**Plan:**
-1. Read pre-computed embeddings from the `repo_embedding` column in storage.
-2. Accept the embedding Manager as a dependency (inject via constructor) instead of creating one per call.
-3. Only generate the query embedding on-the-fly; repo embeddings should already be stored from sync.
-4. Return an explicit error when embeddings are unavailable instead of silently falling back.
+Fixed: `embedding.Manager` is injected via constructor. Query-time vector search reads pre-computed embeddings from the `repo_embedding` column using `array_cosine_similarity` in DuckDB SQL. Only the query embedding is generated on-the-fly. Returns an explicit error when embeddings are unavailable (no silent fallback to fuzzy).
 
 ---
 

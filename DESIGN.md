@@ -17,7 +17,7 @@ internal/
   github/                 GitHub API client wrapping go-gh
   logging/                Structured logging via slog
   processor/              Content extraction and chunking from repositories
-  query/                  Search engine (fuzzy BM25-like + vector cosine similarity)
+  query/                  Search engine (DuckDB FTS + vector cosine similarity)
   related/                Related repository discovery engine
   storage/                DuckDB persistence layer
   summarizer/             Python-based text summarization (sentence-transformers)
@@ -45,8 +45,8 @@ flowchart TD
 
     subgraph Query["query command"]
         Input["User query string"] --> Engine["query.Engine"]
-        Engine -->|fuzzy| FSearch["SearchRepositories<br/>(ILIKE + BM25 scoring)"]
-        Engine -->|vector| VSearch["ListRepositories +<br/>cosine similarity"]
+        Engine -->|fuzzy| FSearch["SearchRepositories<br/>(DuckDB FTS BM25)"]
+        Engine -->|vector| VSearch["SearchByEmbedding<br/>(SQL cosine similarity)"]
         FSearch --> DB
         VSearch --> DB
         FSearch --> Rank["applyRankingBoosts<br/>(stars + recency)"]
@@ -83,9 +83,9 @@ All major subsystems are defined as interfaces to enable testing and future alte
 
 DuckDB was chosen for its analytical query performance, native JSON column support, and columnar storage -- all suited to the metadata-heavy, read-heavy workload of searching across repository attributes. Connection pooling is configured with 10 max open / 5 idle connections and 30-second query timeouts.
 
-### BM25-Like Scoring with Ranking Boosts
+### DuckDB FTS with Ranking Boosts
 
-Fuzzy search uses a simplified BM25 formula: `tf / (tf + k1) * fieldWeight` where k1=1.2. Field weights prioritize name (1.0) and purpose (0.9) over description (0.8) and topics (0.5). Two ranking boosts are applied multiplicatively:
+Fuzzy search uses DuckDB's native FTS extension with BM25 scoring across `full_name`, `description`, `purpose`, `topics_text`, and `contributors_text`. The FTS index is rebuilt after each sync via `PRAGMA create_fts_index` (Porter stemmer, English stopwords). Two ranking boosts are applied multiplicatively on top of the FTS score:
 
 - **Star boost**: `1 + 0.1 * log10(stars + 1) / 6` -- a subtle logarithmic signal that avoids dominating relevance
 - **Recency decay**: `1 - 0.2 * min(1, daysSinceUpdate / 365)` -- up to 20% penalty for repos not updated in a year
@@ -133,7 +133,7 @@ All test files use Go's table-driven test pattern with `t.Run` subtests. Test se
 
 ### Graceful Degradation
 
-- Vector search falls back to fuzzy search when embeddings are unavailable or fail to generate
+- Vector search returns an explicit error when embeddings are unavailable (no silent fallback to fuzzy)
 - Partial metric sync failures are logged but do not abort the overall sync
 - Missing summary/embedding data is excluded from scoring rather than treated as zero-match
 
@@ -154,10 +154,10 @@ Interfaces are defined in the packages that consume them (e.g., `query.Engine` i
 | Area | Tests | Focus |
 |------|-------|-------|
 | Search scoring | `TestRecencyDecay`, `TestStarBoost`, `TestScoreClamping` | Decay curve, logarithmic boost, edge cases |
-| Storage search | `TestSearchRepositories`, `_EdgeCases`, `_SQLInjection` | ILIKE matching, short queries, SQL keyword rejection |
+| Storage search | `TestSearchRepositories`, `_EdgeCases`, `_SQLInjection` | FTS BM25 matching, short queries, SQL keyword rejection |
 | CLI validation | `TestValidateQuery`, `TestValidateQueryFlags`, `TestFormatAge` | Input bounds, flag combinations, time formatting |
 | Related engine | `TestFindRelated`, `TestTopicOverlap`, `TestSharedContrib` | Jaccard similarity, contributor intersection, batch streaming |
-| Query engine | `TestCalculateFuzzyScore`, `TestIdentifyMatchedFields` | Field weight application, multi-term matching |
+| Query engine | `TestIdentifyMatchedFields`, `TestApplyRankingBoosts` | Field matching, boost application |
 
 ### Running Tests
 

@@ -43,20 +43,25 @@ func TestQueryIntegration(t *testing.T) {
 		}
 	}
 
+	// Build FTS index after storing all repositories
+	if err := repo.RebuildFTSIndex(ctx); err != nil {
+		t.Fatalf("Failed to rebuild FTS index: %v", err)
+	}
+
 	// Test various query scenarios
 	t.Run("LanguageFilter", func(t *testing.T) {
-		results, err := repo.SearchRepositories(ctx, "go")
+		// Search for "gin" which appears in the repo name and description
+		// Note: "go" alone is an English stopword filtered by FTS
+		results, err := repo.SearchRepositories(ctx, "gin")
 		if err != nil {
 			t.Errorf("Language filter query failed: %v", err)
 		}
 
 		if len(results) == 0 {
-			t.Error("Expected results for Go language filter")
+			t.Error("Expected results for gin search")
 		}
 
-		// Verify results contain Go repositories
 		foundGo := false
-
 		for _, result := range results {
 			if result.Repository.Language == "Go" {
 				foundGo = true

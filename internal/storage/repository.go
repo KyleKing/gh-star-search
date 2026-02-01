@@ -26,6 +26,10 @@ type Repository interface {
 	UpdateRepositorySummary(ctx context.Context, fullName, purpose string) error
 	GetRepositoriesNeedingMetricsUpdate(ctx context.Context, staleDays int) ([]string, error)
 	GetRepositoriesNeedingSummaryUpdate(ctx context.Context, forceUpdate bool) ([]string, error)
+
+	// FTS and vector search
+	RebuildFTSIndex(ctx context.Context) error
+	SearchByEmbedding(ctx context.Context, queryEmbedding []float32, limit int, minScore float64) ([]SearchResult, error)
 }
 
 // StoredRepo represents a repository as stored in the database

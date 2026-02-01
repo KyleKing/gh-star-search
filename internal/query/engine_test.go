@@ -8,63 +8,6 @@ import (
 	"github.com/KyleKing/gh-star-search/internal/storage"
 )
 
-func TestSearchEngine_CalculateFuzzyScore(t *testing.T) {
-	engine := &SearchEngine{}
-
-	// Test repository
-	repo := storage.StoredRepo{
-		FullName:    "facebook/react",
-		Description: "A declarative, efficient, and flexible JavaScript library for building user interfaces",
-		Topics:      []string{"javascript", "react", "frontend", "ui"},
-	}
-
-	tests := []struct {
-		name        string
-		queryTerms  []string
-		expectScore bool // Whether we expect a score > 0
-	}{
-		{
-			name:        "exact name match",
-			queryTerms:  []string{"react"},
-			expectScore: true,
-		},
-		{
-			name:        "description match",
-			queryTerms:  []string{"javascript", "library"},
-			expectScore: true,
-		},
-		{
-			name:        "technology match",
-			queryTerms:  []string{"jsx"},
-			expectScore: false, // Technologies field removed, so no match expected
-		},
-		{
-			name:        "no match",
-			queryTerms:  []string{"python", "django"},
-			expectScore: false,
-		},
-		{
-			name:        "partial match",
-			queryTerms:  []string{"javascript", "python"},
-			expectScore: true, // Should match javascript
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			score := engine.calculateFuzzyScore(repo, tt.queryTerms)
-
-			if tt.expectScore && score <= 0 {
-				t.Errorf("Expected score > 0, got %f", score)
-			}
-
-			if !tt.expectScore && score > 0 {
-				t.Errorf("Expected score = 0, got %f", score)
-			}
-		})
-	}
-}
-
 func TestSearchEngine_ApplyRankingBoosts(t *testing.T) {
 	engine := &SearchEngine{}
 
@@ -122,6 +65,7 @@ func TestSearchEngine_IdentifyMatchedFields(t *testing.T) {
 	repo := storage.StoredRepo{
 		FullName:    "facebook/react",
 		Description: "A JavaScript library",
+		Purpose:     "Build user interfaces with reusable components",
 		Topics:      []string{"javascript", "frontend"},
 	}
 
@@ -141,9 +85,14 @@ func TestSearchEngine_IdentifyMatchedFields(t *testing.T) {
 			expectedFields: []string{"description", "topics"},
 		},
 		{
+			name:           "purpose match",
+			queryTerms:     []string{"reusable"},
+			expectedFields: []string{"purpose"},
+		},
+		{
 			name:           "multiple matches",
 			queryTerms:     []string{"javascript", "component"},
-			expectedFields: []string{"description", "topics"},
+			expectedFields: []string{"description", "purpose", "topics"},
 		},
 		{
 			name:           "no matches",

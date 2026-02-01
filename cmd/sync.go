@@ -220,6 +220,11 @@ func runSync(ctx context.Context, cmd *cli.Command) error {
 		}
 	}
 
+	// Rebuild FTS index after all data changes
+	if err := syncService.storage.RebuildFTSIndex(ctx); err != nil {
+		return fmt.Errorf("failed to rebuild search index: %w", err)
+	}
+
 	return nil
 }
 

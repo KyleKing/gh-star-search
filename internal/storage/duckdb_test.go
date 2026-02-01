@@ -124,7 +124,12 @@ func TestDuckDBRepository(t *testing.T) {
 
 	// Test search repositories
 	t.Run("SearchRepositories", func(t *testing.T) {
-		results, err := repo.SearchRepositories(ctx, "test")
+		// Build FTS index before searching
+		if err := repo.RebuildFTSIndex(ctx); err != nil {
+			t.Fatalf("Failed to rebuild FTS index: %v", err)
+		}
+
+		results, err := repo.SearchRepositories(ctx, "testing")
 		if err != nil {
 			t.Fatalf("Failed to search repositories: %v", err)
 		}
@@ -373,6 +378,11 @@ func setupSearchTestDB(t *testing.T) (*DuckDBRepository, context.Context) {
 		}
 	}
 
+	// Build FTS index for search tests
+	if err := repo.RebuildFTSIndex(ctx); err != nil {
+		t.Fatalf("Failed to rebuild FTS index: %v", err)
+	}
+
 	return repo, ctx
 }
 
@@ -503,8 +513,9 @@ func TestSearchRepositories_EdgeCases(t *testing.T) {
 			t.Fatalf("Empty string search should not error at storage layer: %v", err)
 		}
 
-		if len(results) != 3 {
-			t.Errorf("Expected 3 results for empty search (matches all), got %d", len(results))
+		// FTS with empty query returns no results (no terms to match)
+		if len(results) != 0 {
+			t.Errorf("Expected 0 results for empty FTS search, got %d", len(results))
 		}
 	})
 
@@ -523,22 +534,20 @@ func TestSearchRepositories_EdgeCases(t *testing.T) {
 		}
 	})
 
-	t.Run("ResultsOrderedByStars", func(t *testing.T) {
-		results, err := repo.SearchRepositories(ctx, "")
+	t.Run("ResultsOrderedByScore", func(t *testing.T) {
+		// Use a term that matches multiple repos for ordering verification
+		results, err := repo.SearchRepositories(ctx, "parser cloud dashboard")
 		if err != nil {
 			t.Fatalf("Search failed: %v", err)
 		}
 
-		if len(results) < 2 {
-			t.Fatalf("Expected at least 2 results, got %d", len(results))
-		}
-
+		// FTS results are ordered by BM25 score descending
 		for i := 1; i < len(results); i++ {
-			if results[i-1].Repository.StargazersCount < results[i].Repository.StargazersCount {
+			if results[i-1].Score < results[i].Score {
 				t.Errorf(
-					"Results not ordered by stars DESC: %s (%d) before %s (%d)",
-					results[i-1].Repository.FullName, results[i-1].Repository.StargazersCount,
-					results[i].Repository.FullName, results[i].Repository.StargazersCount,
+					"Results not ordered by score DESC: %s (%.4f) before %s (%.4f)",
+					results[i-1].Repository.FullName, results[i-1].Score,
+					results[i].Repository.FullName, results[i].Score,
 				)
 			}
 		}

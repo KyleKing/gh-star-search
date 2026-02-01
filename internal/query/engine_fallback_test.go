@@ -33,7 +33,7 @@ func (m *mockQueryRepo) DeleteRepository(_ context.Context, _ string) error {
 	return nil
 }
 
-func (m *mockQueryRepo) SearchRepositories(ctx context.Context, query string) ([]storage.SearchResult, error) {
+func (m *mockQueryRepo) SearchRepositories(ctx context.Context, _ string) ([]storage.SearchResult, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
@@ -105,7 +105,15 @@ func (m *mockQueryRepo) UpdateRepositoryMetrics(_ context.Context, _ string, _ s
 	return nil
 }
 
-func TestSearchVector_FallbackToFuzzySearch(t *testing.T) {
+func (m *mockQueryRepo) RebuildFTSIndex(_ context.Context) error {
+	return nil
+}
+
+func (m *mockQueryRepo) SearchByEmbedding(_ context.Context, _ []float32, _ int, _ float64) ([]storage.SearchResult, error) {
+	return nil, nil
+}
+
+func TestSearchVector_ReturnsErrorWithoutEmbeddings(t *testing.T) {
 	mockRepo := &mockQueryRepo{
 		repos: []storage.StoredRepo{
 			{
@@ -113,26 +121,21 @@ func TestSearchVector_FallbackToFuzzySearch(t *testing.T) {
 				Description: "A test repository for searching",
 				Language:    "Go",
 			},
-			{
-				FullName:    "test/repo2",
-				Description: "Another repository",
-				Language:    "Python",
-			},
 		},
 	}
 
-	engine := NewSearchEngine(mockRepo)
+	engine := NewSearchEngine(mockRepo, nil)
 	ctx := context.Background()
 
-	query := Query{
+	q := Query{
 		Raw:  "test repository",
 		Mode: ModeVector,
 	}
 
-	results, err := engine.Search(ctx, query, SearchOptions{Limit: 10})
+	_, err := engine.Search(ctx, q, SearchOptions{Limit: 10})
 
-	require.NoError(t, err, "should fall back to fuzzy search when embeddings unavailable")
-	assert.NotEmpty(t, results, "should return fuzzy search results as fallback")
+	require.Error(t, err, "should return error when embeddings are unavailable")
+	assert.Contains(t, err.Error(), "vector search requires embeddings")
 }
 
 func TestSearchEngine_ModeFuzzy(t *testing.T) {
@@ -146,15 +149,15 @@ func TestSearchEngine_ModeFuzzy(t *testing.T) {
 		},
 	}
 
-	engine := NewSearchEngine(mockRepo)
+	engine := NewSearchEngine(mockRepo, nil)
 	ctx := context.Background()
 
-	query := Query{
+	q := Query{
 		Raw:  "golang",
 		Mode: ModeFuzzy,
 	}
 
-	results, err := engine.Search(ctx, query, SearchOptions{Limit: 10})
+	results, err := engine.Search(ctx, q, SearchOptions{Limit: 10})
 
 	require.NoError(t, err)
 	assert.NotEmpty(t, results, "fuzzy search should return results")
@@ -170,15 +173,15 @@ func TestSearchEngine_DefaultModeIsFuzzy(t *testing.T) {
 		},
 	}
 
-	engine := NewSearchEngine(mockRepo)
+	engine := NewSearchEngine(mockRepo, nil)
 	ctx := context.Background()
 
-	query := Query{
+	q := Query{
 		Raw:  "test",
 		Mode: "",
 	}
 
-	results, err := engine.Search(ctx, query, SearchOptions{Limit: 10})
+	results, err := engine.Search(ctx, q, SearchOptions{Limit: 10})
 
 	require.NoError(t, err, "empty mode should default to fuzzy search")
 	assert.NotEmpty(t, results)
@@ -192,15 +195,15 @@ func TestSearchEngine_EmptyQuery(t *testing.T) {
 		},
 	}
 
-	engine := NewSearchEngine(mockRepo)
+	engine := NewSearchEngine(mockRepo, nil)
 	ctx := context.Background()
 
-	query := Query{
+	q := Query{
 		Raw:  "",
 		Mode: ModeFuzzy,
 	}
 
-	results, err := engine.Search(ctx, query, SearchOptions{Limit: 10})
+	results, err := engine.Search(ctx, q, SearchOptions{Limit: 10})
 
 	require.NoError(t, err, "empty query should not error")
 	assert.NotNil(t, results)
@@ -216,15 +219,15 @@ func TestSearchEngine_LimitResults(t *testing.T) {
 	}
 
 	mockRepo := &mockQueryRepo{repos: repos}
-	engine := NewSearchEngine(mockRepo)
+	engine := NewSearchEngine(mockRepo, nil)
 	ctx := context.Background()
 
-	query := Query{
+	q := Query{
 		Raw:  "test",
 		Mode: ModeFuzzy,
 	}
 
-	results, err := engine.Search(ctx, query, SearchOptions{Limit: 5})
+	results, err := engine.Search(ctx, q, SearchOptions{Limit: 5})
 
 	require.NoError(t, err)
 	assert.LessOrEqual(t, len(results), 5, "should respect limit option")
@@ -240,15 +243,15 @@ func TestSearchEngine_NoResults(t *testing.T) {
 		},
 	}
 
-	engine := NewSearchEngine(mockRepo)
+	engine := NewSearchEngine(mockRepo, nil)
 	ctx := context.Background()
 
-	query := Query{
+	q := Query{
 		Raw:  "python django flask",
 		Mode: ModeFuzzy,
 	}
 
-	results, err := engine.Search(ctx, query, SearchOptions{Limit: 10})
+	results, err := engine.Search(ctx, q, SearchOptions{Limit: 10})
 
 	require.NoError(t, err, "no match should not error")
 	assert.NotNil(t, results, "should return empty results slice, not nil")
@@ -259,16 +262,16 @@ func TestSearchEngine_ContextCancellation(t *testing.T) {
 		repos: []storage.StoredRepo{{FullName: "user/repo"}},
 	}
 
-	engine := NewSearchEngine(mockRepo)
+	engine := NewSearchEngine(mockRepo, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	query := Query{
+	q := Query{
 		Raw:  "test",
 		Mode: ModeFuzzy,
 	}
 
-	_, err := engine.Search(ctx, query, SearchOptions{Limit: 10})
+	_, err := engine.Search(ctx, q, SearchOptions{Limit: 10})
 
 	assert.Error(t, err, "should return error when context is canceled")
 }
@@ -284,7 +287,7 @@ func TestSearchEngine_CaseInsensitiveSearch(t *testing.T) {
 		},
 	}
 
-	engine := NewSearchEngine(mockRepo)
+	engine := NewSearchEngine(mockRepo, nil)
 	ctx := context.Background()
 
 	tests := []struct {
@@ -298,12 +301,12 @@ func TestSearchEngine_CaseInsensitiveSearch(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			query := Query{
+			q := Query{
 				Raw:  tt.query,
 				Mode: ModeFuzzy,
 			}
 
-			results, err := engine.Search(ctx, query, SearchOptions{Limit: 10})
+			results, err := engine.Search(ctx, q, SearchOptions{Limit: 10})
 
 			require.NoError(t, err)
 			assert.NotEmpty(t, results, "case insensitive search should find results for %s", tt.query)

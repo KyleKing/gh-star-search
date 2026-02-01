@@ -33,11 +33,15 @@ The `repositories` table stores one row per starred repo:
 | `content_hash` | VARCHAR | SHA256 for change detection |
 | `purpose` | TEXT | AI-generated summary |
 | `summary_generated_at`, `summary_version` | TIMESTAMP/INTEGER | Summary tracking |
+| `topics_text` | VARCHAR | Space-joined topics for FTS indexing |
+| `contributors_text` | VARCHAR | Space-joined contributor logins for FTS indexing |
 | `repo_embedding` | JSON | Float32 vector for semantic search |
 
 ### Indexes
 
-Indexes exist on: `language`, `updated_at`, `stargazers_count`, `full_name`, and `commits_total`.
+Standard indexes exist on: `language`, `updated_at`, `stargazers_count`, `full_name`, and `commits_total`.
+
+A DuckDB FTS index is rebuilt after each sync via `PRAGMA create_fts_index`, covering: `full_name`, `description`, `purpose`, `topics_text`, and `contributors_text` (Porter stemmer, English stopwords). The FTS index does not auto-update -- it must be rebuilt after data changes.
 
 ### Adding Migrations
 
@@ -109,7 +113,7 @@ gh star-search sync --summarize
 | Scenario | Result |
 |----------|--------|
 | Python not in PATH | Summarization/embedding skipped, warning logged |
-| `sentence-transformers` not installed | Embeddings skipped; vector search falls back to fuzzy |
+| `sentence-transformers` not installed | Embeddings skipped; vector search returns an error |
 | `transformers` not installed | Heuristic summarization used instead |
 | Script execution fails | Warning logged, sync continues for remaining repos |
 | Individual repo fails to embed | Skipped, other repos continue |
