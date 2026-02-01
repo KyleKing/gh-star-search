@@ -1,55 +1,50 @@
 # Project Structure
 
-## gh-star-search (Cobra-based)
+## gh-star-search (urfave/cli v3)
 ```
 gh-star-search/
 ├── main.go              # Entry point
 ├── cmd/                 # CLI commands
-│   ├── root.go          # Root command setup
 │   ├── sync.go          # Sync command (incremental, minimal fetch)
+│   ├── sync_summarize.go # Summary generation during sync
+│   ├── sync_embed.go    # Embedding generation during sync
 │   ├── query.go         # Query command (fuzzy/vector modes)
-│   ├── list.go          # List command (formatted output)
-│   ├── info.go          # Info command (long/short forms)
+│   ├── list.go          # List command (short-form output)
+│   ├── info.go          # Info command (long-form output)
+│   ├── related.go       # Related repository discovery
 │   ├── stats.go         # Stats command
+│   ├── config.go        # Configuration management
 │   └── clear.go         # Clear command
-└── internal/
-    ├── github/          # GitHub API client (metadata, topics, contributors)
-    ├── processor/       # Content processing (README extraction, summarization)
-    ├── storage/         # DuckDB repository (tables, embeddings)
-    ├── query/           # Query execution (fuzzy & vector strategies)
-    ├── llm/             # (Disabled) future LLM integration
-    ├── config/          # Configuration management
-    ├── cache/           # Local caching & staleness checks
-    └── logging/         # Logging utilities
+├── internal/
+│   ├── cache/           # File-based caching with TTL
+│   ├── config/          # Configuration models & loading
+│   ├── embedding/       # Embedding provider interface (local/remote)
+│   ├── errors/          # Structured error types
+│   ├── formatter/       # Output formatting (long/short)
+│   ├── github/          # GitHub API client + VCR test helpers
+│   ├── logging/         # Structured logging with slog
+│   ├── processor/       # Content extraction & processing
+│   ├── query/           # Search engine (fuzzy + vector)
+│   ├── related/         # Related repository engine (streaming batch)
+│   ├── storage/         # DuckDB persistence layer
+│   ├── summarizer/      # Python subprocess summarization
+│   └── types/           # Shared type definitions
+└── scripts/
+    ├── summarize.py     # Heuristic + transformers summarization
+    └── embed.py         # Sentence-transformer embeddings
 ```
 
 ## Architectural Notes
 - Minimal ingestion: README + docs/README.md + external linked page (if present)
 - Summaries limited to primary README; recomputed only when forced
 - Single query-string interface for search; structured filters deferred
-- Pluggable related strategies (org, topic, contributor, vector)
+- Related engine uses streaming batch processing for memory efficiency
 - Output renderer centralizes long vs short formatting logic
-
-## Package Adjustments
-- Removed references to unused generic layers (`conn/`, `fixtures/` as global concept)
-- Emphasis on `processor/` + `query/` for summarization and search strategies
-- `llm/` retained but currently dormant
+- Embedding generation optional; missing embeddings fall back to fuzzy search
 
 ## Testing Layout
-- Standard `*_test.go` co-located tests
-- Integration & performance tests for sync/query in existing `*_integration_test.go` and `*_performance_test.go`
-- Test data housed under package `testdata/` directories (e.g., `processor/testdata`)
-
-## Configuration & Caching
-- Configurable sync staleness window (default 14 days)
-- Force flag for summary regeneration
-- Embedding generation optional; absence falls back to fuzzy mode
-
-## Changes
-- Added vector vs fuzzy query distinction & related strategies
-- Documented minimal file fetch + summary scope
-- Clarified dormant LLM package status
-- Simplified package list (removed unused `conn/`, `fixtures/` bullets)
-- Added logging package mention
-- Added config & caching behavioral notes
-- Added long vs short output renderer description
+- Unit tests (`*_test.go`) co-located with source
+- Integration tests (`*_integration_test.go`) for sync/query
+- Performance tests (`*_performance_test.go`) for benchmarks
+- VCR cassettes in `internal/github/testdata/`
+- Golden test files in `internal/formatter/testdata/`

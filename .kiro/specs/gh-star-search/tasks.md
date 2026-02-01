@@ -1,6 +1,6 @@
-# Implementation Plan (Simplified Architecture Update 2025-09-14)
+# Implementation Plan
 
-This plan supersedes the prior (legacy) task list to align with `new.md` and the updated design (`design.md`). Natural language → SQL parsing, LLM summarization, broad repository crawling, and chunk-level embeddings are removed or deferred. The focus now: minimal ingestion, deterministic transformers-based summaries, dual-mode (fuzzy/vector) search, and a Related engine with explainable scoring.
+Minimal ingestion, deterministic transformers-based summaries, dual-mode (fuzzy/vector) search, and a Related engine with explainable scoring.
 
 ## Completed (Legacy Foundation)
 These foundational capabilities remain valid and are retained (no rework unless noted):
@@ -14,7 +14,7 @@ These foundational capabilities remain valid and are retained (no rework unless 
 - [x] Content extraction and processing (README, basic summarization)
 - [x] Basic text search functionality (ILIKE-based search in DuckDB)
 
-LLM, NL query parser, and wide content extraction pieces are now deprecated (see Changes section).
+LLM and wide content extraction have been removed.
 
 ## Phase 2 – Simplification & New Core Features (Pending)
 - [x] 1. Remove Legacy NL & LLM Code
@@ -100,16 +100,3 @@ LLM, NL query parser, and wide content extraction pieces are now deprecated (see
 - Migration engine (golang-migrate) once schema stabilizes.
 - Export functionality & advanced analytics.
 
-## Changes (vs Previous tasks.md)
-- Removed: Old Task 5 (LLM summarization) → replaced by new Task 4 (transformers) & Task 14 (future LLM reintroduction placeholder).
-- Removed: Old Task 7 (natural language query parser) and related interactive SQL editing (superseded by direct search Tasks 6 & 11).
-- Modified: Old Task 4 (broad content extraction & chunking) → narrowed to Task 3 (minimal extraction) with no chunk table.
-- Modified: Old Task 8 (search & query execution) → split into Tasks 6 (dual-mode engine) & 11 (CLI flags) with simplified scope.
-- Modified: Old Task 10 (caching/performance) → refined into Tasks 5 (metrics & caching), 13 (performance tuning).
-- Modified: Old Task 12 (test suite & docs) → expanded across Tasks 10 (testing) & 11 (CONTRIBUTING.md & logging).
-- Retained/Reframed: Old Task 13 (packaging) → Task 12; advanced polish elements of Old Task 14 moved to Deferred / Future Work or integrated into specific tasks (formatting, related, performance).
-- Added: New tasks for related engine (Task 6), output formatting spec compliance (Task 7), embedding optionalization (Task 6), Python integration safeguards (Task 8), error taxonomy (Task 11).
-- Merged: Tasks 5,10,11 into new Task 5; Tasks 6,7,8,9 into new Task 6; Tasks 16,17 into new Task 11; Tasks 12-20 renumbered accordingly.
-
-## Progress Tracking Notes
-Mark tasks as completed directly here as work proceeds. If schema changes break backward compatibility, document manual migration steps in CONTRIBUTING.md and increment summary version.
