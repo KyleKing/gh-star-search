@@ -41,7 +41,8 @@ func DefaultConfig() Config {
 
 // NewProvider creates a Provider based on configuration.
 // Returns a DisabledProvider if embeddings are not enabled.
-func NewProvider(config Config) (Provider, error) {
+// For local providers, uvPath and projectDir must be provided.
+func NewProvider(config Config, uvPath, projectDir string) (Provider, error) {
 	if !config.Enabled {
 		return &DisabledProvider{}, nil
 	}
@@ -51,7 +52,7 @@ func NewProvider(config Config) (Provider, error) {
 
 	switch config.Provider {
 	case "local":
-		provider, err = NewLocalProvider(config)
+		provider, err = NewLocalProvider(config, uvPath, projectDir)
 	case "remote":
 		provider, err = NewRemoteProvider(config)
 	default:

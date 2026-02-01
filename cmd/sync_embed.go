@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/KyleKing/gh-star-search/internal/embedding"
+	"github.com/KyleKing/gh-star-search/internal/python"
 )
 
 // generateEmbeddings generates vector embeddings for repositories
@@ -13,7 +14,6 @@ func (s *SyncService) generateEmbeddings(ctx context.Context, _ bool) error {
 	s.logVerbose("\nGenerating repository embeddings...")
 
 	// Get all repositories (we need to check which ones have embeddings)
-	// For now, just get all repositories with limit=1000, offset=0
 	// TODO: Add a method to get repositories needing embeddings
 	repos, err := s.storage.ListRepositories(ctx, 1000, 0)
 	if err != nil {
@@ -27,11 +27,23 @@ func (s *SyncService) generateEmbeddings(ctx context.Context, _ bool) error {
 	}
 
 	if len(needEmbedding) == 0 {
-		fmt.Println("✅ All repositories have embeddings - no updates needed")
+		fmt.Println("All repositories have embeddings - no updates needed")
 		return nil
 	}
 
-	fmt.Printf("\n🔢 Generating embeddings for %d repositories...\n", len(needEmbedding))
+	fmt.Printf("\nGenerating embeddings for %d repositories...\n", len(needEmbedding))
+
+	// Prepare Python environment
+	uvPath, err := python.FindUV()
+	if err != nil {
+		return fmt.Errorf("embedding generation requires uv: %w", err)
+	}
+
+	cacheDir := expandPath(s.config.Cache.Directory)
+	projectDir, err := python.EnsureEnvironment(ctx, uvPath, cacheDir)
+	if err != nil {
+		return fmt.Errorf("failed to prepare Python environment: %w", err)
+	}
 
 	// Initialize embedding provider
 	embConfig := embedding.Config{
@@ -42,7 +54,7 @@ func (s *SyncService) generateEmbeddings(ctx context.Context, _ bool) error {
 		Options:    make(map[string]string),
 	}
 
-	embProvider, err := embedding.NewProvider(embConfig)
+	embProvider, err := embedding.NewProvider(embConfig, uvPath, projectDir)
 	if err != nil {
 		return fmt.Errorf("failed to initialize embedding provider: %w", err)
 	}
@@ -62,7 +74,7 @@ func (s *SyncService) generateEmbeddings(ctx context.Context, _ bool) error {
 		// Get repository details
 		repo, err := s.storage.GetRepository(ctx, repoName)
 		if err != nil {
-			fmt.Printf("❌ Failed to get repository: %v\n", err)
+			fmt.Printf("Failed to get repository: %v\n", err)
 			failed++
 			continue
 		}
@@ -73,19 +85,19 @@ func (s *SyncService) generateEmbeddings(ctx context.Context, _ bool) error {
 		// Generate embedding
 		embVec, err := embProvider.GenerateEmbedding(ctx, text)
 		if err != nil {
-			fmt.Printf("❌ Failed to generate embedding: %v\n", err)
+			fmt.Printf("Failed to generate embedding: %v\n", err)
 			failed++
 			continue
 		}
 
 		// Store embedding
 		if err := s.storage.UpdateRepositoryEmbedding(ctx, repoName, embVec); err != nil {
-			fmt.Printf("❌ Failed to store embedding: %v\n", err)
+			fmt.Printf("Failed to store embedding: %v\n", err)
 			failed++
 			continue
 		}
 
-		fmt.Printf("✅ Embedding generated (%d dimensions)\n", len(embVec))
+		fmt.Printf("Embedding generated (%d dimensions)\n", len(embVec))
 		successful++
 	}
 
@@ -98,9 +110,9 @@ func (s *SyncService) generateEmbeddings(ctx context.Context, _ bool) error {
 	fmt.Printf("Failed: %d\n", failed)
 
 	if failed > 0 {
-		fmt.Printf("\n⚠️  %d repositories failed to embed\n", failed)
+		fmt.Printf("\n%d repositories failed to embed\n", failed)
 	} else {
-		fmt.Println("\n✅ All repositories embedded successfully!")
+		fmt.Println("\nAll repositories embedded successfully!")
 	}
 
 	return nil

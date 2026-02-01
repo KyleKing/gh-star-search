@@ -12,12 +12,12 @@ type Manager struct {
 
 // NewManager creates a Manager from the given config.
 // Returns nil if embeddings are not enabled.
-func NewManager(config Config) (*Manager, error) {
+func NewManager(config Config, uvPath, projectDir string) (*Manager, error) {
 	if !config.Enabled {
 		return nil, nil
 	}
 
-	provider, err := NewProvider(config)
+	provider, err := NewProvider(config, uvPath, projectDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create embedding provider: %w", err)
 	}

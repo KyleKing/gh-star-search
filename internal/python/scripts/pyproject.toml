@@ -1,0 +1,9 @@
+[project]
+name = "gh-star-search-scripts"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "sentence-transformers>=2.2.0",
+    "torch>=2.0.0",
+    "transformers>=4.30.0",
+]

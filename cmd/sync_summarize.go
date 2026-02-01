@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/KyleKing/gh-star-search/internal/python"
 	"github.com/KyleKing/gh-star-search/internal/summarizer"
 )
 
@@ -19,17 +20,26 @@ func (s *SyncService) generateSummaries(ctx context.Context, force bool) error {
 	}
 
 	if len(repos) == 0 {
-		fmt.Println("✅ All repositories have summaries - no updates needed")
+		fmt.Println("All repositories have summaries - no updates needed")
 		return nil
 	}
 
-	fmt.Printf("\n📝 Generating summaries for %d repositories...\n", len(repos))
+	fmt.Printf("\nGenerating summaries for %d repositories...\n", len(repos))
+
+	// Prepare Python environment
+	uvPath, err := python.FindUV()
+	if err != nil {
+		return fmt.Errorf("summarization requires uv: %w", err)
+	}
+
+	cacheDir := expandPath(s.config.Cache.Directory)
+	projectDir, err := python.EnsureEnvironment(ctx, uvPath, cacheDir)
+	if err != nil {
+		return fmt.Errorf("failed to prepare Python environment: %w", err)
+	}
 
 	// Initialize summarizer
-	sum, err := summarizer.New()
-	if err != nil {
-		return fmt.Errorf("failed to initialize summarizer: %w", err)
-	}
+	sum := summarizer.New(uvPath, projectDir)
 
 	// Track statistics
 	successful := 0
@@ -42,7 +52,7 @@ func (s *SyncService) generateSummaries(ctx context.Context, force bool) error {
 		// Get repository details
 		repo, err := s.storage.GetRepository(ctx, repoName)
 		if err != nil {
-			fmt.Printf("❌ Failed to get repository: %v\n", err)
+			fmt.Printf("Failed to get repository: %v\n", err)
 			failed++
 			continue
 		}
@@ -59,25 +69,25 @@ func (s *SyncService) generateSummaries(ctx context.Context, force bool) error {
 		// Generate summary
 		result, err := sum.Summarize(ctx, text, summarizer.MethodAuto)
 		if err != nil {
-			fmt.Printf("❌ Failed to generate summary: %v\n", err)
+			fmt.Printf("Failed to generate summary: %v\n", err)
 			failed++
 			continue
 		}
 
 		if result.Error != "" {
-			fmt.Printf("❌ Summarization failed: %s\n", result.Error)
+			fmt.Printf("Summarization failed: %s\n", result.Error)
 			failed++
 			continue
 		}
 
 		// Store summary
 		if err := s.storage.UpdateRepositorySummary(ctx, repoName, result.Summary); err != nil {
-			fmt.Printf("❌ Failed to store summary: %v\n", err)
+			fmt.Printf("Failed to store summary: %v\n", err)
 			failed++
 			continue
 		}
 
-		fmt.Printf("✅ Summary generated (%s method)\n", result.Method)
+		fmt.Printf("Summary generated (%s method)\n", result.Method)
 		s.logVerbose(fmt.Sprintf("    Summary: %s", result.Summary))
 		successful++
 	}
@@ -91,9 +101,9 @@ func (s *SyncService) generateSummaries(ctx context.Context, force bool) error {
 	fmt.Printf("Failed: %d\n", failed)
 
 	if failed > 0 {
-		fmt.Printf("\n⚠️  %d repositories failed to summarize\n", failed)
+		fmt.Printf("\n%d repositories failed to summarize\n", failed)
 	} else {
-		fmt.Println("\n✅ All repositories summarized successfully!")
+		fmt.Println("\nAll repositories summarized successfully!")
 	}
 
 	return nil

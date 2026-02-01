@@ -3,14 +3,29 @@ package summarizer
 import (
 	"context"
 	"testing"
+
+	"github.com/KyleKing/gh-star-search/internal/python"
 )
 
-func TestSummarizer_Heuristic(t *testing.T) {
-	// Create summarizer
-	s, err := New()
+func setupSummarizer(t *testing.T) *Summarizer {
+	t.Helper()
+
+	uvPath, err := python.FindUV()
 	if err != nil {
-		t.Skipf("Failed to create summarizer (Python may not be available): %v", err)
+		t.Skipf("uv not installed: %v", err)
 	}
+
+	cacheDir := t.TempDir()
+	projectDir, err := python.EnsureEnvironment(context.Background(), uvPath, cacheDir)
+	if err != nil {
+		t.Skipf("Failed to prepare Python environment: %v", err)
+	}
+
+	return New(uvPath, projectDir)
+}
+
+func TestSummarizer_Heuristic(t *testing.T) {
+	s := setupSummarizer(t)
 
 	tests := []struct {
 		name    string
@@ -33,7 +48,7 @@ func TestSummarizer_Heuristic(t *testing.T) {
 		{
 			name:    "empty text",
 			text:    "",
-			wantErr: false, // Should return empty summary
+			wantErr: false,
 		},
 	}
 
@@ -50,7 +65,6 @@ func TestSummarizer_Heuristic(t *testing.T) {
 				return
 			}
 
-			// Check result
 			if tt.text == "" {
 				if result.Summary != "" {
 					t.Error("Expected empty summary for empty text")
@@ -77,10 +91,7 @@ func TestSummarizer_Heuristic(t *testing.T) {
 }
 
 func TestSummarizer_Auto(t *testing.T) {
-	s, err := New()
-	if err != nil {
-		t.Skipf("Failed to create summarizer (Python may not be available): %v", err)
-	}
+	s := setupSummarizer(t)
 
 	text := "This is a comprehensive library that provides multiple utilities for developers. " +
 		"It includes features for data processing, workflow management, and API integration. " +

@@ -12,6 +12,7 @@ import (
 
 	"github.com/KyleKing/gh-star-search/internal/embedding"
 	"github.com/KyleKing/gh-star-search/internal/errors"
+	"github.com/KyleKing/gh-star-search/internal/python"
 	"github.com/KyleKing/gh-star-search/internal/query"
 	"github.com/KyleKing/gh-star-search/internal/related"
 	"github.com/KyleKing/gh-star-search/internal/storage"
@@ -126,10 +127,20 @@ func runQuery(ctx context.Context, cmd *cli.Command) error {
 
 	// Initialize embedding manager (nil if not configured/enabled)
 	embConfig := embedding.DefaultConfig()
+	var uvPath, projectDir string
 	if queryMode == "vector" {
 		embConfig.Enabled = true
+		uvPath, err = python.FindUV()
+		if err != nil {
+			return errors.Wrap(err, errors.ErrTypeValidation, "vector search requires uv")
+		}
+		cacheDir := expandPath(configFromContext.Cache.Directory)
+		projectDir, err = python.EnsureEnvironment(ctx, uvPath, cacheDir)
+		if err != nil {
+			return errors.Wrap(err, errors.ErrTypeValidation, "failed to prepare Python environment")
+		}
 	}
-	embManager, err := embedding.NewManager(embConfig)
+	embManager, err := embedding.NewManager(embConfig, uvPath, projectDir)
 	if err != nil {
 		slog.Warn("Failed to initialize embedding manager", slog.String("error", err.Error()))
 	}

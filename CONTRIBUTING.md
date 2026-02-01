@@ -2,7 +2,7 @@
 
 ## Setup
 
-Prerequisites: Go (see `go.mod`), [mise](https://mise.jdx.dev/), [hk](https://hk.jdx.dev/)
+Prerequisites: Go (see `go.mod`), [mise](https://mise.jdx.dev/), [hk](https://hk.jdx.dev/), [uv](https://docs.astral.sh/uv/)
 
 ```bash
 mise install

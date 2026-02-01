@@ -5,17 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
-	"path/filepath"
-	"runtime"
 	"time"
+
+	"github.com/KyleKing/gh-star-search/internal/python"
 )
 
-// LocalProvider implements embedding generation using local Python script
+// LocalProvider implements embedding generation using local Python script via uv
 type LocalProvider struct {
 	config     Config
-	pythonPath string
-	scriptPath string
+	uvPath     string
+	projectDir string
 	timeout    time.Duration
 	dimensions int
 }
@@ -29,41 +28,18 @@ type embeddingResult struct {
 }
 
 // NewLocalProvider creates a new local embedding provider
-func NewLocalProvider(config Config) (*LocalProvider, error) {
-	// Find Python executable
-	pythonPath, err := exec.LookPath("python3")
-	if err != nil {
-		// Try python as fallback
-		pythonPath, err = exec.LookPath("python")
-		if err != nil {
-			return nil, fmt.Errorf("python not found in PATH: %w", err)
-		}
+func NewLocalProvider(config Config, uvPath, projectDir string) (*LocalProvider, error) {
+	if uvPath == "" || projectDir == "" {
+		return nil, fmt.Errorf("local embedding provider requires uv and a prepared Python environment")
 	}
 
-	// Find script path
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		return nil, fmt.Errorf("failed to determine script path")
-	}
-
-	// Go up from internal/embedding/ to project root, then to scripts/
-	projectRoot := filepath.Join(filepath.Dir(currentFile), "..", "..")
-	scriptPath := filepath.Join(projectRoot, "scripts", "embed.py")
-
-	provider := &LocalProvider{
+	return &LocalProvider{
 		config:     config,
-		pythonPath: pythonPath,
-		scriptPath: scriptPath,
-		timeout:    60 * time.Second, // Embeddings can take longer than summarization
+		uvPath:     uvPath,
+		projectDir: projectDir,
+		timeout:    60 * time.Second,
 		dimensions: config.Dimensions,
-	}
-
-	// Verify the provider is available
-	if !provider.IsEnabled() {
-		return nil, fmt.Errorf("local embedding provider not available: Python or script not found")
-	}
-
-	return provider, nil
+	}, nil
 }
 
 // GenerateEmbedding generates an embedding for the given text
@@ -84,10 +60,11 @@ func (p *LocalProvider) GenerateEmbedding(ctx context.Context, text string) ([]f
 	}
 
 	// Build command
-	cmd := exec.CommandContext(
+	cmd := python.RunScript(
 		ctx,
-		p.pythonPath,
-		p.scriptPath,
+		p.uvPath,
+		p.projectDir,
+		"embed.py",
 		"--model", p.config.Model,
 		"--stdin",
 	)
@@ -160,10 +137,11 @@ func (p *LocalProvider) GenerateEmbeddings(
 	}
 
 	// Build command
-	cmd := exec.CommandContext(
+	cmd := python.RunScript(
 		ctx,
-		p.pythonPath,
-		p.scriptPath,
+		p.uvPath,
+		p.projectDir,
+		"embed.py",
 		"--model", p.config.Model,
 		"--stdin",
 	)
@@ -215,21 +193,7 @@ func (p *LocalProvider) GetDimensions() int {
 
 // IsEnabled returns whether the provider is enabled and ready to use
 func (p *LocalProvider) IsEnabled() bool {
-	// Check if Python is available
-	cmd := exec.Command(p.pythonPath, "--version")
-	if err := cmd.Run(); err != nil {
-		return false
-	}
-
-	// Check if script exists and runs
-	cmd = exec.Command(p.pythonPath, p.scriptPath, "--help")
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return false
-	}
-
-	return true
+	return p.uvPath != "" && p.projectDir != ""
 }
 
 // GetName returns the provider name for identification

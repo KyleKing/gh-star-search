@@ -20,9 +20,9 @@ internal/
   query/                  Search engine (DuckDB FTS + vector cosine similarity)
   related/                Related repository discovery engine
   storage/                DuckDB persistence layer
+  python/                 Embedded Python scripts & uv integration
   summarizer/             Python-based text summarization (sentence-transformers)
   types/                  Shared type definitions
-scripts/                  Python helper scripts (summarize.py, embed.py)
 ```
 
 ### Data Flow
@@ -105,9 +105,9 @@ The related engine processes repositories in batches of 100 and maintains a top-
 
 Weights are renormalized across only the available (non-zero) components, so missing data gracefully reduces the score rather than penalizing it.
 
-### External Python for ML
+### External Python for ML (via uv)
 
-Summarization and embedding generation delegate to Python subprocesses (`scripts/summarize.py`, `scripts/embed.py`) rather than embedding ML runtimes in Go. This keeps the Go binary small and lets users opt into ML features only when they have a Python environment with `sentence-transformers` installed. The local embedding provider uses `all-MiniLM-L6-v2` (384 dimensions) with a 60-second timeout.
+Summarization and embedding generation delegate to Python subprocesses (`summarize.py`, `embed.py`) rather than embedding ML runtimes in Go. The Python scripts are embedded in the Go binary via `//go:embed` and extracted to `~/.cache/gh-star-search/python/` at runtime. Dependencies (`torch`, `transformers`, `sentence-transformers`) are managed by [uv](https://docs.astral.sh/uv/) via a shared `pyproject.toml`, which avoids duplicating the ~2GB torch environment across scripts. A `uv sync` warmup step runs before script invocations, handling first-run dependency installation with a generous timeout. The local embedding provider uses `all-MiniLM-L6-v2` (384 dimensions) with a 60-second timeout.
 
 ### Incremental Sync with Content Hashing
 

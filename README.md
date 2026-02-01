@@ -13,10 +13,12 @@ Features:
 - Related repository discovery (same org, shared contributors, topic overlap, vector similarity)
 - Long-form and short-form output formats
 - Incremental sync with staleness-based refresh (default 14 days)
-- Non-LLM summarization (Python `transformers` / heuristic fallback)
+- Non-LLM summarization (Python `transformers` / heuristic) via uv-managed environment
 - Minimal content ingestion (no full git clone)
 
 ## Installation
+
+Prerequisites: [uv](https://docs.astral.sh/uv/) (manages the Python environment for ML features)
 
 ```bash
 gh extension install KyleKing/gh-star-search
@@ -105,7 +107,7 @@ GitHub Description: High performance toolkit for ...
 ## Minimal Content & Summarization
 - Sources: Description, main README, optionally `docs/README.md`, optionally one homepage link text
 - Summary input restricted to Description + main README (even if other sources fetched)
-- Non‑LLM summarization via transformers model (e.g. DistilBART) or heuristic fallback if Python/`transformers` unavailable
+- Non-LLM summarization via transformers model (e.g. DistilBART) or heuristic method, managed by uv
 - Summary fields: Purpose, Technologies, Use Cases, Features, Installation, Usage (+ generated timestamp, version, generator)
 
 ## Search Modes
@@ -133,9 +135,9 @@ gh-star-search/
 │   ├── query/              # Search engine (fuzzy + vector)
 │   ├── related/            # Related repository engine
 │   ├── storage/            # DuckDB persistence layer
+│   ├── python/             # Embedded Python scripts & uv integration
 │   ├── summarizer/         # Python-based summarization
 │   └── types/              # Shared type definitions
-├── scripts/                # Python helper scripts (summarize.py, embed.py)
 ├── main.go                 # Entry point
 ├── go.mod                  # Module definition
 ├── README.md               # Project documentation
