@@ -217,75 +217,45 @@ func (r *DuckDBRepository) UpdateRepository(
 	ctx context.Context,
 	repo processor.ProcessedRepo,
 ) error {
-	// For now, let's use a simple approach: delete the old repository and insert the new one
-	// This avoids the complex update logic that's causing issues
-	// Get the repository ID first
+	// Get the repository ID first (outside transaction to avoid locking issues)
 	var repoID string
-
 	err := r.db.QueryRowContext(ctx, "SELECT id FROM repositories WHERE full_name = ?", repo.Repository.FullName).
 		Scan(&repoID)
 	if err != nil {
 		return fmt.Errorf("failed to get repository ID: %w", err)
 	}
 
-	// Delete existing chunks (if table exists)
-	var tableExists bool
-	err = r.db.QueryRowContext(ctx, `
-		SELECT COUNT(*) > 0 
-		FROM information_schema.tables 
-		WHERE table_name = 'content_chunks'
-	`).Scan(&tableExists)
-
-	if err == nil && tableExists {
-		_, err = r.db.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", repoID)
-		if err != nil {
-			return fmt.Errorf("failed to delete existing chunks: %w", err)
-		}
-	}
-
-	// Delete the repository
-	_, err = r.db.ExecContext(ctx, "DELETE FROM repositories WHERE id = ?", repoID)
-	if err != nil {
-		return fmt.Errorf("failed to delete repository: %w", err)
-	}
-
-	// Convert arrays and objects to JSON
+	// Convert topics to JSON
 	topicsJSON, err := json.Marshal(repo.Repository.Topics)
 	if err != nil {
 		return fmt.Errorf("failed to marshal topics: %w", err)
 	}
 
-	languagesJSON, err := json.Marshal(map[string]int64{})
-	if err != nil {
-		return fmt.Errorf("failed to marshal languages: %w", err)
-	}
-
-	contributorsJSON, err := json.Marshal([]Contributor{})
-	if err != nil {
-		return fmt.Errorf("failed to marshal contributors: %w", err)
-	}
-
-	// Insert the repository with the same ID using new schema
-	insertRepoSQL := `
-	INSERT INTO repositories (
-		id, full_name, description, homepage, language, stargazers_count, forks_count, size_kb,
-		created_at, updated_at, last_synced,
-		open_issues_open, open_issues_total, open_prs_open, open_prs_total,
-		commits_30d, commits_1y, commits_total,
-		topics_array, languages, contributors,
-		license_name, license_spdx_id,
-		content_hash
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-
+	// Update repository metadata - preserve metrics fields
 	var licenseName, licenseSPDXID string
 	if repo.Repository.License != nil {
 		licenseName = repo.Repository.License.Name
 		licenseSPDXID = repo.Repository.License.SPDXID
 	}
 
-	_, err = r.db.ExecContext(ctx, insertRepoSQL,
-		repoID, // Use the same ID
-		repo.Repository.FullName,
+	updateRepoSQL := `
+	UPDATE repositories SET
+		description = ?,
+		homepage = ?,
+		language = ?,
+		stargazers_count = ?,
+		forks_count = ?,
+		size_kb = ?,
+		created_at = ?,
+		updated_at = ?,
+		last_synced = ?,
+		topics_array = ?,
+		license_name = ?,
+		license_spdx_id = ?,
+		content_hash = ?
+	WHERE id = ?`
+
+	_, err = r.db.ExecContext(ctx, updateRepoSQL,
 		repo.Repository.Description,
 		repo.Repository.Homepage,
 		repo.Repository.Language,
@@ -295,39 +265,46 @@ func (r *DuckDBRepository) UpdateRepository(
 		repo.Repository.CreatedAt,
 		repo.Repository.UpdatedAt,
 		repo.ProcessedAt,
-		0, 0, 0, 0, // Default activity metrics, will be populated by sync
-		0, 0, 0, // Default commit metrics, will be populated by sync
 		string(topicsJSON),
-		string(languagesJSON),
-		string(contributorsJSON),
 		licenseName,
 		licenseSPDXID,
 		repo.ContentHash,
+		repoID,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to insert updated repository: %w", err)
+		return fmt.Errorf("failed to update repository: %w", err)
 	}
 
-	// Insert content chunks if any (deprecated but still supported for backward compatibility)
-	if len(repo.Chunks) > 0 && tableExists {
-		insertChunkSQL := `
-		INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`
+	// Handle content chunks if provided
+	if len(repo.Chunks) > 0 {
+		// Delete existing chunks
+		_, err = r.db.ExecContext(ctx, "DELETE FROM content_chunks WHERE repository_id = ?", repoID)
+		if err != nil {
+			// Ignore error if table doesn't exist
+			if !strings.Contains(err.Error(), "does not exist") && !strings.Contains(err.Error(), "not found") {
+				return fmt.Errorf("failed to delete existing chunks: %w", err)
+			}
+		} else {
+			// Insert new chunks only if deletion succeeded
+			insertChunkSQL := `
+			INSERT INTO content_chunks (id, repository_id, source_path, chunk_type, content, tokens, priority)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`
 
-		for _, chunk := range repo.Chunks {
-			chunkID := uuid.New().String()
+			for _, chunk := range repo.Chunks {
+				chunkID := uuid.New().String()
 
-			_, err := r.db.ExecContext(ctx, insertChunkSQL,
-				chunkID,
-				repoID,
-				chunk.Source,
-				chunk.Type,
-				chunk.Content,
-				chunk.Tokens,
-				chunk.Priority,
-			)
-			if err != nil {
-				return fmt.Errorf("failed to insert content chunk: %w", err)
+				_, err := r.db.ExecContext(ctx, insertChunkSQL,
+					chunkID,
+					repoID,
+					chunk.Source,
+					chunk.Type,
+					chunk.Content,
+					chunk.Tokens,
+					chunk.Priority,
+				)
+				if err != nil {
+					return fmt.Errorf("failed to insert content chunk: %w", err)
+				}
 			}
 		}
 	}
@@ -843,15 +820,8 @@ func (r *DuckDBRepository) UpdateRepositoryMetrics(
 		return fmt.Errorf("failed to marshal contributors: %w", err)
 	}
 
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-
-	defer func() { _ = tx.Rollback() }()
-
 	updateSQL := `
-	UPDATE repositories SET 
+	UPDATE repositories SET
 		homepage = ?,
 		open_issues_open = ?, open_issues_total = ?,
 		open_prs_open = ?, open_prs_total = ?,
@@ -860,7 +830,7 @@ func (r *DuckDBRepository) UpdateRepositoryMetrics(
 		last_synced = CURRENT_TIMESTAMP
 	WHERE full_name = ?`
 
-	result, err := tx.ExecContext(ctx, updateSQL,
+	result, err := r.db.ExecContext(ctx, updateSQL,
 		metrics.Homepage,
 		metrics.OpenIssuesOpen, metrics.OpenIssuesTotal,
 		metrics.OpenPRsOpen, metrics.OpenPRsTotal,
@@ -881,7 +851,7 @@ func (r *DuckDBRepository) UpdateRepositoryMetrics(
 		return fmt.Errorf("no repository found with full_name: %s", fullName)
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 // UpdateRepositoryEmbedding updates the embedding for a repository

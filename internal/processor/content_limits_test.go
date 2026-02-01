@@ -75,9 +75,6 @@ func createTestRepo(fullName string) github.Repository {
 }
 
 func TestProcessRepository_ExceedsMaxTotalTokens(t *testing.T) {
-	mockClient := &mockGitHubClientSimple{content: make(map[string][]github.Content)}
-	service := NewService(mockClient)
-
 	repo := createTestRepo("owner/large-repo")
 
 	largeContent := strings.Repeat("This is a very long document with lots of content that will generate many tokens. ", 1000)
@@ -104,13 +101,13 @@ func TestProcessRepository_ExceedsMaxTotalTokens(t *testing.T) {
 		_ = i
 	}
 
-	mockClient = &mockGitHubClientSimple{
+	mockClient := &mockGitHubClientSimple{
 		content: map[string][]github.Content{
 			"owner/large-repo": contentFiles,
 		},
 	}
 
-	service = NewService(mockClient)
+	service := NewService(mockClient)
 	ctx := context.Background()
 
 	processed, err := service.ProcessRepository(ctx, repo, contentFiles)
@@ -155,8 +152,6 @@ func TestChunkContent_ExactlyMaxTokens(t *testing.T) {
 }
 
 func TestProcessRepository_MultipleFilesWithLimits(t *testing.T) {
-	mockClient := &mockGitHubClientSimple{content: make(map[string][]github.Content)}
-
 	repo := createTestRepo("owner/multi-file-repo")
 
 	files := make([]github.Content, 0)
@@ -172,7 +167,7 @@ func TestProcessRepository_MultipleFilesWithLimits(t *testing.T) {
 		})
 	}
 
-	mockClient = &mockGitHubClientSimple{
+	mockClient := &mockGitHubClientSimple{
 		content: map[string][]github.Content{
 			"owner/multi-file-repo": files,
 		},
@@ -195,8 +190,6 @@ func TestProcessRepository_MultipleFilesWithLimits(t *testing.T) {
 }
 
 func TestProcessRepository_PriorityOrdering(t *testing.T) {
-	mockClient := &mockGitHubClientSimple{content: make(map[string][]github.Content)}
-
 	repo := createTestRepo("owner/priority-test")
 
 	readmeContent := base64.StdEncoding.EncodeToString([]byte("# README\nImportant readme content"))
@@ -219,7 +212,7 @@ func TestProcessRepository_PriorityOrdering(t *testing.T) {
 		},
 	}
 
-	mockClient = &mockGitHubClientSimple{
+	mockClient := &mockGitHubClientSimple{
 		content: map[string][]github.Content{
 			"owner/priority-test": files,
 		},

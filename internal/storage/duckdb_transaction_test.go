@@ -277,7 +277,6 @@ func TestDeleteRepository_Transaction(t *testing.T) {
 }
 
 func TestConcurrentReadsDuringWrite(t *testing.T) {
-	t.Skip("Known issue: UpdateRepository delete-and-reinsert causes read failures")
 	if testing.Short() {
 		t.Skip("Skipping concurrency test in short mode")
 	}
@@ -342,7 +341,6 @@ func TestConcurrentReadsDuringWrite(t *testing.T) {
 }
 
 func TestUpdateRepositoryMetrics_Transaction(t *testing.T) {
-	t.Skip("Known issue: UpdateRepository chunks interfere with metrics updates")
 	if testing.Short() {
 		t.Skip("Skipping transaction test in short mode")
 	}
@@ -416,7 +414,6 @@ func TestUpdateRepositorySummary_Transaction(t *testing.T) {
 }
 
 func TestConcurrentMetricsUpdates(t *testing.T) {
-	t.Skip("Known issue: UpdateRepositoryMetrics has concurrent update conflicts")
 	if testing.Short() {
 		t.Skip("Skipping concurrency test in short mode")
 	}
@@ -469,7 +466,7 @@ func TestConcurrentMetricsUpdates(t *testing.T) {
 		t.Logf("Note: %d concurrent metric update conflicts detected", len(errs))
 	}
 
-	assert.Greater(t, successCount, 0, "at least some metrics updates should succeed")
+	assert.Positive(t, successCount, "at least some metrics updates should succeed")
 
 	stored, err := repo.GetRepository(ctx, "user/concurrent-metrics-repo")
 	require.NoError(t, err)

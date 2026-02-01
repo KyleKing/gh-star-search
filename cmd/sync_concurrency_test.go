@@ -73,8 +73,8 @@ func TestProcessBatch_PartialFailures(t *testing.T) {
 	err := syncService.processBatch(ctx, repos, stats, progress, isNewRepo, false)
 	require.NoError(t, err, "processBatch should handle partial failures gracefully")
 
-	assert.Greater(t, stats.ProcessedRepos, 0, "should process some repositories successfully")
-	assert.Greater(t, stats.ErrorRepos, 0, "should record errors")
+	assert.Positive(t, stats.ProcessedRepos, "should process some repositories successfully")
+	assert.Positive(t, stats.ErrorRepos, "should record errors")
 
 	stored, err := repo.GetRepository(ctx, "user/good-repo-1")
 	require.NoError(t, err, "good-repo-1 should be stored")
@@ -124,7 +124,7 @@ func TestProcessBatch_ContextCancellation(t *testing.T) {
 	}
 
 	err := syncService.processBatch(ctx, repos, stats, progress, isNewRepo, false)
-	assert.Error(t, err, "should return error when context is cancelled")
+	require.Error(t, err, "should return error when context is canceled")
 	assert.ErrorIs(t, err, context.Canceled)
 }
 
