@@ -54,3 +54,13 @@ tmp/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Evaluation results (JSON only)
+internal/python/scripts/eval_results/*.json
+
+# Temporary database files
+*.db-shm
+*.db-wal
+
+# Python
+*.pyc
