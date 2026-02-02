@@ -315,7 +315,7 @@ func (e *EngineImpl) calculateVectorSimilarityScore(target, candidate storage.St
 	if len(target.RepoEmbedding) == 0 || len(candidate.RepoEmbedding) == 0 {
 		return 0.0
 	}
-	score := cosineSimilarity(target.RepoEmbedding, candidate.RepoEmbedding)
+	score := CosineSimilarity(target.RepoEmbedding, candidate.RepoEmbedding)
 	if score < 0 {
 		return 0.0
 	}
@@ -449,7 +449,7 @@ func getSharedContributors(contribs1, contribs2 []storage.Contributor) []string 
 	return shared
 }
 
-func cosineSimilarity(a, b []float32) float64 {
+func CosineSimilarity(a, b []float32) float64 {
 	if len(a) != len(b) || len(a) == 0 {
 		return 0.0
 	}

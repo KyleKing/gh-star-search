@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/KyleKing/gh-star-search/internal/python"
+	"github.com/KyleKing/gh-star-search/internal/related"
 )
 
 var (
@@ -155,8 +156,8 @@ func TestEmbeddingSemanticSimilarity(t *testing.T) {
 				t.Fatalf("unrelated embedding: %v", err)
 			}
 
-			simScore := cosine(anchorEmb, similarEmb)
-			unrelScore := cosine(anchorEmb, unrelatedEmb)
+			simScore := related.CosineSimilarity(anchorEmb, similarEmb)
+			unrelScore := related.CosineSimilarity(anchorEmb, unrelatedEmb)
 
 			if simScore <= unrelScore {
 				t.Errorf("similar text should score higher than unrelated: similar=%.4f unrelated=%.4f",
@@ -192,7 +193,7 @@ func TestEmbeddingBatchConsistency(t *testing.T) {
 			t.Fatalf("single embedding %d: %v", i, err)
 		}
 
-		sim := cosine(batchEmbs[i], singleEmb)
+		sim := related.CosineSimilarity(batchEmbs[i], singleEmb)
 		if sim < 0.999 {
 			t.Errorf("batch[%d] vs single similarity=%.6f (expected >=0.999)", i, sim)
 		}
@@ -288,7 +289,7 @@ func TestEmbeddingModelDrift(t *testing.T) {
 		t.Errorf("too many zero components: %d of %d are non-zero", nonZero, defaultEmbeddingDimensions)
 	}
 
-	selfSim := cosine(emb, emb)
+	selfSim := related.CosineSimilarity(emb, emb)
 	if math.Abs(selfSim-1.0) > 0.001 {
 		t.Errorf("self-similarity should be ~1.0, got %.6f", selfSim)
 	}
@@ -328,21 +329,3 @@ func BenchmarkEmbeddingBatch(b *testing.B) {
 	}
 }
 
-func cosine(a, b []float32) float64 {
-	if len(a) != len(b) || len(a) == 0 {
-		return 0.0
-	}
-
-	var dot, normA, normB float64
-	for i := range a {
-		dot += float64(a[i]) * float64(b[i])
-		normA += float64(a[i]) * float64(a[i])
-		normB += float64(b[i]) * float64(b[i])
-	}
-
-	if normA == 0 || normB == 0 {
-		return 0.0
-	}
-
-	return dot / (math.Sqrt(normA) * math.Sqrt(normB))
-}
