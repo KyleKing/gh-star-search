@@ -40,12 +40,12 @@ echo "✓ Coverage ${coverage}% meets 70% minimum threshold"
 '''
 
 [tasks."test:integration"]
-description = "Run integration tests (pre-warms transformer model, longer timeout)"
-run = "go test -tags=integration -timeout=10m -v ./internal/summarizer/..."
+description = "Run integration tests (embedding quality, summarizer, longer timeout)"
+run = "go test -tags=integration -timeout=10m -v ./internal/embedding/... ./internal/summarizer/..."
 
 [tasks."test:integration-bench"]
-description = "Run integration benchmarks (heuristic vs transformers)"
-run = "go test -tags=integration -timeout=10m -bench=. -benchmem -run=^$ -v ./internal/summarizer/..."
+description = "Run integration benchmarks (embedding, summarizer)"
+run = "go test -tags=integration -timeout=10m -bench=. -benchmem -run=^$ -v ./internal/embedding/... ./internal/summarizer/..."
 
 [tasks.build]
 description = "Build the project"
