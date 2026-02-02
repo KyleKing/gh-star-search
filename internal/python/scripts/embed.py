@@ -4,7 +4,7 @@
 Generates embeddings for text using sentence-transformers with small models
 that work within 2-3GB of RAM.
 
-Default model: all-MiniLM-L6-v2 (80MB model, 384-dim embeddings).
+Default model: e5-small-v2 (118M params, 384-dim embeddings).
 """
 
 import sys
@@ -16,7 +16,7 @@ from sentence_transformers import SentenceTransformer
 
 def generate_embeddings(
     texts: list[str],
-    model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
+    model_name: str = "intfloat/e5-small-v2",
 ) -> list[list[float]]:
     """Generate embeddings for a list of texts.
 
@@ -43,8 +43,8 @@ def main():
     )
     parser.add_argument(
         "--model",
-        default="sentence-transformers/all-MiniLM-L6-v2",
-        help="Model to use (default: all-MiniLM-L6-v2)",
+        default="intfloat/e5-small-v2",
+        help="Model to use (default: e5-small-v2)",
     )
     parser.add_argument(
         "--stdin",

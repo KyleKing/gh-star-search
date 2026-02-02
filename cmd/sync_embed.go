@@ -48,7 +48,7 @@ func (s *SyncService) generateEmbeddings(ctx context.Context, _ bool) error {
 	// Initialize embedding provider
 	embConfig := embedding.Config{
 		Provider:   "local",
-		Model:      "sentence-transformers/all-MiniLM-L6-v2",
+		Model:      "intfloat/e5-small-v2",
 		Dimensions: 384,
 		Enabled:    true,
 		Options:    make(map[string]string),

@@ -3,7 +3,7 @@ name = "gh-star-search-scripts"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
-    "sentence-transformers>=2.2.0",
-    "torch>=2.0.0",
-    "transformers>=4.30.0,<5.0.0",
+    "sentence-transformers>=5.2.0",
+    "torch>=2.10.0",
+    "transformers>=5.0.0",
 ]

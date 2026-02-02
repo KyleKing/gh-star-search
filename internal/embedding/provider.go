@@ -32,7 +32,7 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		Provider:   "local",
-		Model:      "sentence-transformers/all-MiniLM-L6-v2",
+		Model:      "intfloat/e5-small-v2",
 		Dimensions: defaultEmbeddingDimensions,
 		Enabled:    false,
 		Options:    make(map[string]string),

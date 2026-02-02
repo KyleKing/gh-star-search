@@ -107,7 +107,7 @@ Weights are renormalized across only the available (non-zero) components, so mis
 
 ### External Python for ML (via uv)
 
-Summarization and embedding generation delegate to Python subprocesses (`summarize.py`, `embed.py`) rather than embedding ML runtimes in Go. The Python scripts are embedded in the Go binary via `//go:embed` and extracted to `~/.cache/gh-star-search/python/` at runtime. Dependencies (`torch`, `transformers`, `sentence-transformers`) are managed by [uv](https://docs.astral.sh/uv/) via a shared `pyproject.toml`, which avoids duplicating the ~2GB torch environment across scripts. A `uv sync` warmup step runs before script invocations, handling first-run dependency installation with a generous timeout. The local embedding provider uses `all-MiniLM-L6-v2` (384 dimensions) with a 60-second timeout.
+Summarization and embedding generation delegate to Python subprocesses (`summarize.py`, `embed.py`) rather than embedding ML runtimes in Go. The Python scripts are embedded in the Go binary via `//go:embed` and extracted to `~/.cache/gh-star-search/python/` at runtime. Dependencies (`torch`, `transformers`, `sentence-transformers`) are managed by [uv](https://docs.astral.sh/uv/) via a shared `pyproject.toml`, which avoids duplicating the ~2GB torch environment across scripts. A `uv sync` warmup step runs before script invocations, handling first-run dependency installation with a generous timeout. The local embedding provider uses `intfloat/e5-small-v2` (384 dimensions) with a 60-second timeout.
 
 ### Incremental Sync with Content Hashing
 

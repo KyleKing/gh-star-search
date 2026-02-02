@@ -69,7 +69,7 @@ Embeddings are opt-in. To enable:
    {
      "embedding": {
        "provider": "local",
-       "model": "sentence-transformers/all-MiniLM-L6-v2",
+       "model": "intfloat/e5-small-v2",
        "dimensions": 384,
        "enabled": true
      }
@@ -90,8 +90,9 @@ Embeddings are opt-in. To enable:
 
 | Model | Dimensions | RAM | Quality |
 |-------|------------|-----|---------|
-| `all-MiniLM-L6-v2` (default) | 384 | ~200MB | Good |
-| `all-mpnet-base-v2` | 768 | ~600MB | Better |
+| `intfloat/e5-small-v2` (default) | 384 | ~300MB | Excellent (118M params) |
+| `Qwen/Qwen3-Embedding-0.6B` | 384-1024 | ~1GB | Latest (configurable dims) |
+| `all-mpnet-base-v2` | 768 | ~600MB | Good |
 
 The embedding input is built from: `full_name`, `purpose` (summary), `description`, and `topics`, joined with ". " separators.
 
