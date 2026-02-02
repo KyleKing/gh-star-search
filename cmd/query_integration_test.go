@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -104,12 +103,8 @@ func TestQueryIntegration(t *testing.T) {
 		LIMIT 5`
 
 		_, err := repo.SearchRepositories(ctx, sqlQuery)
-		if err == nil {
-			t.Error("Expected error for SQL query, got nil")
-		}
-
-		if err != nil && !strings.Contains(err.Error(), "SQL queries are not supported") {
-			t.Errorf("Expected SQL rejection error, got: %v", err)
+		if err != nil {
+			t.Errorf("Expected no error (parameterized query is safe), got: %v", err)
 		}
 	})
 

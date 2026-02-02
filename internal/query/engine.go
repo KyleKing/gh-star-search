@@ -87,13 +87,7 @@ func (e *SearchEngine) searchFuzzy(
 	queryTerms := tokenizeQuery(query)
 
 	for _, sr := range storageResults {
-		score := sr.Score
-
-		score = e.applyRankingBoosts(sr.Repository, score)
-
-		if score > 1.0 {
-			score = 1.0
-		}
+		score := e.applyRankingBoosts(sr.Repository, sr.Score)
 
 		if score < opts.MinScore {
 			continue
@@ -109,6 +103,7 @@ func (e *SearchEngine) searchFuzzy(
 		})
 	}
 
+	normalizeScores(results)
 	results = sortAndRankResults(results)
 
 	if opts.Limit > 0 && len(results) > opts.Limit {
@@ -147,10 +142,6 @@ func (e *SearchEngine) searchVector(
 	for _, sr := range storageResults {
 		score := e.applyRankingBoosts(sr.Repository, sr.Score)
 
-		if score > 1.0 {
-			score = 1.0
-		}
-
 		results = append(results, Result{
 			RepoID:      sr.Repository.ID,
 			Score:       score,
@@ -159,6 +150,7 @@ func (e *SearchEngine) searchVector(
 		})
 	}
 
+	normalizeScores(results)
 	results = sortAndRankResults(results)
 
 	return results, nil
@@ -227,6 +219,25 @@ func tokenizeQuery(query string) []string {
 	}
 
 	return terms
+}
+
+// normalizeScores applies min-max normalization to map scores into [0, 1]
+func normalizeScores(results []Result) {
+	if len(results) == 0 {
+		return
+	}
+	maxScore := results[0].Score
+	for _, r := range results[1:] {
+		if r.Score > maxScore {
+			maxScore = r.Score
+		}
+	}
+	if maxScore <= 0 {
+		return
+	}
+	for i := range results {
+		results[i].Score = results[i].Score / maxScore
+	}
 }
 
 // sortAndRankResults sorts results by score and assigns ranks

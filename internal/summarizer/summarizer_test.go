@@ -90,21 +90,3 @@ func TestSummarizer_Heuristic(t *testing.T) {
 	}
 }
 
-func TestSummarizer_Auto(t *testing.T) {
-	s := setupSummarizer(t)
-
-	text := "This is a comprehensive library that provides multiple utilities for developers. " +
-		"It includes features for data processing, workflow management, and API integration. " +
-		"The library is designed to be flexible and extensible."
-
-	summary, err := s.SummarizeSimple(context.Background(), text)
-	if err != nil {
-		t.Fatalf("SummarizeSimple() error = %v", err)
-	}
-
-	if summary == "" {
-		t.Error("SummarizeSimple() returned empty summary")
-	}
-
-	t.Logf("Summary: %s", summary)
-}

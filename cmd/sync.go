@@ -196,7 +196,10 @@ func runSync(ctx context.Context, cmd *cli.Command) error {
 
 	// Handle specific repository sync
 	if specificRepo != "" {
-		return syncService.syncSpecificRepository(ctx, specificRepo)
+		if err := syncService.syncSpecificRepository(ctx, specificRepo); err != nil {
+			return err
+		}
+		return syncService.storage.RebuildFTSIndex(ctx)
 	}
 
 	// Perform full sync
@@ -684,6 +687,9 @@ func (s *SyncService) processRepositoriesInBatchesWithForceAndMonitor(
 
 		progress.Finish(fmt.Sprintf("Completed batch %d/%d", batchNum, totalBatches))
 
+		// Fetch and store metrics for the batch
+		s.fetchAndStoreMetrics(ctx, batch)
+
 		// Small delay between batches to be respectful to APIs
 		if batchNum < totalBatches {
 			s.logVerbose("Waiting between batches...")
@@ -833,6 +839,63 @@ func (s *SyncService) processWorker(
 			return
 		}
 	}
+}
+
+// fetchAndStoreMetrics fetches enriched metrics (contributors, languages, commits,
+// issues, PRs) for a batch of repos and stores them in the database.
+func (s *SyncService) fetchAndStoreMetrics(ctx context.Context, batch []github.Repository) {
+	executor := github.NewBatchExecutor(s.githubClient, 4, 8)
+	ghMetrics := executor.FetchRepositoryMetrics(ctx, batch)
+
+	for _, repo := range batch {
+		gm, ok := ghMetrics[repo.FullName]
+		if !ok || gm == nil {
+			continue
+		}
+
+		sm := s.convertMetrics(gm, repo.Homepage)
+		if err := s.storage.UpdateRepositoryMetrics(ctx, repo.FullName, sm); err != nil {
+			s.logVerbose(fmt.Sprintf("Failed to update metrics for %s: %v", repo.FullName, err))
+		}
+	}
+}
+
+// convertMetrics converts github.RepositoryMetrics to storage.RepositoryMetrics.
+func (s *SyncService) convertMetrics(gm *github.RepositoryMetrics, homepage string) storage.RepositoryMetrics {
+	sm := storage.RepositoryMetrics{
+		OpenIssuesOpen:  gm.OpenIssues,
+		OpenIssuesTotal: gm.TotalIssues,
+		OpenPRsOpen:     gm.OpenPRs,
+		OpenPRsTotal:    gm.TotalPRs,
+		Languages:       gm.Languages,
+		Homepage:        homepage,
+	}
+
+	// Convert contributors
+	for _, c := range gm.Contributors {
+		sm.Contributors = append(sm.Contributors, storage.Contributor{
+			Login:         c.Login,
+			Contributions: c.Contributions,
+		})
+	}
+
+	// Convert commit activity
+	if gm.CommitActivity != nil {
+		sm.CommitsTotal = gm.CommitActivity.Total
+		now := time.Now()
+		for _, week := range gm.CommitActivity.Weeks {
+			weekTime := time.Unix(week.Week, 0)
+			daysSince := now.Sub(weekTime).Hours() / 24
+			if daysSince <= 30 {
+				sm.Commits30d += week.Commits
+			}
+			if daysSince <= 365 {
+				sm.Commits1y += week.Commits
+			}
+		}
+	}
+
+	return sm
 }
 
 // calculateOptimalWorkers determines the optimal number of worker goroutines

@@ -152,7 +152,7 @@ def _transformers_summarize(text: str, max_length: int = 150) -> Optional[str]:
             "summarization",
             model=model_name,
             device=device,
-            torch_dtype=torch.float32,
+            dtype=torch.float32,
         )
 
         max_input_length = 1024

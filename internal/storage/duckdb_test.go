@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -576,16 +575,11 @@ func TestSearchRepositories_SQLInjection(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			results, err := repo.SearchRepositories(ctx, tc.query)
-			if err == nil {
-				t.Fatalf(
-					"Expected error for SQL injection attempt %q, got %d results",
-					tc.query,
-					len(results),
-				)
+			if err != nil {
+				t.Fatalf("Expected no error for %q (parameterized query is safe), got: %v", tc.query, err)
 			}
-
-			if !strings.Contains(err.Error(), "SQL queries are not supported") {
-				t.Errorf("Expected error containing 'SQL queries are not supported', got: %v", err)
+			if len(results) != 0 {
+				t.Errorf("Expected 0 results for %q, got %d", tc.query, len(results))
 			}
 		})
 	}

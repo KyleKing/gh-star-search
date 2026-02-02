@@ -189,16 +189,17 @@ func (r *DuckDBRepository) UpdateRepository(
 ) error {
 	// Step 1: Get existing repository data to preserve metrics
 	var existingData struct {
-		id              string
-		openIssuesOpen  int
-		openIssuesTotal int
-		openPRsOpen     int
-		openPRsTotal    int
-		commits30d      int
-		commits1y       int
-		commitsTotal    int
-		languages       interface{}
-		contributors    interface{}
+		id               string
+		openIssuesOpen   int
+		openIssuesTotal  int
+		openPRsOpen      int
+		openPRsTotal     int
+		commits30d       int
+		commits1y        int
+		commitsTotal     int
+		languages        interface{}
+		contributors     interface{}
+		contributorsText string
 	}
 
 	err := r.db.QueryRowContext(ctx, `
@@ -211,7 +212,8 @@ func (r *DuckDBRepository) UpdateRepository(
 			COALESCE(commits_1y, 0),
 			COALESCE(commits_total, 0),
 			COALESCE(languages, '{}'),
-			COALESCE(contributors, '[]')
+			COALESCE(contributors, '[]'),
+			COALESCE(contributors_text, '')
 		FROM repositories
 		WHERE full_name = ?`,
 		repo.Repository.FullName).
@@ -225,6 +227,7 @@ func (r *DuckDBRepository) UpdateRepository(
 			&existingData.commitsTotal,
 			&existingData.languages,
 			&existingData.contributors,
+			&existingData.contributorsText,
 		)
 	if err != nil {
 		return fmt.Errorf("failed to get repository: %w", err)
@@ -269,8 +272,8 @@ func (r *DuckDBRepository) UpdateRepository(
 			commits_30d, commits_1y, commits_total,
 			topics_array, languages, contributors,
 			license_name, license_spdx_id, content_hash,
-			topics_text
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			topics_text, contributors_text
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err = r.db.ExecContext(ctx, insertSQL,
 		existingData.id,
@@ -298,6 +301,7 @@ func (r *DuckDBRepository) UpdateRepository(
 		licenseSPDXID,
 		repo.ContentHash,
 		topicsText,
+		existingData.contributorsText,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert updated repository: %w", err)
@@ -522,36 +526,13 @@ func (r *DuckDBRepository) ListRepositories(
 	return repos, rows.Err()
 }
 
-// SearchRepositories performs text search across repositories.
-// This method does NOT support SQL queries for security reasons.
-// All searches are performed using parameterized queries to prevent SQL injection.
+// SearchRepositories performs FTS search across repositories.
+// The query is passed as a parameter to match_bm25, not interpolated into SQL,
+// so SQL injection is not possible here.
 func (r *DuckDBRepository) SearchRepositories(
 	ctx context.Context,
 	query string,
 ) ([]SearchResult, error) {
-	// Validate that the query is not a SQL statement
-	// This is a defense-in-depth measure to prevent SQL injection
-	trimmedQuery := strings.TrimSpace(strings.ToUpper(query))
-	sqlKeywords := []string{
-		"SELECT",
-		"INSERT",
-		"UPDATE",
-		"DELETE",
-		"DROP",
-		"CREATE",
-		"ALTER",
-		"TRUNCATE",
-	}
-
-	for _, keyword := range sqlKeywords {
-		if strings.HasPrefix(trimmedQuery, keyword) {
-			return nil, fmt.Errorf(
-				"SQL queries are not supported for security reasons. Please use simple search terms instead",
-			)
-		}
-	}
-
-	// Perform text search using parameterized queries
 	return r.executeTextSearch(ctx, query)
 }
 

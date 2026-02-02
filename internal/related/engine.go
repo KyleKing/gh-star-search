@@ -204,6 +204,13 @@ func (e *EngineImpl) calculateComponents(target, candidate storage.StoredRepo) S
 		finalScore += score * normalizedWeight
 	}
 
+	// Apply signal coverage discount: single-signal matches get penalized
+	// so that same-org-only repos don't dominate with perfect scores.
+	// Coverage = fraction of total possible signals that actually fired.
+	totalSignals := len(weights)
+	coverage := float64(len(availableComponents)) / float64(totalSignals)
+	finalScore *= coverage
+
 	components.FinalScore = finalScore
 
 	return components
