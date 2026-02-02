@@ -190,7 +190,7 @@ func TestExpandPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := expandPath(tt.input)
+			result := ExpandPath(tt.input)
 
 			if tt.expected == os.Getenv("HOME") && tt.expected == "" {
 				// Skip test if HOME is not set

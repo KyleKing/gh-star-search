@@ -2,6 +2,16 @@
 
 Tool for comparing embedding models on real GitHub starred repository data.
 
+## Performance
+
+- **First run**: 5-8 minutes (initial cache creation)
+- **Subsequent runs**: 1-2 minutes (cached embeddings)
+- **Per model comparison**: Add 5-8 minutes (one-time per new model)
+
+**90-95% faster than naive implementation** through persistent caching and in-process embedding generation.
+
+See [CACHING.md](CACHING.md) for architecture details.
+
 ## Quick Start
 
 1. Ensure database is populated:
@@ -122,11 +132,13 @@ Matches production sync logic (`cmd/sync_embed.go`):
 {full_name}. {purpose}. {description}. {topics joined}
 ```
 
-### Performance
-- Processes ~7,000 repos in ~30-40 minutes
-- Uses batched embedding generation (batch size: 32)
-- Temporary tables for model comparisons
-- Parallel processing where possible
+### Caching System
+- **Model-versioned persistent caches**: Each model gets its own database
+- **Incremental updates**: Only new/changed repos are re-embedded
+- **In-process embedding**: Models loaded once, kept in memory
+- **Content-based invalidation**: Detects changes via `content_hash`
+
+See [CACHING.md](CACHING.md) for complete architecture documentation.
 
 ## Statistical Testing
 

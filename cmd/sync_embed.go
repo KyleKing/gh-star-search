@@ -39,7 +39,7 @@ func (s *SyncService) generateEmbeddings(ctx context.Context, _ bool) error {
 		return fmt.Errorf("embedding generation requires uv: %w", err)
 	}
 
-	cacheDir := expandPath(s.config.Cache.Directory)
+	cacheDir := config.ExpandPath(s.config.Cache.Directory)
 	projectDir, err := python.EnsureEnvironment(ctx, uvPath, cacheDir)
 	if err != nil {
 		return fmt.Errorf("failed to prepare Python environment: %w", err)

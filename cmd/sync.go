@@ -239,7 +239,7 @@ func initializeSyncService(cfg *config.Config, verbose bool) (*SyncService, erro
 	}
 
 	// Initialize storage
-	dbPath := expandPath(cfg.Database.Path)
+	dbPath := config.ExpandPath(cfg.Database.Path)
 
 	repo, err := storage.NewDuckDBRepository(dbPath)
 	if err != nil {
@@ -1163,19 +1163,6 @@ func (s *SyncService) logVerbose(message string) {
 	if s.verbose {
 		fmt.Printf("[VERBOSE] %s\n", message)
 	}
-}
-
-func expandPath(path string) string {
-	if strings.HasPrefix(path, "~/") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return path
-		}
-
-		return filepath.Join(home, path[2:])
-	}
-
-	return path
 }
 
 // contextKey is a type for context keys to avoid string collisions

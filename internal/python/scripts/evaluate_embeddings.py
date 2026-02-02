@@ -47,6 +47,9 @@ from textwrap import dedent
 import duckdb
 from rich.console import Console
 from rich.table import Table
+from sentence_transformers import SentenceTransformer
+
+from embedding_cache import EmbeddingCache, sync_model_embeddings
 
 
 @dataclass(frozen=True)
@@ -265,11 +268,15 @@ def _compute_ndcg_at_k(
 class EmbeddingEvaluator:
     """Evaluator for comparing embedding models."""
 
-    def __init__(self, db_path: str, config_path: str):
+    def __init__(self, db_path: str, config_path: str, use_cache: bool = True):
         self.db = duckdb.connect(db_path)
+        self.db_path = db_path
         self.config = self._load_config(config_path)
         self.uv_path = _find_uv()
         self.project_dir = Path(__file__).parent
+        self.use_cache = use_cache
+        self.cache = EmbeddingCache() if use_cache else None
+        self._loaded_models = {}  # Cache loaded models in memory
 
     def _load_config(self, config_path: str) -> dict:
         """Load configuration from TOML file."""
@@ -287,6 +294,51 @@ class EmbeddingEvaluator:
                 embedding JSON,
                 FOREIGN KEY (repo_id) REFERENCES repositories(id)
             )"""))
+
+        return table_name
+
+    def _get_or_load_model(self, model_id: str) -> SentenceTransformer:
+        """Get model from cache or load it."""
+        if model_id not in self._loaded_models:
+            print(f"  Loading model: {model_id}")
+            self._loaded_models[model_id] = SentenceTransformer(model_id)
+        return self._loaded_models[model_id]
+
+    def _generate_embeddings_in_process(
+        self,
+        texts: list[str],
+        model_id: str
+    ) -> list[list[float]]:
+        """Generate embeddings in-process (no subprocess overhead)."""
+        model = self._get_or_load_model(model_id)
+        embeddings = model.encode(texts, show_progress_bar=False)
+        return embeddings.tolist()
+
+    def _sync_embeddings_with_cache(self, model_config: ModelConfig) -> str:
+        """Sync embeddings using persistent cache (incremental)."""
+        print(f"  Syncing embeddings with cache...")
+
+        # Define embedding generator
+        def embedding_generator(texts: list[str]) -> list[list[float]]:
+            return self._generate_embeddings_in_process(texts, model_config.model_id)
+
+        # Sync (only computes missing/changed embeddings)
+        embedded_count = sync_model_embeddings(
+            self.db_path,
+            model_config.model_id,
+            model_config.dimensions,
+            embedding_generator,
+            batch_size=128  # Larger batches since in-process
+        )
+
+        if embedded_count > 0:
+            print(f"  Embedded {embedded_count} new/changed repos")
+        else:
+            print(f"  All repos already cached")
+
+        # Create view pointing to cache
+        table_name = f"eval_embeddings_{model_config.name.replace('-', '_')}"
+        self.cache.create_eval_view(self.db, model_config.model_id, table_name)
 
         return table_name
 
@@ -345,12 +397,19 @@ class EmbeddingEvaluator:
         limit: int = 50
     ) -> list[dict]:
         """Execute vector search query using model embeddings."""
-        query_emb = _call_embed_script(
-            [query_text],
-            model_config.model_id,
-            self.uv_path,
-            self.project_dir
-        )[0]
+        # Use in-process embedding if cache enabled, otherwise subprocess
+        if self.use_cache:
+            query_emb = self._generate_embeddings_in_process(
+                [query_text],
+                model_config.model_id
+            )[0]
+        else:
+            query_emb = _call_embed_script(
+                [query_text],
+                model_config.model_id,
+                self.uv_path,
+                self.project_dir
+            )[0]
 
         results = self.db.execute(dedent(f"""\
             SELECT
@@ -422,7 +481,11 @@ class EmbeddingEvaluator:
         print(f"  Dimensions: {model_config.dimensions}")
         print(f"{'='*60}\n")
 
-        table_name = self._generate_embeddings_for_model(model_config)
+        # Use caching if enabled, otherwise generate fresh
+        if self.use_cache:
+            table_name = self._sync_embeddings_with_cache(model_config)
+        else:
+            table_name = self._generate_embeddings_for_model(model_config)
 
         queries = [
             Query(
@@ -454,7 +517,16 @@ class EmbeddingEvaluator:
             ndcg_at_10=mean([q.metrics.ndcg_at_10 for q in query_results])
         )
 
-        self.db.execute(f"DROP TABLE IF EXISTS {table_name}")
+        # Cleanup: drop view/table (but keep cache DB)
+        if self.use_cache:
+            self.db.execute(f"DROP VIEW IF EXISTS {table_name}")
+            # Detach cache database
+            try:
+                self.db.execute(f"DETACH {table_name}_cache")
+            except Exception:
+                pass  # May not be attached
+        else:
+            self.db.execute(f"DROP TABLE IF EXISTS {table_name}")
 
         return ModelEvaluation(
             model_name=model_config.name,
@@ -632,9 +704,46 @@ def main():
         default=str(Path.home() / ".local/share/gh-star-search/stars.db"),
         help="Path to database file"
     )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Disable persistent embedding cache (slower, always regenerates)"
+    )
+    parser.add_argument(
+        "--cache-stats",
+        action="store_true",
+        help="Show cache statistics and exit"
+    )
     args = parser.parse_args()
 
-    evaluator = EmbeddingEvaluator(args.db, args.config)
+    # Show cache stats if requested
+    if args.cache_stats:
+        cache = EmbeddingCache()
+        stats = cache.get_cache_stats()
+
+        if not stats:
+            print("No cached embeddings found")
+            return
+
+        print("\nEmbedding Cache Statistics:")
+        print("=" * 70)
+        for model_id, model_stats in stats.items():
+            print(f"\nModel: {model_id}")
+            print(f"  Embeddings: {model_stats['embeddings_count']:,}")
+            print(f"  Dimensions: {model_stats['dimensions']}")
+            print(f"  Last sync: {model_stats['last_sync']}")
+            print(f"  DB size: {model_stats['db_size_mb']:.1f} MB")
+        print()
+        return
+
+    use_cache = not args.no_cache
+    if use_cache:
+        print("Using persistent embedding cache (incremental updates)")
+        print("Use --no-cache to disable caching\n")
+    else:
+        print("Cache disabled - will regenerate all embeddings\n")
+
+    evaluator = EmbeddingEvaluator(args.db, args.config, use_cache=use_cache)
 
     model_current = ModelConfig(
         name=evaluator.config["models"]["current"]["name"],

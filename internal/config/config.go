@@ -232,7 +232,7 @@ func SaveConfig(config *Config) error {
 func getConfigPath() string {
 	// Check for custom config path from environment
 	if configPath := os.Getenv("GH_STAR_SEARCH_CONFIG"); configPath != "" {
-		return expandPath(configPath)
+		return ExpandPath(configPath)
 	}
 
 	homeDir, err := os.UserHomeDir()
@@ -243,8 +243,8 @@ func getConfigPath() string {
 	return filepath.Join(homeDir, ".config", "gh-star-search", "config.json")
 }
 
-// expandPath expands ~ to home directory in file paths
-func expandPath(path string) string {
+// ExpandPath expands ~ to home directory in file paths
+func ExpandPath(path string) string {
 	if !strings.HasPrefix(path, "~") {
 		return path
 	}
@@ -267,9 +267,9 @@ func expandPath(path string) string {
 
 // ExpandAllPaths expands all paths in the configuration
 func (c *Config) ExpandAllPaths() {
-	c.Database.Path = expandPath(c.Database.Path)
-	c.Cache.Directory = expandPath(c.Cache.Directory)
-	c.Logging.File = expandPath(c.Logging.File)
+	c.Database.Path = ExpandPath(c.Database.Path)
+	c.Cache.Directory = ExpandPath(c.Cache.Directory)
+	c.Logging.File = ExpandPath(c.Logging.File)
 }
 
 // GetConfigDir returns the configuration directory

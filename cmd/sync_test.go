@@ -478,44 +478,6 @@ func TestSyncService_ProcessRepositoriesInBatches(t *testing.T) {
 	}
 }
 
-func TestExpandPath(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "home directory expansion",
-			input:    "~/config/database.db",
-			expected: filepath.Join(os.Getenv("HOME"), "config/database.db"),
-		},
-		{
-			name:     "absolute path unchanged",
-			input:    "/tmp/database.db",
-			expected: "/tmp/database.db",
-		},
-		{
-			name:     "relative path unchanged",
-			input:    "database.db",
-			expected: "database.db",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := expandPath(tt.input)
-			if tt.name == "home directory expansion" {
-				// For home directory test, just check it doesn't start with ~
-				if strings.HasPrefix(result, "~") {
-					t.Errorf("expandPath() failed to expand home directory: %s", result)
-				}
-			} else if result != tt.expected {
-				t.Errorf("expandPath() = %s, expected %s", result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestSyncService_GetUpdateReason(t *testing.T) {
 	syncService := &SyncService{}
 

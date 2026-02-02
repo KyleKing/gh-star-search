@@ -10,7 +10,7 @@ import (
 // initializeStorage creates and initializes a storage repository
 func initializeStorage(cfg *config.Config) (storage.Repository, error) {
 	// Expand home directory in database path
-	dbPath := expandPath(cfg.Database.Path)
+	dbPath := config.ExpandPath(cfg.Database.Path)
 
 	// Create DuckDB repository
 	repo, err := storage.NewDuckDBRepository(dbPath)

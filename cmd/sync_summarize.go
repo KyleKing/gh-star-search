@@ -32,7 +32,7 @@ func (s *SyncService) generateSummaries(ctx context.Context, force bool) error {
 		return fmt.Errorf("summarization requires uv: %w", err)
 	}
 
-	cacheDir := expandPath(s.config.Cache.Directory)
+	cacheDir := config.ExpandPath(s.config.Cache.Directory)
 	projectDir, err := python.EnsureEnvironment(ctx, uvPath, cacheDir)
 	if err != nil {
 		return fmt.Errorf("failed to prepare Python environment: %w", err)

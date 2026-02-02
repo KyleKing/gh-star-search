@@ -134,7 +134,7 @@ func runQuery(ctx context.Context, cmd *cli.Command) error {
 		if err != nil {
 			return errors.Wrap(err, errors.ErrTypeValidation, "vector search requires uv")
 		}
-		cacheDir := expandPath(configFromContext.Cache.Directory)
+		cacheDir := config.ExpandPath(configFromContext.Cache.Directory)
 		projectDir, err = python.EnsureEnvironment(ctx, uvPath, cacheDir)
 		if err != nil {
 			return errors.Wrap(err, errors.ErrTypeValidation, "failed to prepare Python environment")
