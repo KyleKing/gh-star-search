@@ -10,6 +10,7 @@ import (
 
 	"github.com/urfave/cli/v3"
 
+	"github.com/KyleKing/gh-star-search/internal/config"
 	"github.com/KyleKing/gh-star-search/internal/embedding"
 	"github.com/KyleKing/gh-star-search/internal/errors"
 	"github.com/KyleKing/gh-star-search/internal/python"

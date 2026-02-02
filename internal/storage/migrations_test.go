@@ -76,8 +76,8 @@ func TestNewSchemaFields(t *testing.T) {
 	// Test that new columns exist
 	var columnExists bool
 	err = repo.db.QueryRowContext(ctx, `
-		SELECT COUNT(*) > 0 
-		FROM information_schema.columns 
+		SELECT COUNT(*) > 0
+		FROM information_schema.columns
 		WHERE table_name = 'repositories' AND column_name = 'open_issues_open'
 	`).Scan(&columnExists)
 	if err != nil {

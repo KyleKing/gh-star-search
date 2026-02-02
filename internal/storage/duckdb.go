@@ -947,9 +947,9 @@ func (r *DuckDBRepository) GetRepositoriesNeedingMetricsUpdate(
 	cutoffTime := time.Now().AddDate(0, 0, -staleDays)
 
 	query := `
-	SELECT full_name 
-	FROM repositories 
-	WHERE last_synced IS NULL 
+	SELECT full_name
+	FROM repositories
+	WHERE last_synced IS NULL
 		OR last_synced < ?
 	ORDER BY last_synced ASC NULLS FIRST`
 
@@ -983,8 +983,8 @@ func (r *DuckDBRepository) GetRepositoriesNeedingSummaryUpdate(
 		query = `SELECT full_name FROM repositories ORDER BY full_name`
 	} else {
 		query = `
-		SELECT full_name 
-		FROM repositories 
+		SELECT full_name
+		FROM repositories
 		WHERE purpose IS NULL OR purpose = ''
 			OR summary_generated_at IS NULL
 			OR summary_version < 1

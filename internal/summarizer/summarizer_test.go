@@ -89,4 +89,3 @@ func TestSummarizer_Heuristic(t *testing.T) {
 		})
 	}
 }
-

@@ -7,29 +7,34 @@ The evaluation tool uses **model-versioned persistent caches** to minimize embed
 ## Performance Impact
 
 ### Before Caching (Naive Implementation)
+
 - **Time**: 30-40 minutes for 7,000 repos
 - **Why slow**:
-  - Subprocess overhead: ~438 subprocess calls (219 per model)
-  - Model reloading: Potentially reloading model for each batch
-  - Full regeneration: Recomputing all 7,000 repos for both models
+    - Subprocess overhead: ~438 subprocess calls (219 per model)
+    - Model reloading: Potentially reloading model for each batch
+    - Full regeneration: Recomputing all 7,000 repos for both models
 
 ### After Caching (Current Implementation)
+
 - **First run**: 5-8 minutes (only new model needs embedding)
-  - Current model (e5-small-v2): 0 seconds (already in main DB)
-  - Candidate model: 5-8 minutes (one-time cost, in-process)
-  - Queries: 30-60 seconds
+
+    - Current model (e5-small-v2): 0 seconds (already in main DB)
+    - Candidate model: 5-8 minutes (one-time cost, in-process)
+    - Queries: 30-60 seconds
 
 - **Subsequent runs**: 1-2 minutes
-  - Current model: 0 seconds (cached)
-  - Candidate model: 0 seconds (cached)
-  - Only new/changed repos: ~5-10 seconds
-  - Queries: 30-60 seconds
+
+    - Current model: 0 seconds (cached)
+    - Candidate model: 0 seconds (cached)
+    - Only new/changed repos: ~5-10 seconds
+    - Queries: 30-60 seconds
 
 **Speed improvement: 90-95% faster on subsequent runs**
 
 ## Architecture
 
 ### Directory Structure
+
 ```
 ~/.local/share/gh-star-search/
 ├── stars.db                                    # Main repository data
@@ -109,6 +114,7 @@ for batch in chunks(repos_to_embed, 128):
 ### 2. Content-Based Invalidation
 
 Embeddings are invalidated when `content_hash` changes:
+
 - Repository description updated
 - README content changed
 - Topics modified
@@ -117,6 +123,7 @@ Embeddings are invalidated when `content_hash` changes:
 ### 3. In-Process Embedding
 
 **Before (subprocess approach):**
+
 ```python
 # Each call spawns process + loads model
 for batch in batches:
@@ -125,6 +132,7 @@ for batch in batches:
 ```
 
 **After (in-process approach):**
+
 ```python
 # Load model once, keep in memory
 model = SentenceTransformer(model_id)
@@ -158,12 +166,14 @@ ORDER BY score DESC;
 ## Usage
 
 ### Basic Evaluation (With Caching - Default)
+
 ```bash
 cd internal/python/scripts
 uv run python evaluate_embeddings.py
 ```
 
 First run output:
+
 ```
 Using persistent embedding cache (incremental updates)
 
@@ -190,6 +200,7 @@ Evaluating model: bge-small
 ```
 
 Second run output:
+
 ```
 ============================================================
 Evaluating model: bge-small
@@ -200,11 +211,13 @@ Evaluating model: bge-small
 ```
 
 ### View Cache Statistics
+
 ```bash
 uv run python evaluate_embeddings.py --cache-stats
 ```
 
 Output:
+
 ```
 Embedding Cache Statistics:
 ======================================================================
@@ -223,11 +236,13 @@ Model: BAAI/bge-small-en-v1.5
 ```
 
 ### Disable Caching (Force Regeneration)
+
 ```bash
 uv run python evaluate_embeddings.py --no-cache
 ```
 
 Use when:
+
 - Testing embedding generation logic
 - Debugging issues
 - Verifying cache correctness
@@ -235,12 +250,14 @@ Use when:
 ## Cache Management
 
 ### Clear Cache for Specific Model
+
 ```bash
 rm ~/.local/share/gh-star-search/embeddings/BAAI__bge-small-en-v1.5.db
 # Next run will regenerate
 ```
 
 ### Clear All Caches
+
 ```bash
 rm -rf ~/.local/share/gh-star-search/embeddings/
 # Keeps main database, regenerates all embeddings on next run
@@ -251,7 +268,7 @@ rm -rf ~/.local/share/gh-star-search/embeddings/
 The cache automatically detects content changes via `content_hash`. If you want to force re-embedding:
 
 1. Update content in main DB (e.g., via `gh star-search sync`)
-2. Run evaluation - only changed repos will be re-embedded
+1. Run evaluation - only changed repos will be re-embedded
 
 ### Cache Size Estimates
 
@@ -262,22 +279,26 @@ The cache automatically detects content changes via `content_hash`. If you want 
 ## Benefits
 
 ### 1. Minimal Computation
+
 - Each repo embedded once per model
 - Incremental updates for new/changed repos
 - No redundant work across evaluation runs
 
 ### 2. Fast Model Comparison
+
 - Try multiple candidate models quickly
 - First model: 5-8 min (one-time)
 - Each additional model: 5-8 min (one-time)
 - All subsequent runs: 1-2 min
 
 ### 3. Development Velocity
+
 - Iterate on queries without re-embedding
 - Test metrics changes instantly
 - Experiment with evaluation logic
 
 ### 4. Production Integration
+
 - Cache can be shared with main application
 - Same embeddings used in production queries
 - Consistent results between eval and production
@@ -331,9 +352,10 @@ def _run_query(self, query_text, model_config, ...):
 Old scripts don't need migration - caching is automatic:
 
 1. First run: Generates cache (slower)
-2. Subsequent runs: Uses cache (fast)
+1. Subsequent runs: Uses cache (fast)
 
 To force old behavior:
+
 ```bash
 uv run python evaluate_embeddings.py --no-cache
 ```
@@ -341,6 +363,7 @@ uv run python evaluate_embeddings.py --no-cache
 ## Troubleshooting
 
 ### Cache corruption
+
 ```bash
 # Verify cache integrity
 uv run python -c "
@@ -355,6 +378,7 @@ rm ~/.local/share/gh-star-search/embeddings/BAAI__bge-small-en-v1.5.db
 ```
 
 ### Embeddings seem wrong
+
 ```bash
 # Check metadata
 cat ~/.local/share/gh-star-search/embeddings/metadata.json
@@ -364,10 +388,11 @@ uv run python evaluate_embeddings.py --cache-stats
 ```
 
 ### Cache not updating after sync
+
 ```bash
 # Check content_hash changed in main DB
 sqlite3 ~/.local/share/gh-star-search/stars.db \
-  "SELECT id, content_hash FROM repositories LIMIT 5"
+    "SELECT id, content_hash FROM repositories LIMIT 5"
 
 # Force re-sync by clearing cache for that model
 rm ~/.local/share/gh-star-search/embeddings/intfloat__e5-small-v2.db
@@ -376,7 +401,7 @@ rm ~/.local/share/gh-star-search/embeddings/intfloat__e5-small-v2.db
 ## Future Enhancements
 
 1. **Shared cache with production**: Use same cache for `gh star-search query --mode vector`
-2. **Compression**: Store embeddings as binary instead of JSON (50% size reduction)
-3. **Parallel embedding**: Use multiple GPUs/threads for faster initial embedding
-4. **Remote caching**: Share caches across machines via cloud storage
-5. **Automatic cleanup**: Remove caches for models not used in N days
+1. **Compression**: Store embeddings as binary instead of JSON (50% size reduction)
+1. **Parallel embedding**: Use multiple GPUs/threads for faster initial embedding
+1. **Remote caching**: Share caches across machines via cloud storage
+1. **Automatic cleanup**: Remove caches for models not used in N days

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/KyleKing/gh-star-search/internal/config"
 	"github.com/KyleKing/gh-star-search/internal/embedding"
 	"github.com/KyleKing/gh-star-search/internal/python"
 )
