@@ -1,0 +1,295 @@
+# Enhanced Embedding Model Evaluation Configuration
+# Includes workflow-based queries, difficulty tiers, and negative examples
+
+[models.candidate]
+dimensions = 384
+model_id = "BAAI/bge-small-en-v1.5"
+name = "bge-small"
+
+[models.current]
+dimensions = 384
+model_id = "intfloat/e5-small-v2"
+name = "e5-small-v2"
+
+[[queries]]
+category = "easy_direct"
+difficulty = "easy"
+expected_repos = ["openclaw/openclaw"]
+id = "easy_001"
+query = "openclaw"
+relevance_grades = {"openclaw/openclaw" = 3}
+
+[[queries]]
+category = "easy_direct"
+difficulty = "easy"
+expected_repos = ["uber-go/guide"]
+id = "easy_002"
+query = "uber go guide"
+relevance_grades = {"uber-go/guide" = 3}
+
+[[queries]]
+category = "easy_direct"
+difficulty = "easy"
+expected_repos = ["Blaizzy/mlx-audio"]
+id = "easy_003"
+query = "mlx audio"
+relevance_grades = {"Blaizzy/mlx-audio" = 3}
+
+[[queries]]
+category = "easy_direct"
+difficulty = "easy"
+expected_repos = ["steipete/CodexBar"]
+id = "easy_004"
+query = "codexbar"
+relevance_grades = {"steipete/CodexBar" = 3}
+
+[[queries]]
+category = "easy_direct"
+difficulty = "easy"
+expected_repos = ["salesforce/policy_sentry"]
+id = "easy_005"
+query = "policy sentry"
+relevance_grades = {"salesforce/policy_sentry" = 3}
+
+[[queries]]
+category = "medium_composite"
+difficulty = "medium"
+expected_repos = ["steipete/CodexBar", "steipete/Peekaboo"]
+id = "med_001"
+intent = "tool_finding"
+query = "swift menu bar app"
+relevance_grades = {"steipete/CodexBar" = 3, "steipete/Peekaboo" = 2}
+
+[[queries]]
+category = "medium_composite"
+difficulty = "medium"
+expected_repos = ["ramonvermeulen/whosthere"]
+id = "med_002"
+intent = "tool_finding"
+query = "go network scanner"
+relevance_grades = {"ramonvermeulen/whosthere" = 3}
+
+[[queries]]
+category = "medium_composite"
+difficulty = "medium"
+expected_repos = ["Blaizzy/mlx-audio"]
+id = "med_003"
+intent = "tool_finding"
+query = "python speech recognition"
+relevance_grades = {"Blaizzy/mlx-audio" = 3}
+
+[[queries]]
+category = "medium_composite"
+difficulty = "medium"
+expected_repos = ["openclaw/openclaw", "steipete/summarize"]
+id = "med_004"
+intent = "tool_finding"
+query = "typescript ai summarization"
+relevance_grades = {"openclaw/openclaw" = 2, "steipete/summarize" = 3}
+
+[[queries]]
+category = "medium_composite"
+difficulty = "medium"
+expected_repos = ["Bharath-code/git-scope", "ramonvermeulen/whosthere"]
+id = "med_005"
+intent = "tool_finding"
+query = "go terminal ui"
+relevance_grades = {"Bharath-code/git-scope" = 2, "ramonvermeulen/whosthere" = 3}
+
+[[queries]]
+category = "hard_learning"
+difficulty = "hard"
+expected_repos = ["uber-go/guide"]
+id = "hard_001"
+intent = "learning"
+query = "best practices writing go code"
+relevance_grades = {"uber-go/guide" = 3}
+
+[[queries]]
+category = "hard_implementation"
+difficulty = "hard"
+expected_repos = ["openclaw/openclaw", "steipete/macos-automator-mcp"]
+id = "hard_002"
+intent = "implementation"
+query = "automate macos tasks with ai"
+relevance_grades = {"openclaw/openclaw" = 3, "steipete/macos-automator-mcp" = 2}
+
+[[queries]]
+category = "hard_implementation"
+difficulty = "hard"
+expected_repos = ["steipete/CodexBar"]
+id = "hard_003"
+intent = "tool_finding"
+query = "see what apps are using in menu bar"
+relevance_grades = {"steipete/CodexBar" = 3}
+
+[[queries]]
+category = "hard_problem_solving"
+difficulty = "hard"
+expected_repos = ["ramonvermeulen/whosthere"]
+id = "hard_004"
+intent = "problem_solving"
+query = "find devices on my network"
+relevance_grades = {"ramonvermeulen/whosthere" = 3}
+
+[[queries]]
+category = "hard_implementation"
+difficulty = "hard"
+expected_repos = ["steipete/summarize"]
+id = "hard_005"
+intent = "implementation"
+query = "read web page and summarize it"
+relevance_grades = {"steipete/summarize" = 3}
+
+[[queries]]
+category = "hard_problem_solving"
+difficulty = "hard"
+expected_repos = ["salesforce/policy_sentry"]
+id = "hard_006"
+intent = "problem_solving"
+query = "aws iam least privilege policies"
+relevance_grades = {"salesforce/policy_sentry" = 3}
+
+[[queries]]
+category = "workflow_daily"
+difficulty = "medium"
+expected_repos = ["steipete/gogcli"]
+id = "workflow_001"
+intent = "tool_finding"
+query = "google calendar command line"
+relevance_grades = {"steipete/gogcli" = 3}
+
+[[queries]]
+category = "workflow_daily"
+difficulty = "medium"
+expected_repos = ["steipete/spogo"]
+id = "workflow_002"
+intent = "tool_finding"
+query = "terminal spotify controller"
+relevance_grades = {"steipete/spogo" = 3}
+
+[[queries]]
+category = "workflow_daily"
+difficulty = "medium"
+expected_repos = ["steipete/remindctl"]
+id = "workflow_003"
+intent = "tool_finding"
+query = "manage apple reminders terminal"
+relevance_grades = {"steipete/remindctl" = 3}
+
+[[queries]]
+category = "workflow_automation"
+difficulty = "medium"
+expected_repos = ["steipete/Peekaboo"]
+id = "workflow_004"
+intent = "implementation"
+query = "take screenshot with ai agent"
+relevance_grades = {"steipete/Peekaboo" = 3}
+
+[[queries]]
+category = "workflow_automation"
+difficulty = "hard"
+expected_repos = ["steipete/macos-automator-mcp"]
+id = "workflow_005"
+intent = "implementation"
+query = "control macos with javascript"
+relevance_grades = {"steipete/macos-automator-mcp" = 3}
+
+[[queries]]
+category = "ambiguous"
+difficulty = "hard"
+expected_repos = ["openclaw/openclaw", "steipete/AXorcist", "steipete/macos-automator-mcp"]
+id = "variant_001"
+intent = "tool_finding"
+query = "mac automation"
+relevance_grades = {"openclaw/openclaw" = 2, "steipete/AXorcist" = 2, "steipete/macos-automator-mcp" = 3}
+
+[[queries]]
+category = "ambiguous"
+difficulty = "hard"
+expected_repos = ["openclaw/openclaw", "steipete/CodexBar", "steipete/summarize"]
+id = "variant_002"
+intent = "discovery"
+query = "ai tools"
+relevance_grades = {"openclaw/openclaw" = 3, "steipete/CodexBar" = 2, "steipete/summarize" = 2}
+
+[[queries]]
+category = "ambiguous"
+difficulty = "hard"
+expected_repos = ["steipete/gogcli", "steipete/remindctl", "steipete/spogo"]
+id = "variant_003"
+intent = "discovery"
+query = "cli utilities"
+relevance_grades = {"steipete/gogcli" = 2, "steipete/remindctl" = 2, "steipete/spogo" = 2}
+
+[[queries]]
+category = "ambiguous"
+difficulty = "medium"
+expected_repos = ["Bharath-code/git-scope"]
+id = "variant_004"
+intent = "tool_finding"
+query = "git tools"
+relevance_grades = {"Bharath-code/git-scope" = 3}
+
+[[queries]]
+category = "ambiguous"
+difficulty = "medium"
+expected_repos = ["salesforce/policy_sentry"]
+id = "variant_005"
+intent = "tool_finding"
+query = "security tools"
+relevance_grades = {"salesforce/policy_sentry" = 3}
+
+[[queries]]
+category = "partial_match"
+difficulty = "medium"
+expected_repos = ["steipete/Peekaboo"]
+id = "partial_001"
+intent = "tool_finding"
+query = "macos screenshot"
+relevance_grades = {"steipete/Peekaboo" = 2}
+
+[[queries]]
+category = "partial_match"
+difficulty = "medium"
+expected_repos = ["uber-go/guide"]
+id = "partial_002"
+intent = "learning"
+query = "go style"
+relevance_grades = {"uber-go/guide" = 2}
+
+[[queries]]
+category = "partial_match"
+difficulty = "medium"
+expected_repos = ["steipete/CodexBar"]
+id = "partial_003"
+intent = "tool_finding"
+query = "menu bar"
+relevance_grades = {"steipete/CodexBar" = 2}
+
+[[queries]]
+category = "discovery"
+difficulty = "easy"
+expected_repos = ["steipete/AXorcist", "steipete/CodexBar", "steipete/Peekaboo"]
+id = "discovery_001"
+intent = "browsing"
+query = "swift projects"
+relevance_grades = {"steipete/AXorcist" = 2, "steipete/CodexBar" = 2, "steipete/Peekaboo" = 2}
+
+[[queries]]
+category = "discovery"
+difficulty = "easy"
+expected_repos = ["lukilabs/craft-agents-oss", "openclaw/openclaw", "steipete/summarize"]
+id = "discovery_002"
+intent = "browsing"
+query = "typescript tools"
+relevance_grades = {"lukilabs/craft-agents-oss" = 2, "openclaw/openclaw" = 2, "steipete/summarize" = 2}
+
+[[queries]]
+category = "discovery"
+difficulty = "easy"
+expected_repos = ["Blaizzy/mlx-audio", "salesforce/policy_sentry"]
+id = "discovery_003"
+intent = "browsing"
+query = "python projects"
+relevance_grades = {"Blaizzy/mlx-audio" = 2, "salesforce/policy_sentry" = 2}
