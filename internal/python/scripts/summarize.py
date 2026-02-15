@@ -5,11 +5,13 @@ Uses simple extractive summarization techniques that work within 2-3GB of RAM.
 Supports heuristic-based and transformers-based methods.
 """
 
-import sys
-import json
 import argparse
+import json
 import re
-from typing import Optional
+import sys
+
+import torch
+from transformers import pipeline
 
 
 def simple_sentence_score(sentence: str, keywords: list[str]) -> float:
@@ -25,15 +27,12 @@ def simple_sentence_score(sentence: str, keywords: list[str]) -> float:
     score = 0.0
     sentence_lower = sentence.lower()
 
-    # Keyword presence (40% weight)
     keyword_count = sum(1 for kw in keywords if kw.lower() in sentence_lower)
     if keywords:
         score += (keyword_count / len(keywords)) * 0.4
 
-    # Sentence position (30% weight) - earlier sentences are more important
     score += 0.3
 
-    # Sentence length (30% weight) - prefer medium-length sentences
     word_count = len(sentence.split())
     if 10 <= word_count <= 25:
         score += 0.3
@@ -58,18 +57,90 @@ def extract_keywords(text: str, top_n: int = 10) -> list[str]:
         List of top keywords
     """
     stopwords = {
-        'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-        'of', 'with', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
-        'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
-        'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those',
-        'it', 'its', 'as', 'by', 'from', 'into', 'through', 'during', 'before',
-        'after', 'above', 'below', 'up', 'down', 'out', 'off', 'over', 'under',
-        'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where',
-        'why', 'how', 'all', 'both', 'each', 'few', 'more', 'most', 'other',
-        'some', 'such', 'than', 'too', 'very', 'just', 'only', 'own', 'same'
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "can",
+        "this",
+        "that",
+        "these",
+        "those",
+        "it",
+        "its",
+        "as",
+        "by",
+        "from",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "up",
+        "down",
+        "out",
+        "off",
+        "over",
+        "under",
+        "again",
+        "further",
+        "then",
+        "once",
+        "here",
+        "there",
+        "when",
+        "where",
+        "why",
+        "how",
+        "all",
+        "both",
+        "each",
+        "few",
+        "more",
+        "most",
+        "other",
+        "some",
+        "such",
+        "than",
+        "too",
+        "very",
+        "just",
+        "only",
+        "own",
+        "same",
     }
 
-    words = re.findall(r'\b[a-z]{3,}\b', text.lower())
+    words = re.findall(r"\b[a-z]{3,}\b", text.lower())
     words = [w for w in words if w not in stopwords]
 
     word_freq: dict[str, int] = {}
@@ -89,7 +160,7 @@ def split_sentences(text: str) -> list[str]:
     Returns:
         List of sentences
     """
-    sentences = re.split(r'[.!?]+', text)
+    sentences = re.split(r"[.!?]+", text)
     return [s.strip() for s in sentences if s.strip()]
 
 
@@ -128,10 +199,10 @@ def heuristic_summarize(text: str, max_sentences: int = 3) -> str:
             if len(result_sentences) == max_sentences:
                 break
 
-    return '. '.join(result_sentences) + '.'
+    return ". ".join(result_sentences) + "."
 
 
-def _transformers_summarize(text: str, max_length: int = 150) -> Optional[str]:
+def _transformers_summarize(text: str, max_length: int = 150) -> str | None:
     """Use transformers library for summarization.
 
     Args:
@@ -142,9 +213,6 @@ def _transformers_summarize(text: str, max_length: int = 150) -> Optional[str]:
         Summary text or None on failure
     """
     try:
-        from transformers import pipeline
-        import torch
-
         model_name = "sshleifer/distilbart-cnn-12-6"
         device = -1
 
@@ -158,7 +226,7 @@ def _transformers_summarize(text: str, max_length: int = 150) -> Optional[str]:
         max_input_length = 1024
         if len(text.split()) > max_input_length:
             words = text.split()[:max_input_length]
-            text = ' '.join(words)
+            text = " ".join(words)
 
         result = summarizer(
             text,
@@ -168,7 +236,7 @@ def _transformers_summarize(text: str, max_length: int = 150) -> Optional[str]:
             truncation=True,
         )
 
-        return result[0]['summary_text']
+        return result[0]["summary_text"]
     except Exception as err:
         print(f"Warning: Transformers summarization failed: {err}", file=sys.stderr)
         return None
@@ -215,7 +283,8 @@ def summarize(
     }
 
 
-def main():
+def main() -> None:
+    """Execute summarization from command line."""
     parser = argparse.ArgumentParser(
         description="Lightweight extractive summarization for gh-star-search"
     )

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Analyze impact of star boost coefficient on ranking."""
 
+import argparse
 import math
-from pathlib import Path
 
 import duckdb
+from evaluate_embeddings import DEFAULT_DB_PATH
 
 
 def compute_star_boost(stars: int, coefficient: float = 0.1) -> float:
@@ -12,7 +13,7 @@ def compute_star_boost(stars: int, coefficient: float = 0.1) -> float:
     return 1.0 + (coefficient * math.log10(stars + 1) / 6.0)
 
 
-def analyze_boost_impact(db_path: str):
+def analyze_boost_impact(db_path: str) -> None:
     """Analyze how star boost affects ranking across database."""
     db = duckdb.connect(db_path)
 
@@ -27,7 +28,8 @@ def analyze_boost_impact(db_path: str):
     print("=" * 80)
     print("\nBoost by Star Count:")
     print(
-        f"{'Stars':>10} | {'Current (0.1)':>15} | {'Reduced (0.05)':>15} | {'Difference':>12}"
+        f"{'Stars':>10} | {'Current (0.1)':>15} | "
+        f"{'Reduced (0.05)':>15} | {'Difference':>12}"
     )
     print("-" * 80)
 
@@ -70,7 +72,9 @@ def analyze_boost_impact(db_path: str):
     db.close()
 
 
-def compare_ranking_impact(db_path: str, query_embedding: list[float], query_name: str):
+def compare_ranking_impact(
+    db_path: str, query_embedding: list[float], query_name: str
+) -> None:
     """Compare top-10 results with different star boost coefficients."""
     db = duckdb.connect(db_path)
 
@@ -86,12 +90,10 @@ def compare_ranking_impact(db_path: str, query_embedding: list[float], query_nam
 
 
 if __name__ == "__main__":
-    import argparse
-
     parser = argparse.ArgumentParser(description="Analyze star boost impact")
     parser.add_argument(
         "--db",
-        default=str(Path.home() / ".config/gh-star-search/database.db"),
+        default=DEFAULT_DB_PATH,
         help="Path to database",
     )
     args = parser.parse_args()

@@ -33,22 +33,26 @@ significance is tested using paired t-test on per-query MRR values.
 """
 
 import argparse
+import contextlib
 import json
 import math
-import subprocess
+import shutil
 import tomllib
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from statistics import mean
 from textwrap import dedent
 
 import duckdb
-from embedding_cache import EmbeddingCache, sync_model_embeddings
+from embedding_cache import EmbeddingCache, _validate_identifier, sync_model_embeddings
 from rich.console import Console
 from rich.table import Table
 from sentence_transformers import SentenceTransformer
+
+DEFAULT_DB_PATH = str(Path.home() / ".local/share/gh-star-search/stars.db")
+DEFAULT_STAR_BOOST_COEFFICIENT = 0.1
 
 
 @dataclass(frozen=True)
@@ -124,12 +128,9 @@ def _chunks(items: list, size: int) -> Iterator[list]:
 
 def _find_uv() -> str:
     """Find uv executable path."""
-    result = subprocess.run(
-        ["which", "uv"], capture_output=True, text=True, check=False
-    )
-    if result.returncode != 0:
-        raise RuntimeError("uv not found in PATH")
-    return result.stdout.strip()
+    if path := shutil.which("uv"):
+        return path
+    raise RuntimeError("uv not found in PATH")
 
 
 def _build_embedding_input(repo: dict) -> str:
@@ -137,10 +138,7 @@ def _build_embedding_input(repo: dict) -> str:
 
     Matches buildEmbeddingInput() in cmd/sync_embed.go.
     """
-    parts = []
-
-    if repo.get("full_name"):
-        parts.append(repo["full_name"])
+    parts = [repo.get("full_name", "")]
 
     if repo.get("purpose"):
         parts.append(repo["purpose"])
@@ -150,10 +148,7 @@ def _build_embedding_input(repo: dict) -> str:
 
     if repo.get("topics_array"):
         topics_raw = repo["topics_array"]
-        if isinstance(topics_raw, str):
-            topics = json.loads(topics_raw)
-        else:
-            topics = topics_raw
+        topics = json.loads(topics_raw) if isinstance(topics_raw, str) else topics_raw
 
         if topics:
             parts.append(" ".join(topics))
@@ -165,6 +160,8 @@ def _call_embed_script(
     texts: list[str], model_id: str, uv_path: str, project_dir: Path
 ) -> list[list[float]]:
     """Call embed.py subprocess to generate embeddings."""
+    import subprocess
+
     cmd = [
         uv_path,
         "run",
@@ -194,7 +191,9 @@ def _call_embed_script(
     return result["embeddings"]
 
 
-def _apply_ranking_boosts(results: list[dict]) -> list[dict]:
+def _apply_ranking_boosts(
+    results: list[dict], star_boost_coefficient: float = DEFAULT_STAR_BOOST_COEFFICIENT
+) -> list[dict]:
     """Apply star boost and recency factor to scores.
 
     Matches applyRankingBoosts() in internal/query/engine.go.
@@ -202,7 +201,9 @@ def _apply_ranking_boosts(results: list[dict]) -> list[dict]:
     for result in results:
         base_score = result["base_score"]
 
-        star_boost = 1.0 + (0.1 * math.log10(result["stargazers_count"] + 1) / 6.0)
+        star_boost = 1.0 + (
+            star_boost_coefficient * math.log10(result["stargazers_count"] + 1) / 6.0
+        )
 
         updated_at = result["updated_at"]
         if isinstance(updated_at, str):
@@ -266,7 +267,21 @@ def _compute_ndcg_at_k(
 class EmbeddingEvaluator:
     """Evaluator for comparing embedding models."""
 
-    def __init__(self, db_path: str, config_path: str, use_cache: bool = True):
+    def __init__(
+        self,
+        db_path: str,
+        config_path: str,
+        use_cache: bool = True,
+        star_boost_coefficient: float = DEFAULT_STAR_BOOST_COEFFICIENT,
+    ) -> None:
+        """Initialize evaluator.
+
+        Args:
+            db_path: Path to main database
+            config_path: Path to TOML configuration file
+            use_cache: Whether to use persistent embedding cache
+            star_boost_coefficient: Star boost coefficient for ranking
+        """
         self.db = duckdb.connect(db_path)
         self.db_path = db_path
         self.config = self._load_config(config_path)
@@ -274,7 +289,8 @@ class EmbeddingEvaluator:
         self.project_dir = Path(__file__).parent
         self.use_cache = use_cache
         self.cache = EmbeddingCache() if use_cache else None
-        self._loaded_models = {}  # Cache loaded models in memory
+        self.star_boost_coefficient = star_boost_coefficient
+        self._loaded_models: dict[str, SentenceTransformer] = {}
 
     def _load_config(self, config_path: str) -> dict:
         """Load configuration from TOML file."""
@@ -284,6 +300,7 @@ class EmbeddingEvaluator:
     def _setup_eval_table(self, model_name: str, dimensions: int) -> str:
         """Create temporary table for model embeddings."""
         table_name = f"eval_embeddings_{model_name.replace('-', '_')}"
+        _validate_identifier(table_name)
 
         self.db.execute(f"DROP TABLE IF EXISTS {table_name}")
         self.db.execute(
@@ -316,17 +333,15 @@ class EmbeddingEvaluator:
         """Sync embeddings using persistent cache (incremental)."""
         print("  Syncing embeddings with cache...")
 
-        # Define embedding generator
         def embedding_generator(texts: list[str]) -> list[list[float]]:
             return self._generate_embeddings_in_process(texts, model_config.model_id)
 
-        # Sync (only computes missing/changed embeddings)
         embedded_count = sync_model_embeddings(
             self.db_path,
             model_config.model_id,
             model_config.dimensions,
             embedding_generator,
-            batch_size=128,  # Larger batches since in-process
+            batch_size=128,
         )
 
         if embedded_count > 0:
@@ -334,7 +349,6 @@ class EmbeddingEvaluator:
         else:
             print("  All repos already cached")
 
-        # Create view pointing to cache
         table_name = f"eval_embeddings_{model_config.name.replace('-', '_')}"
         self.cache.create_eval_view(self.db, model_config.model_id, table_name)
 
@@ -343,11 +357,12 @@ class EmbeddingEvaluator:
     def _generate_embeddings_for_model(self, model_config: ModelConfig) -> str:
         """Generate embeddings for all repos using specified model."""
         print("  Fetching repositories...")
-        repos = self.db.execute("""
+        repos = self.db.execute(
+            dedent("""\
             SELECT id, full_name, description, purpose, topics_array
             FROM repositories
-            ORDER BY id
-        """).fetchall()
+            ORDER BY id""")
+        ).fetchall()
 
         print(f"  Found {len(repos)} repositories")
 
@@ -377,12 +392,10 @@ class EmbeddingEvaluator:
                 texts, model_config.model_id, self.uv_path, self.project_dir
             )
 
-            for repo, emb in zip(batch, embeddings, strict=False):
+            for repo, emb in zip(batch, embeddings, strict=True):
                 self.db.execute(
-                    f"""
-                    INSERT INTO {table_name} (repo_id, embedding)
-                    VALUES (?, ?::JSON)
-                """,
+                    f"INSERT INTO {table_name} (repo_id, embedding) "
+                    "VALUES (?, ?::JSON)",
                     [repo[0], json.dumps(emb)],
                 )
 
@@ -397,7 +410,6 @@ class EmbeddingEvaluator:
         limit: int = 50,
     ) -> list[dict]:
         """Execute vector search query using model embeddings."""
-        # Use in-process embedding if cache enabled, otherwise subprocess
         if self.use_cache:
             query_emb = self._generate_embeddings_in_process(
                 [query_text], model_config.model_id
@@ -439,7 +451,7 @@ class EmbeddingEvaluator:
             for r in results
         ]
 
-        return _apply_ranking_boosts(result_dicts)
+        return _apply_ranking_boosts(result_dicts, self.star_boost_coefficient)
 
     def _evaluate_query(
         self, query: Query, model_config: ModelConfig, table_name: str
@@ -472,7 +484,6 @@ class EmbeddingEvaluator:
         print(f"  Dimensions: {model_config.dimensions}")
         print(f"{'=' * 60}\n")
 
-        # Use caching if enabled, otherwise generate fresh
         if self.use_cache:
             table_name = self._sync_embeddings_with_cache(model_config)
         else:
@@ -508,14 +519,10 @@ class EmbeddingEvaluator:
             ndcg_at_10=mean([q.metrics.ndcg_at_10 for q in query_results]),
         )
 
-        # Cleanup: drop view/table (but keep cache DB)
         if self.use_cache:
             self.db.execute(f"DROP VIEW IF EXISTS {table_name}")
-            # Detach cache database
-            try:
+            with contextlib.suppress(Exception):
                 self.db.execute(f"DETACH {table_name}_cache")
-            except Exception:
-                pass  # May not be attached
         else:
             self.db.execute(f"DROP TABLE IF EXISTS {table_name}")
 
@@ -581,7 +588,7 @@ class EmbeddingEvaluator:
             recommendation=recommendation,
         )
 
-    def write_json_output(self, results: dict, timestamp: str):
+    def write_json_output(self, results: dict, timestamp: str) -> None:
         """Write complete evaluation results to JSON."""
         output_dir = Path("eval_results")
         output_file = output_dir / f"evaluation_{timestamp}.json"
@@ -596,7 +603,7 @@ class EmbeddingEvaluator:
         model_a: ModelEvaluation,
         model_b: ModelEvaluation,
         comparison: ModelComparison,
-    ):
+    ) -> None:
         """Display results as rich formatted table in terminal."""
         console = Console()
 
@@ -626,9 +633,9 @@ class EmbeddingEvaluator:
 
         console.print(table)
         console.print(f"\n[bold]Recommendation:[/bold] {comparison.recommendation}")
-        console.print(
-            f"[dim]Statistical test: {comparison.statistical_test['method']} (p={comparison.statistical_test['p_value']:.4f})[/dim]\n"
-        )
+        p_value = comparison.statistical_test["p_value"]
+        method = comparison.statistical_test["method"]
+        console.print(f"[dim]Statistical test: {method} (p={p_value:.4f})[/dim]\n")
 
     def write_markdown_report(
         self,
@@ -636,7 +643,7 @@ class EmbeddingEvaluator:
         model_b: ModelEvaluation,
         comparison: ModelComparison,
         timestamp: str,
-    ):
+    ) -> None:
         """Generate markdown summary report."""
         output_dir = Path("eval_results")
         output_file = output_dir / f"evaluation_{timestamp}.md"
@@ -692,14 +699,15 @@ class EmbeddingEvaluator:
         print(f"Markdown report written to: {output_file}")
 
 
-def main():
+def main() -> None:
+    """Execute embedding model evaluation from command line."""
     parser = argparse.ArgumentParser(description="Evaluate embedding models")
     parser.add_argument(
         "--config", default="eval_config.toml", help="Path to configuration file"
     )
     parser.add_argument(
         "--db",
-        default=str(Path.home() / ".local/share/gh-star-search/stars.db"),
+        default=DEFAULT_DB_PATH,
         help="Path to database file",
     )
     parser.add_argument(
@@ -710,9 +718,17 @@ def main():
     parser.add_argument(
         "--cache-stats", action="store_true", help="Show cache statistics and exit"
     )
+    parser.add_argument(
+        "--star-boost",
+        type=float,
+        default=None,
+        help=(
+            f"Star boost coefficient "
+            f"(default: {DEFAULT_STAR_BOOST_COEFFICIENT}, or from config)"
+        ),
+    )
     args = parser.parse_args()
 
-    # Show cache stats if requested
     if args.cache_stats:
         cache = EmbeddingCache()
         stats = cache.get_cache_stats()
@@ -739,7 +755,20 @@ def main():
     else:
         print("Cache disabled - will regenerate all embeddings\n")
 
-    evaluator = EmbeddingEvaluator(args.db, args.config, use_cache=use_cache)
+    with open(args.config, "rb") as f:
+        config = tomllib.load(f)
+
+    star_boost = args.star_boost
+    if star_boost is None:
+        star_boost = config.get("settings", {}).get(
+            "star_boost_coefficient", DEFAULT_STAR_BOOST_COEFFICIENT
+        )
+
+    print(f"Star boost coefficient: {star_boost}")
+
+    evaluator = EmbeddingEvaluator(
+        args.db, args.config, use_cache=use_cache, star_boost_coefficient=star_boost
+    )
 
     model_current = ModelConfig(
         name=evaluator.config["models"]["current"]["name"],
@@ -762,75 +791,9 @@ def main():
 
     complete_results = {
         "timestamp": timestamp,
-        "models": [
-            {
-                "model_name": result_current.model_name,
-                "model_id": result_current.model_id,
-                "dimensions": result_current.dimensions,
-                "aggregate_metrics": {
-                    "mrr": result_current.aggregate_metrics.mrr,
-                    "precision_at_5": result_current.aggregate_metrics.precision_at_5,
-                    "precision_at_10": result_current.aggregate_metrics.precision_at_10,
-                    "recall_at_10": result_current.aggregate_metrics.recall_at_10,
-                    "recall_at_20": result_current.aggregate_metrics.recall_at_20,
-                    "ndcg_at_10": result_current.aggregate_metrics.ndcg_at_10,
-                },
-                "per_query_results": [
-                    {
-                        "query_id": q.query_id,
-                        "query": q.query,
-                        "category": q.category,
-                        "metrics": {
-                            "mrr": q.metrics.mrr,
-                            "precision_at_5": q.metrics.precision_at_5,
-                            "precision_at_10": q.metrics.precision_at_10,
-                            "recall_at_10": q.metrics.recall_at_10,
-                            "recall_at_20": q.metrics.recall_at_20,
-                            "ndcg_at_10": q.metrics.ndcg_at_10,
-                        },
-                        "top_5_results": q.top_5_results,
-                    }
-                    for q in result_current.per_query_results
-                ],
-            },
-            {
-                "model_name": result_candidate.model_name,
-                "model_id": result_candidate.model_id,
-                "dimensions": result_candidate.dimensions,
-                "aggregate_metrics": {
-                    "mrr": result_candidate.aggregate_metrics.mrr,
-                    "precision_at_5": result_candidate.aggregate_metrics.precision_at_5,
-                    "precision_at_10": result_candidate.aggregate_metrics.precision_at_10,
-                    "recall_at_10": result_candidate.aggregate_metrics.recall_at_10,
-                    "recall_at_20": result_candidate.aggregate_metrics.recall_at_20,
-                    "ndcg_at_10": result_candidate.aggregate_metrics.ndcg_at_10,
-                },
-                "per_query_results": [
-                    {
-                        "query_id": q.query_id,
-                        "query": q.query,
-                        "category": q.category,
-                        "metrics": {
-                            "mrr": q.metrics.mrr,
-                            "precision_at_5": q.metrics.precision_at_5,
-                            "precision_at_10": q.metrics.precision_at_10,
-                            "recall_at_10": q.metrics.recall_at_10,
-                            "recall_at_20": q.metrics.recall_at_20,
-                            "ndcg_at_10": q.metrics.ndcg_at_10,
-                        },
-                        "top_5_results": q.top_5_results,
-                    }
-                    for q in result_candidate.per_query_results
-                ],
-            },
-        ],
-        "comparison": {
-            "model_a": comparison.model_a,
-            "model_b": comparison.model_b,
-            "metric_deltas": comparison.metric_deltas,
-            "statistical_test": comparison.statistical_test,
-            "recommendation": comparison.recommendation,
-        },
+        "settings": {"star_boost_coefficient": star_boost},
+        "models": [asdict(result_current), asdict(result_candidate)],
+        "comparison": asdict(comparison),
     }
 
     evaluator.write_json_output(complete_results, timestamp)

@@ -20,13 +20,6 @@ id = "q001"
 query = "openclaw"
 relevance_grades = {"openclaw/openclaw" = 3}
 
-# Use case searches
-# Technology-specific searches
-# Composite searches (technology + use case)
-# Generic/broad searches that should match multiple repos
-
-# Edge cases
-
 [[queries]]
 category = "direct_search"
 expected_repos = ["uber-go/guide"]
@@ -40,6 +33,7 @@ expected_repos = ["Blaizzy/mlx-audio"]
 id = "q003"
 query = "mlx audio"
 relevance_grades = {"Blaizzy/mlx-audio" = 3}
+
 [[queries]]
 category = "use_case"
 expected_repos = ["openclaw/openclaw"]
@@ -88,6 +82,7 @@ expected_repos = ["steipete/summarize"]
 id = "q010"
 query = "url summarization tool"
 relevance_grades = {"steipete/summarize" = 3}
+
 [[queries]]
 category = "technology"
 expected_repos = ["steipete/AXorcist", "steipete/CodexBar", "steipete/Peekaboo", "steipete/Trimmy"]
@@ -122,6 +117,7 @@ expected_repos = ["ToBinio/cargo-features-manager"]
 id = "q015"
 query = "rust cli tool"
 relevance_grades = {"ToBinio/cargo-features-manager" = 3}
+
 [[queries]]
 category = "composite"
 expected_repos = ["Bharath-code/git-scope", "ramonvermeulen/whosthere"]
@@ -156,6 +152,7 @@ expected_repos = ["steipete/remindctl"]
 id = "q020"
 query = "apple reminders cli"
 relevance_grades = {"steipete/remindctl" = 3}
+
 [[queries]]
 category = "generic"
 expected_repos = ["ToBinio/cargo-features-manager", "steipete/gogcli", "steipete/remindctl", "steipete/summarize"]
@@ -190,6 +187,7 @@ expected_repos = ["ramonvermeulen/whosthere"]
 id = "q025"
 query = "network"
 relevance_grades = {"ramonvermeulen/whosthere" = 3}
+
 [[queries]]
 category = "edge_case"
 expected_repos = ["uber-go/guide"]
@@ -224,3 +222,6 @@ expected_repos = ["yashsinghcodes/wik"]
 id = "q030"
 query = "wikipedia cli"
 relevance_grades = {"yashsinghcodes/wik" = 3}
+
+[settings]
+star_boost_coefficient = 0.1

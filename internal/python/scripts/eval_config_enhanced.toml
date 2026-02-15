@@ -293,3 +293,6 @@ id = "discovery_003"
 intent = "browsing"
 query = "python projects"
 relevance_grades = {"Blaizzy/mlx-audio" = 2, "salesforce/policy_sentry" = 2}
+
+[settings]
+star_boost_coefficient = 0.1

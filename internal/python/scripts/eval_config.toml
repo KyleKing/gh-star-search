@@ -219,3 +219,6 @@ expected_repos = ["go-chi/httprate", "ulule/limiter"]
 id = "q030"
 query = "rate limiting middleware"
 relevance_grades = {"go-chi/httprate" = 3, "ulule/limiter" = 3}
+
+[settings]
+star_boost_coefficient = 0.1

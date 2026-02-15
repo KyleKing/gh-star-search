@@ -6,23 +6,21 @@ import sys
 from collections import defaultdict
 
 
-def analyze_by_tier(results_file: str):
+def analyze_by_tier(results_file: str) -> None:
     """Analyze metrics by difficulty tier and intent."""
     with open(results_file) as f:
         data = json.load(f)
 
-    # Group results by tier and intent
-    by_tier = defaultdict(list)
-    by_intent = defaultdict(list)
-
     for model_data in data["models"]:
+        by_tier = defaultdict(list)
+        by_intent = defaultdict(list)
+
         model_name = model_data["model_name"]
         print(f"\n{'=' * 80}")
         print(f"Model: {model_name}")
         print("=" * 80)
 
         for query_result in model_data["per_query_results"]:
-            query_id = query_result["query_id"]
             category = query_result["category"]
             mrr = query_result["metrics"]["mrr"]
 
@@ -51,7 +49,8 @@ def analyze_by_tier(results_file: str):
                 avg_mrr = sum(by_tier[tier]) / queries
                 success_rate = sum(1 for m in by_tier[tier] if m >= 0.5) / queries
                 print(
-                    f"{tier.capitalize():<15} | {queries:8} | {avg_mrr:10.3f} | {success_rate:14.1%}"
+                    f"{tier.capitalize():<15} | {queries:8} | "
+                    f"{avg_mrr:10.3f} | {success_rate:14.1%}"
                 )
 
         # Print intent breakdown
@@ -67,12 +66,9 @@ def analyze_by_tier(results_file: str):
                 avg_mrr = sum(mrrs) / queries
                 success_rate = sum(1 for m in mrrs if m >= 0.5) / queries
                 print(
-                    f"{intent:<20} | {queries:8} | {avg_mrr:10.3f} | {success_rate:14.1%}"
+                    f"{intent:<20} | {queries:8} | "
+                    f"{avg_mrr:10.3f} | {success_rate:14.1%}"
                 )
-
-        # Clear for next model
-        by_tier.clear()
-        by_intent.clear()
 
 
 if __name__ == "__main__":
