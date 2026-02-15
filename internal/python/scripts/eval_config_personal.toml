@@ -1,0 +1,226 @@
+# Personal Embedding Model Evaluation Configuration
+# Generated for 26-repo database
+# Based on actual repository distribution and topics
+
+[models.candidate]
+dimensions = 384
+model_id = "BAAI/bge-small-en-v1.5"
+name = "bge-small"
+
+[models.current]
+dimensions = 384
+model_id = "intfloat/e5-small-v2"
+name = "e5-small-v2"
+
+# Direct searches for specific popular repos
+[[queries]]
+category = "direct_search"
+expected_repos = ["openclaw/openclaw"]
+id = "q001"
+query = "openclaw"
+relevance_grades = {"openclaw/openclaw" = 3}
+
+# Use case searches
+# Technology-specific searches
+# Composite searches (technology + use case)
+# Generic/broad searches that should match multiple repos
+
+# Edge cases
+
+[[queries]]
+category = "direct_search"
+expected_repos = ["uber-go/guide"]
+id = "q002"
+query = "uber go style guide"
+relevance_grades = {"uber-go/guide" = 3}
+
+[[queries]]
+category = "direct_search"
+expected_repos = ["Blaizzy/mlx-audio"]
+id = "q003"
+query = "mlx audio"
+relevance_grades = {"Blaizzy/mlx-audio" = 3}
+[[queries]]
+category = "use_case"
+expected_repos = ["openclaw/openclaw"]
+id = "q004"
+query = "macos ai assistant"
+relevance_grades = {"openclaw/openclaw" = 3}
+
+[[queries]]
+category = "use_case"
+expected_repos = ["ramonvermeulen/whosthere"]
+id = "q005"
+query = "network discovery tool"
+relevance_grades = {"ramonvermeulen/whosthere" = 3}
+
+[[queries]]
+category = "use_case"
+expected_repos = ["salesforce/policy_sentry"]
+id = "q006"
+query = "aws iam policy generator"
+relevance_grades = {"salesforce/policy_sentry" = 3}
+
+[[queries]]
+category = "use_case"
+expected_repos = ["steipete/gogcli"]
+id = "q007"
+query = "google suite cli"
+relevance_grades = {"steipete/gogcli" = 3}
+
+[[queries]]
+category = "use_case"
+expected_repos = ["steipete/CodexBar"]
+id = "q008"
+query = "menu bar app usage stats"
+relevance_grades = {"steipete/CodexBar" = 3, "steipete/Peekaboo" = 1}
+
+[[queries]]
+category = "use_case"
+expected_repos = ["steipete/Peekaboo"]
+id = "q009"
+query = "macos screenshot capture"
+relevance_grades = {"steipete/Peekaboo" = 3}
+
+[[queries]]
+category = "use_case"
+expected_repos = ["steipete/summarize"]
+id = "q010"
+query = "url summarization tool"
+relevance_grades = {"steipete/summarize" = 3}
+[[queries]]
+category = "technology"
+expected_repos = ["steipete/AXorcist", "steipete/CodexBar", "steipete/Peekaboo", "steipete/Trimmy"]
+id = "q011"
+query = "swift macos"
+relevance_grades = {"steipete/AXorcist" = 2, "steipete/CodexBar" = 3, "steipete/Peekaboo" = 3, "steipete/Trimmy" = 2}
+
+[[queries]]
+category = "technology"
+expected_repos = ["ramonvermeulen/whosthere", "steipete/gogcli", "steipete/remindctl"]
+id = "q012"
+query = "go cli"
+relevance_grades = {"ramonvermeulen/whosthere" = 2, "steipete/gogcli" = 3, "steipete/remindctl" = 2}
+
+[[queries]]
+category = "technology"
+expected_repos = ["lukilabs/craft-agents-oss", "openclaw/openclaw", "steipete/summarize"]
+id = "q013"
+query = "typescript ai"
+relevance_grades = {"lukilabs/craft-agents-oss" = 2, "openclaw/openclaw" = 3, "steipete/summarize" = 2}
+
+[[queries]]
+category = "technology"
+expected_repos = ["Blaizzy/mlx-audio"]
+id = "q014"
+query = "python text to speech"
+relevance_grades = {"Blaizzy/mlx-audio" = 3}
+
+[[queries]]
+category = "technology"
+expected_repos = ["ToBinio/cargo-features-manager"]
+id = "q015"
+query = "rust cli tool"
+relevance_grades = {"ToBinio/cargo-features-manager" = 3}
+[[queries]]
+category = "composite"
+expected_repos = ["Bharath-code/git-scope", "ramonvermeulen/whosthere"]
+id = "q016"
+query = "terminal user interface go"
+relevance_grades = {"Bharath-code/git-scope" = 2, "ramonvermeulen/whosthere" = 3}
+
+[[queries]]
+category = "composite"
+expected_repos = ["steipete/AXorcist"]
+id = "q017"
+query = "swift accessibility automation"
+relevance_grades = {"steipete/AXorcist" = 3}
+
+[[queries]]
+category = "composite"
+expected_repos = ["steipete/macos-automator-mcp"]
+id = "q018"
+query = "macos automation mcp server"
+relevance_grades = {"steipete/macos-automator-mcp" = 3}
+
+[[queries]]
+category = "composite"
+expected_repos = ["steipete/spogo"]
+id = "q019"
+query = "spotify terminal cli"
+relevance_grades = {"steipete/spogo" = 3}
+
+[[queries]]
+category = "composite"
+expected_repos = ["steipete/remindctl"]
+id = "q020"
+query = "apple reminders cli"
+relevance_grades = {"steipete/remindctl" = 3}
+[[queries]]
+category = "generic"
+expected_repos = ["ToBinio/cargo-features-manager", "steipete/gogcli", "steipete/remindctl", "steipete/summarize"]
+id = "q021"
+query = "cli"
+relevance_grades = {"ToBinio/cargo-features-manager" = 1, "steipete/gogcli" = 2, "steipete/remindctl" = 2, "steipete/summarize" = 2}
+
+[[queries]]
+category = "generic"
+expected_repos = ["lukilabs/craft-agents-oss", "openclaw/openclaw", "steipete/CodexBar", "steipete/summarize"]
+id = "q022"
+query = "ai"
+relevance_grades = {"lukilabs/craft-agents-oss" = 2, "openclaw/openclaw" = 3, "steipete/CodexBar" = 2, "steipete/summarize" = 2}
+
+[[queries]]
+category = "generic"
+expected_repos = ["steipete/AXorcist", "steipete/CodexBar", "steipete/Peekaboo", "steipete/macos-automator-mcp"]
+id = "q023"
+query = "macos tool"
+relevance_grades = {"steipete/AXorcist" = 2, "steipete/CodexBar" = 2, "steipete/Peekaboo" = 2, "steipete/macos-automator-mcp" = 2}
+
+[[queries]]
+category = "generic"
+expected_repos = ["ToBinio/cargo-features-manager", "steipete/CodexBar", "uber-go/guide"]
+id = "q024"
+query = "developer tools"
+relevance_grades = {"ToBinio/cargo-features-manager" = 2, "steipete/CodexBar" = 2, "uber-go/guide" = 2}
+
+[[queries]]
+category = "generic"
+expected_repos = ["ramonvermeulen/whosthere"]
+id = "q025"
+query = "network"
+relevance_grades = {"ramonvermeulen/whosthere" = 3}
+[[queries]]
+category = "edge_case"
+expected_repos = ["uber-go/guide"]
+id = "q026"
+query = "style guide"
+relevance_grades = {"uber-go/guide" = 3}
+
+[[queries]]
+category = "edge_case"
+expected_repos = ["Railly/tinte"]
+id = "q027"
+query = "theme"
+relevance_grades = {"Railly/tinte" = 3}
+
+[[queries]]
+category = "edge_case"
+expected_repos = ["gildas-lormeau/Polyglot-HTML-ZIP-PNG"]
+id = "q028"
+query = "polyglot"
+relevance_grades = {"gildas-lormeau/Polyglot-HTML-ZIP-PNG" = 3}
+
+[[queries]]
+category = "edge_case"
+expected_repos = ["browserslist/update-db"]
+id = "q029"
+query = "browserslist"
+relevance_grades = {"browserslist/update-db" = 3}
+
+[[queries]]
+category = "edge_case"
+expected_repos = ["yashsinghcodes/wik"]
+id = "q030"
+query = "wikipedia cli"
+relevance_grades = {"yashsinghcodes/wik" = 3}

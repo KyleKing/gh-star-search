@@ -42,6 +42,11 @@ repos:
     hooks:
       - id: commitizen
 
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.32.0
+    hooks:
+      - id: typos
+
   - repo: https://github.com/executablebooks/mdformat
     rev: 1.0.0
     hooks:
@@ -71,6 +76,15 @@ repos:
           - "prettier-plugin-sh"
         exclude: \.copier-answers\.yml|tests/.*/cassettes/.*\.yaml
         types_or: [html, javascript, json, shell, yaml]
+        stages: ["pre-commit"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.5
+    hooks:
+      - id: ruff
+        args: [--fix]
+        stages: ["pre-commit"]
+      - id: ruff-format
         stages: ["pre-commit"]
 
   - repo: https://github.com/pappasam/toml-sort

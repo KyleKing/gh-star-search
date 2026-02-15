@@ -17,6 +17,7 @@ import duckdb
 @dataclass(frozen=True)
 class ModelCacheInfo:
     """Metadata for a model's embedding cache."""
+
     model_id: str
     db_path: Path
     dimensions: int
@@ -68,7 +69,7 @@ class EmbeddingCache:
             dimensions=model_meta["dimensions"],
             total_repos=model_meta["total_repos"],
             last_sync=datetime.fromisoformat(model_meta["last_sync"]),
-            created=datetime.fromisoformat(model_meta["created"])
+            created=datetime.fromisoformat(model_meta["created"]),
         )
 
     def initialize_cache(self, model_id: str, dimensions: int):
@@ -76,7 +77,8 @@ class EmbeddingCache:
         db_path = self._get_cache_db_path(model_id)
         db = duckdb.connect(str(db_path))
 
-        db.execute(dedent("""\
+        db.execute(
+            dedent("""\
             CREATE TABLE IF NOT EXISTS embeddings (
                 repo_id VARCHAR PRIMARY KEY,
                 embedding JSON NOT NULL,
@@ -84,30 +86,33 @@ class EmbeddingCache:
                 embedded_at TIMESTAMP NOT NULL,
                 model_id VARCHAR NOT NULL,
                 model_dimensions INTEGER NOT NULL
-            )"""))
+            )""")
+        )
 
-        db.execute(dedent("""\
+        db.execute(
+            dedent("""\
             CREATE TABLE IF NOT EXISTS cache_metadata (
                 model_id VARCHAR PRIMARY KEY,
                 dimensions INTEGER NOT NULL,
                 total_embeddings INTEGER NOT NULL,
                 last_sync TIMESTAMP NOT NULL,
                 created_at TIMESTAMP NOT NULL
-            )"""))
+            )""")
+        )
 
         # Initialize metadata if new
         existing = db.execute(
-            "SELECT COUNT(*) FROM cache_metadata WHERE model_id = ?",
-            [model_id]
+            "SELECT COUNT(*) FROM cache_metadata WHERE model_id = ?", [model_id]
         ).fetchone()[0]
 
         if existing == 0:
             now = datetime.now()
-            db.execute(dedent("""\
+            db.execute(
+                dedent("""\
                 INSERT INTO cache_metadata
                 (model_id, dimensions, total_embeddings, last_sync, created_at)
                 VALUES (?, ?, 0, ?, ?)"""),
-                [model_id, dimensions, now, now]
+                [model_id, dimensions, now, now],
             )
 
         db.close()
@@ -120,14 +125,12 @@ class EmbeddingCache:
                 "dimensions": dimensions,
                 "total_repos": 0,
                 "last_sync": datetime.now().isoformat(),
-                "created": datetime.now().isoformat()
+                "created": datetime.now().isoformat(),
             }
             self._save_metadata(metadata)
 
     def get_repos_needing_embeddings(
-        self,
-        main_db: duckdb.DuckDBPyConnection,
-        model_id: str
+        self, main_db: duckdb.DuckDBPyConnection, model_id: str
     ) -> list[dict]:
         """Find repos that need embeddings (new or changed content).
 
@@ -138,11 +141,13 @@ class EmbeddingCache:
 
         if not cache_db_path.exists():
             # No cache exists - need all repos
-            repos = main_db.execute(dedent("""\
+            repos = main_db.execute(
+                dedent("""\
                 SELECT id, full_name, description, purpose,
                        topics_array, content_hash
                 FROM repositories
-                ORDER BY id""")).fetchall()
+                ORDER BY id""")
+            ).fetchall()
 
             return [
                 {
@@ -151,7 +156,7 @@ class EmbeddingCache:
                     "description": r[2],
                     "purpose": r[3],
                     "topics_array": r[4],
-                    "content_hash": r[5]
+                    "content_hash": r[5],
                 }
                 for r in repos
             ]
@@ -159,7 +164,8 @@ class EmbeddingCache:
         # Attach cache DB and find missing/changed repos
         main_db.execute(f"ATTACH '{cache_db_path}' AS cache")
 
-        repos = main_db.execute(dedent("""\
+        repos = main_db.execute(
+            dedent("""\
             SELECT r.id, r.full_name, r.description, r.purpose,
                    r.topics_array, r.content_hash
             FROM repositories r
@@ -167,7 +173,8 @@ class EmbeddingCache:
                 ON r.id = e.repo_id
                 AND r.content_hash = e.content_hash
             WHERE e.repo_id IS NULL
-            ORDER BY r.id""")).fetchall()
+            ORDER BY r.id""")
+        ).fetchall()
 
         main_db.execute("DETACH cache")
 
@@ -178,16 +185,13 @@ class EmbeddingCache:
                 "description": r[2],
                 "purpose": r[3],
                 "topics_array": r[4],
-                "content_hash": r[5]
+                "content_hash": r[5],
             }
             for r in repos
         ]
 
     def store_embeddings(
-        self,
-        model_id: str,
-        dimensions: int,
-        embeddings_data: list[dict]
+        self, model_id: str, dimensions: int, embeddings_data: list[dict]
     ):
         """Store embeddings in cache.
 
@@ -203,11 +207,9 @@ class EmbeddingCache:
 
         for data in embeddings_data:
             # Upsert: delete old, insert new
+            db.execute("DELETE FROM embeddings WHERE repo_id = ?", [data["repo_id"]])
             db.execute(
-                "DELETE FROM embeddings WHERE repo_id = ?",
-                [data["repo_id"]]
-            )
-            db.execute(dedent("""\
+                dedent("""\
                 INSERT INTO embeddings
                 (repo_id, embedding, content_hash, embedded_at,
                  model_id, model_dimensions)
@@ -218,20 +220,19 @@ class EmbeddingCache:
                     data["content_hash"],
                     now,
                     model_id,
-                    dimensions
-                ]
+                    dimensions,
+                ],
             )
 
         # Update metadata
-        total = db.execute(
-            "SELECT COUNT(*) FROM embeddings"
-        ).fetchone()[0]
+        total = db.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0]
 
-        db.execute(dedent("""\
+        db.execute(
+            dedent("""\
             UPDATE cache_metadata
             SET total_embeddings = ?, last_sync = ?
             WHERE model_id = ?"""),
-            [total, now, model_id]
+            [total, now, model_id],
         )
 
         db.close()
@@ -244,10 +245,7 @@ class EmbeddingCache:
             self._save_metadata(metadata)
 
     def create_eval_view(
-        self,
-        main_db: duckdb.DuckDBPyConnection,
-        model_id: str,
-        view_name: str
+        self, main_db: duckdb.DuckDBPyConnection, model_id: str, view_name: str
     ):
         """Create view in main DB pointing to cached embeddings.
 
@@ -261,10 +259,12 @@ class EmbeddingCache:
         # Attach cache and create view
         main_db.execute(f"ATTACH '{cache_db_path}' AS {view_name}_cache")
         main_db.execute(f"DROP VIEW IF EXISTS {view_name}")
-        main_db.execute(dedent(f"""\
+        main_db.execute(
+            dedent(f"""\
             CREATE VIEW {view_name} AS
             SELECT repo_id, embedding
-            FROM {view_name}_cache.embeddings"""))
+            FROM {view_name}_cache.embeddings""")
+        )
 
     def get_cache_stats(self) -> dict:
         """Get statistics for all cached models."""
@@ -275,16 +275,14 @@ class EmbeddingCache:
             db_path = self.cache_dir / model_meta["db_path"]
             if db_path.exists():
                 db = duckdb.connect(str(db_path))
-                count = db.execute(
-                    "SELECT COUNT(*) FROM embeddings"
-                ).fetchone()[0]
+                count = db.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0]
                 db.close()
 
                 stats[model_id] = {
                     "embeddings_count": count,
                     "dimensions": model_meta["dimensions"],
                     "last_sync": model_meta["last_sync"],
-                    "db_size_mb": db_path.stat().st_size / (1024 * 1024)
+                    "db_size_mb": db_path.stat().st_size / (1024 * 1024),
                 }
 
         return stats
@@ -295,7 +293,7 @@ def sync_model_embeddings(
     model_id: str,
     dimensions: int,
     embedding_generator,
-    batch_size: int = 128
+    batch_size: int = 128,
 ):
     """Incrementally sync embeddings for a model.
 
@@ -328,19 +326,24 @@ def sync_model_embeddings(
     embeddings_data = []
 
     for i in range(0, len(repos_to_embed), batch_size):
-        batch = repos_to_embed[i:i + batch_size]
+        batch = repos_to_embed[i : i + batch_size]
         texts = [_build_embedding_input(repo) for repo in batch]
 
         embeddings = embedding_generator(texts)
 
-        for repo, emb in zip(batch, embeddings):
-            embeddings_data.append({
-                "repo_id": repo["id"],
-                "embedding": emb,
-                "content_hash": repo["content_hash"]
-            })
+        for repo, emb in zip(batch, embeddings, strict=False):
+            embeddings_data.append(
+                {
+                    "repo_id": repo["id"],
+                    "embedding": emb,
+                    "content_hash": repo["content_hash"],
+                }
+            )
 
-        print(f"    Embedded batch {i // batch_size + 1}/{(len(repos_to_embed) + batch_size - 1) // batch_size}", end="\r")
+        print(
+            f"    Embedded batch {i // batch_size + 1}/{(len(repos_to_embed) + batch_size - 1) // batch_size}",
+            end="\r",
+        )
 
     print()
 

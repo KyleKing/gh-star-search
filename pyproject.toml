@@ -1,6 +1,46 @@
 # Dialect and template are set per-file
 # templater docs: https://docs.sqlfluff.com/en/stable/configuration/templating/placeholder.html
 
+[tool.ruff]
+target-version = "py313"
+
+[tool.ruff.lint]
+ignore = [
+  "ANN101", # missing-type-self
+  "ANN102", # missing-type-cls
+  "COM812", # missing-trailing-comma (conflicts with formatter)
+  "D203", # one-blank-line-before-class (conflicts with D211)
+  "D213", # multi-line-summary-second-line (conflicts with D212)
+  "ISC001", # single-line-implicit-string-concatenation (conflicts with formatter)
+]
+select = [
+  "ANN", # flake8-annotations
+  "B", # flake8-bugbear
+  "C4", # flake8-comprehensions
+  "C90", # mccabe complexity
+  "COM", # flake8-commas
+  "D", # pydocstyle
+  "E", # pycodestyle errors
+  "F", # pyflakes
+  "I", # isort
+  "ISC", # flake8-implicit-str-concat
+  "N", # pep8-naming
+  "PIE", # flake8-pie
+  "PT", # flake8-pytest-style
+  "RET", # flake8-return
+  "RUF", # ruff-specific rules
+  "SIM", # flake8-simplify
+  "UP", # pyupgrade
+  "W", # pycodestyle warnings
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]
+"**/test_*.py" = ["ANN", "D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
 [tool.sqlfluff.core]
 dialect = "sqlite" # Required even when set per-file (https://github.com/sqlfluff/sqlfluff/issues/3559#issuecomment-2491931050)
 templater = "placeholder"

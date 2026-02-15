@@ -224,7 +224,7 @@ func TestSyncIntegration(t *testing.T) {
 		{
 			Path:     "README.md",
 			Type:     "file",
-			Content:  "IyBCcmFuZCBOZXcgUmVwb3NpdG9yeQoKQSBmYXN0IFJ1c3QgYXBwbGljYXRpb24u", // base64: "# Brand New Repository\n\nA fast Rust application."
+			Content:  "ItBCcmFuZCBOZXcgUmVwb3NpdG9yeQoKQSBmYXN0IFJ1c3QgYXBwbGljYXRpb24u", // base64: "# Brand New Repository\n\nA fast Rust application."
 			Size:     30,
 			Encoding: "base64",
 		},

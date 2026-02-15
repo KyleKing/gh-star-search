@@ -12,7 +12,7 @@
 <!-- How did you test these changes? -->
 
 - [ ] Tests pass (`mise run test`)
-- [ ] Build succeeds (`go build ./...`)
+- [ ] Build succeeds (`mise run build`)
 - [ ] Linter passes (`golangci-lint run`)
 
 ## Checklist

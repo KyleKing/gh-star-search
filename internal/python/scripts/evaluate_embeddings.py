@@ -45,16 +45,16 @@ from statistics import mean
 from textwrap import dedent
 
 import duckdb
+from embedding_cache import EmbeddingCache, sync_model_embeddings
 from rich.console import Console
 from rich.table import Table
 from sentence_transformers import SentenceTransformer
-
-from embedding_cache import EmbeddingCache, sync_model_embeddings
 
 
 @dataclass(frozen=True)
 class ModelConfig:
     """Configuration for an embedding model."""
+
     name: str
     model_id: str
     dimensions: int
@@ -63,6 +63,7 @@ class ModelConfig:
 @dataclass(frozen=True)
 class Query:
     """Test query with expected results."""
+
     id: str
     query: str
     category: str
@@ -73,6 +74,7 @@ class Query:
 @dataclass
 class QueryMetrics:
     """Metrics for a single query evaluation."""
+
     mrr: float
     precision_at_5: float
     precision_at_10: float
@@ -84,6 +86,7 @@ class QueryMetrics:
 @dataclass
 class QueryResult:
     """Results for a single query evaluation."""
+
     query_id: str
     query: str
     category: str
@@ -94,6 +97,7 @@ class QueryResult:
 @dataclass
 class ModelEvaluation:
     """Complete evaluation results for one model."""
+
     model_name: str
     model_id: str
     dimensions: int
@@ -104,6 +108,7 @@ class ModelEvaluation:
 @dataclass
 class ModelComparison:
     """Statistical comparison between two models."""
+
     model_a: str
     model_b: str
     metric_deltas: dict[str, float]
@@ -114,16 +119,13 @@ class ModelComparison:
 def _chunks(items: list, size: int) -> Iterator[list]:
     """Split list into chunks of specified size."""
     for i in range(0, len(items), size):
-        yield items[i:i + size]
+        yield items[i : i + size]
 
 
 def _find_uv() -> str:
     """Find uv executable path."""
     result = subprocess.run(
-        ["which", "uv"],
-        capture_output=True,
-        text=True,
-        check=False
+        ["which", "uv"], capture_output=True, text=True, check=False
     )
     if result.returncode != 0:
         raise RuntimeError("uv not found in PATH")
@@ -160,19 +162,20 @@ def _build_embedding_input(repo: dict) -> str:
 
 
 def _call_embed_script(
-    texts: list[str],
-    model_id: str,
-    uv_path: str,
-    project_dir: Path
+    texts: list[str], model_id: str, uv_path: str, project_dir: Path
 ) -> list[list[float]]:
     """Call embed.py subprocess to generate embeddings."""
     cmd = [
-        uv_path, "run",
-        "--project", str(project_dir),
+        uv_path,
+        "run",
+        "--project",
+        str(project_dir),
         "--quiet",
-        "python", str(project_dir / "embed.py"),
-        "--model", model_id,
-        "--stdin"
+        "python",
+        str(project_dir / "embed.py"),
+        "--model",
+        model_id,
+        "--stdin",
     ]
 
     proc = subprocess.run(
@@ -181,7 +184,7 @@ def _call_embed_script(
         capture_output=True,
         timeout=120,
         cwd=project_dir,
-        check=False
+        check=False,
     )
 
     if proc.returncode != 0:
@@ -201,7 +204,9 @@ def _apply_ranking_boosts(results: list[dict]) -> list[dict]:
 
         star_boost = 1.0 + (0.1 * math.log10(result["stargazers_count"] + 1) / 6.0)
 
-        updated_at = datetime.fromisoformat(result["updated_at"].replace("Z", "+00:00"))
+        updated_at = result["updated_at"]
+        if isinstance(updated_at, str):
+            updated_at = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
         days_since_update = (datetime.now(updated_at.tzinfo) - updated_at).days
         recency_factor = 1.0 - 0.2 * min(1.0, days_since_update / 365.0)
 
@@ -220,22 +225,16 @@ def _compute_mrr(results: list[dict], relevant_repos: list[str]) -> float:
 
 
 def _compute_precision_at_k(
-    results: list[dict],
-    relevant_repos: list[str],
-    k: int
+    results: list[dict], relevant_repos: list[str], k: int
 ) -> float:
     """Compute Precision@k."""
     top_k = results[:k]
-    relevant_count = sum(
-        1 for r in top_k if r["full_name"] in relevant_repos
-    )
+    relevant_count = sum(1 for r in top_k if r["full_name"] in relevant_repos)
     return relevant_count / k if k > 0 else 0.0
 
 
 def _compute_recall_at_k(
-    results: list[dict],
-    relevant_repos: list[str],
-    k: int
+    results: list[dict], relevant_repos: list[str], k: int
 ) -> float:
     """Compute Recall@k."""
     if not relevant_repos:
@@ -246,9 +245,7 @@ def _compute_recall_at_k(
 
 
 def _compute_ndcg_at_k(
-    results: list[dict],
-    relevance_grades: dict[str, int],
-    k: int
+    results: list[dict], relevance_grades: dict[str, int], k: int
 ) -> float:
     """Compute Normalized Discounted Cumulative Gain@k."""
     dcg = sum(
@@ -257,10 +254,11 @@ def _compute_ndcg_at_k(
     )
 
     ideal_rels = sorted(relevance_grades.values(), reverse=True)[:k]
-    idcg = sum(
-        rel / math.log2(i + 2)
-        for i, rel in enumerate(ideal_rels)
-    ) if ideal_rels else 1.0
+    idcg = (
+        sum(rel / math.log2(i + 2) for i, rel in enumerate(ideal_rels))
+        if ideal_rels
+        else 1.0
+    )
 
     return dcg / idcg if idcg > 0 else 0.0
 
@@ -288,12 +286,14 @@ class EmbeddingEvaluator:
         table_name = f"eval_embeddings_{model_name.replace('-', '_')}"
 
         self.db.execute(f"DROP TABLE IF EXISTS {table_name}")
-        self.db.execute(dedent(f"""\
+        self.db.execute(
+            dedent(f"""\
             CREATE TABLE {table_name} (
                 repo_id VARCHAR,
                 embedding JSON,
                 FOREIGN KEY (repo_id) REFERENCES repositories(id)
-            )"""))
+            )""")
+        )
 
         return table_name
 
@@ -305,9 +305,7 @@ class EmbeddingEvaluator:
         return self._loaded_models[model_id]
 
     def _generate_embeddings_in_process(
-        self,
-        texts: list[str],
-        model_id: str
+        self, texts: list[str], model_id: str
     ) -> list[list[float]]:
         """Generate embeddings in-process (no subprocess overhead)."""
         model = self._get_or_load_model(model_id)
@@ -316,7 +314,7 @@ class EmbeddingEvaluator:
 
     def _sync_embeddings_with_cache(self, model_config: ModelConfig) -> str:
         """Sync embeddings using persistent cache (incremental)."""
-        print(f"  Syncing embeddings with cache...")
+        print("  Syncing embeddings with cache...")
 
         # Define embedding generator
         def embedding_generator(texts: list[str]) -> list[list[float]]:
@@ -328,13 +326,13 @@ class EmbeddingEvaluator:
             model_config.model_id,
             model_config.dimensions,
             embedding_generator,
-            batch_size=128  # Larger batches since in-process
+            batch_size=128,  # Larger batches since in-process
         )
 
         if embedded_count > 0:
             print(f"  Embedded {embedded_count} new/changed repos")
         else:
-            print(f"  All repos already cached")
+            print("  All repos already cached")
 
         # Create view pointing to cache
         table_name = f"eval_embeddings_{model_config.name.replace('-', '_')}"
@@ -344,7 +342,7 @@ class EmbeddingEvaluator:
 
     def _generate_embeddings_for_model(self, model_config: ModelConfig) -> str:
         """Generate embeddings for all repos using specified model."""
-        print(f"  Fetching repositories...")
+        print("  Fetching repositories...")
         repos = self.db.execute("""
             SELECT id, full_name, description, purpose, topics_array
             FROM repositories
@@ -353,10 +351,7 @@ class EmbeddingEvaluator:
 
         print(f"  Found {len(repos)} repositories")
 
-        table_name = self._setup_eval_table(
-            model_config.name,
-            model_config.dimensions
-        )
+        table_name = self._setup_eval_table(model_config.name, model_config.dimensions)
 
         batch_size = 32
         total_batches = (len(repos) + batch_size - 1) // batch_size
@@ -366,27 +361,32 @@ class EmbeddingEvaluator:
         for batch_idx, batch in enumerate(_chunks(repos, batch_size), start=1):
             print(f"    Batch {batch_idx}/{total_batches}", end="\r")
 
-            texts = [_build_embedding_input({
-                "full_name": r[1],
-                "description": r[2],
-                "purpose": r[3],
-                "topics_array": r[4]
-            }) for r in batch]
+            texts = [
+                _build_embedding_input(
+                    {
+                        "full_name": r[1],
+                        "description": r[2],
+                        "purpose": r[3],
+                        "topics_array": r[4],
+                    }
+                )
+                for r in batch
+            ]
 
             embeddings = _call_embed_script(
-                texts,
-                model_config.model_id,
-                self.uv_path,
-                self.project_dir
+                texts, model_config.model_id, self.uv_path, self.project_dir
             )
 
-            for repo, emb in zip(batch, embeddings):
-                self.db.execute(f"""
+            for repo, emb in zip(batch, embeddings, strict=False):
+                self.db.execute(
+                    f"""
                     INSERT INTO {table_name} (repo_id, embedding)
                     VALUES (?, ?::JSON)
-                """, [repo[0], json.dumps(emb)])
+                """,
+                    [repo[0], json.dumps(emb)],
+                )
 
-        print(f"\n  Embeddings generated successfully")
+        print("\n  Embeddings generated successfully")
         return table_name
 
     def _run_query(
@@ -394,24 +394,21 @@ class EmbeddingEvaluator:
         query_text: str,
         model_config: ModelConfig,
         table_name: str,
-        limit: int = 50
+        limit: int = 50,
     ) -> list[dict]:
         """Execute vector search query using model embeddings."""
         # Use in-process embedding if cache enabled, otherwise subprocess
         if self.use_cache:
             query_emb = self._generate_embeddings_in_process(
-                [query_text],
-                model_config.model_id
+                [query_text], model_config.model_id
             )[0]
         else:
             query_emb = _call_embed_script(
-                [query_text],
-                model_config.model_id,
-                self.uv_path,
-                self.project_dir
+                [query_text], model_config.model_id, self.uv_path, self.project_dir
             )[0]
 
-        results = self.db.execute(dedent(f"""\
+        results = self.db.execute(
+            dedent(f"""\
             SELECT
                 r.id,
                 r.full_name,
@@ -426,7 +423,9 @@ class EmbeddingEvaluator:
             JOIN {table_name} e ON r.id = e.repo_id
             WHERE e.embedding IS NOT NULL
             ORDER BY base_score DESC
-            LIMIT ?"""), [query_emb, limit]).fetchall()
+            LIMIT ?"""),
+            [query_emb, limit],
+        ).fetchall()
 
         result_dicts = [
             {
@@ -435,7 +434,7 @@ class EmbeddingEvaluator:
                 "description": r[2],
                 "stargazers_count": r[3],
                 "updated_at": r[4],
-                "base_score": r[5]
+                "base_score": r[5],
             }
             for r in results
         ]
@@ -443,18 +442,10 @@ class EmbeddingEvaluator:
         return _apply_ranking_boosts(result_dicts)
 
     def _evaluate_query(
-        self,
-        query: Query,
-        model_config: ModelConfig,
-        table_name: str
+        self, query: Query, model_config: ModelConfig, table_name: str
     ) -> QueryResult:
         """Evaluate a single query."""
-        results = self._run_query(
-            query.query,
-            model_config,
-            table_name,
-            limit=50
-        )
+        results = self._run_query(query.query, model_config, table_name, limit=50)
 
         metrics = QueryMetrics(
             mrr=_compute_mrr(results, query.expected_repos),
@@ -462,7 +453,7 @@ class EmbeddingEvaluator:
             precision_at_10=_compute_precision_at_k(results, query.expected_repos, 10),
             recall_at_10=_compute_recall_at_k(results, query.expected_repos, 10),
             recall_at_20=_compute_recall_at_k(results, query.expected_repos, 20),
-            ndcg_at_10=_compute_ndcg_at_k(results, query.relevance_grades, 10)
+            ndcg_at_10=_compute_ndcg_at_k(results, query.relevance_grades, 10),
         )
 
         return QueryResult(
@@ -470,16 +461,16 @@ class EmbeddingEvaluator:
             query=query.query,
             category=query.category,
             metrics=metrics,
-            top_5_results=[r["full_name"] for r in results[:5]]
+            top_5_results=[r["full_name"] for r in results[:5]],
         )
 
     def evaluate_model(self, model_config: ModelConfig) -> ModelEvaluation:
         """Run full evaluation for one model."""
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Evaluating model: {model_config.name}")
         print(f"  Model ID: {model_config.model_id}")
         print(f"  Dimensions: {model_config.dimensions}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         # Use caching if enabled, otherwise generate fresh
         if self.use_cache:
@@ -493,7 +484,7 @@ class EmbeddingEvaluator:
                 query=q["query"],
                 category=q["category"],
                 expected_repos=q["expected_repos"],
-                relevance_grades=q.get("relevance_grades", {})
+                relevance_grades=q.get("relevance_grades", {}),
             )
             for q in self.config["queries"]
         ]
@@ -502,11 +493,11 @@ class EmbeddingEvaluator:
 
         query_results = []
         for idx, query in enumerate(queries, start=1):
-            print(f"    Query {idx}/{len(queries)}: \"{query.query}\"", end="\r")
+            print(f'    Query {idx}/{len(queries)}: "{query.query}"', end="\r")
             result = self._evaluate_query(query, model_config, table_name)
             query_results.append(result)
 
-        print(f"\n  Query evaluation complete")
+        print("\n  Query evaluation complete")
 
         aggregate = QueryMetrics(
             mrr=mean([q.metrics.mrr for q in query_results]),
@@ -514,7 +505,7 @@ class EmbeddingEvaluator:
             precision_at_10=mean([q.metrics.precision_at_10 for q in query_results]),
             recall_at_10=mean([q.metrics.recall_at_10 for q in query_results]),
             recall_at_20=mean([q.metrics.recall_at_20 for q in query_results]),
-            ndcg_at_10=mean([q.metrics.ndcg_at_10 for q in query_results])
+            ndcg_at_10=mean([q.metrics.ndcg_at_10 for q in query_results]),
         )
 
         # Cleanup: drop view/table (but keep cache DB)
@@ -533,13 +524,11 @@ class EmbeddingEvaluator:
             model_id=model_config.model_id,
             dimensions=model_config.dimensions,
             aggregate_metrics=aggregate,
-            per_query_results=query_results
+            per_query_results=query_results,
         )
 
     def compare_models(
-        self,
-        model_a_results: ModelEvaluation,
-        model_b_results: ModelEvaluation
+        self, model_a_results: ModelEvaluation, model_b_results: ModelEvaluation
     ) -> ModelComparison:
         """Statistical comparison between two models."""
         try:
@@ -554,18 +543,28 @@ class EmbeddingEvaluator:
             p_value = 1.0
 
         deltas = {
-            "mrr": model_b_results.aggregate_metrics.mrr - model_a_results.aggregate_metrics.mrr,
-            "precision_at_5": model_b_results.aggregate_metrics.precision_at_5 - model_a_results.aggregate_metrics.precision_at_5,
-            "precision_at_10": model_b_results.aggregate_metrics.precision_at_10 - model_a_results.aggregate_metrics.precision_at_10,
-            "recall_at_10": model_b_results.aggregate_metrics.recall_at_10 - model_a_results.aggregate_metrics.recall_at_10,
-            "recall_at_20": model_b_results.aggregate_metrics.recall_at_20 - model_a_results.aggregate_metrics.recall_at_20,
-            "ndcg_at_10": model_b_results.aggregate_metrics.ndcg_at_10 - model_a_results.aggregate_metrics.ndcg_at_10
+            "mrr": model_b_results.aggregate_metrics.mrr
+            - model_a_results.aggregate_metrics.mrr,
+            "precision_at_5": model_b_results.aggregate_metrics.precision_at_5
+            - model_a_results.aggregate_metrics.precision_at_5,
+            "precision_at_10": model_b_results.aggregate_metrics.precision_at_10
+            - model_a_results.aggregate_metrics.precision_at_10,
+            "recall_at_10": model_b_results.aggregate_metrics.recall_at_10
+            - model_a_results.aggregate_metrics.recall_at_10,
+            "recall_at_20": model_b_results.aggregate_metrics.recall_at_20
+            - model_a_results.aggregate_metrics.recall_at_20,
+            "ndcg_at_10": model_b_results.aggregate_metrics.ndcg_at_10
+            - model_a_results.aggregate_metrics.ndcg_at_10,
         }
 
         if p_value < 0.05 and deltas["mrr"] > 0.05:
-            recommendation = f"{model_b_results.model_name} significantly better (p={p_value:.4f})"
+            recommendation = (
+                f"{model_b_results.model_name} significantly better (p={p_value:.4f})"
+            )
         elif p_value < 0.05 and deltas["mrr"] < -0.05:
-            recommendation = f"{model_a_results.model_name} significantly better (p={p_value:.4f})"
+            recommendation = (
+                f"{model_a_results.model_name} significantly better (p={p_value:.4f})"
+            )
         else:
             recommendation = "No significant difference detected"
 
@@ -577,9 +576,9 @@ class EmbeddingEvaluator:
                 "method": "paired_t_test",
                 "metric": "mrr",
                 "t_statistic": float(t_stat),
-                "p_value": float(p_value)
+                "p_value": float(p_value),
             },
-            recommendation=recommendation
+            recommendation=recommendation,
         )
 
     def write_json_output(self, results: dict, timestamp: str):
@@ -596,12 +595,14 @@ class EmbeddingEvaluator:
         self,
         model_a: ModelEvaluation,
         model_b: ModelEvaluation,
-        comparison: ModelComparison
+        comparison: ModelComparison,
     ):
         """Display results as rich formatted table in terminal."""
         console = Console()
 
-        table = Table(title="\nModel Comparison Results", show_header=True, header_style="bold")
+        table = Table(
+            title="\nModel Comparison Results", show_header=True, header_style="bold"
+        )
         table.add_column("Metric", style="cyan")
         table.add_column(model_a.model_name, style="magenta")
         table.add_column(model_b.model_name, style="green")
@@ -613,7 +614,7 @@ class EmbeddingEvaluator:
             ("Precision@10", "precision_at_10"),
             ("Recall@10", "recall_at_10"),
             ("Recall@20", "recall_at_20"),
-            ("NDCG@10", "ndcg_at_10")
+            ("NDCG@10", "ndcg_at_10"),
         ]
 
         for label, key in metrics:
@@ -621,23 +622,20 @@ class EmbeddingEvaluator:
             val_b = getattr(model_b.aggregate_metrics, key)
             delta = val_b - val_a
 
-            table.add_row(
-                label,
-                f"{val_a:.3f}",
-                f"{val_b:.3f}",
-                f"{delta:+.3f}"
-            )
+            table.add_row(label, f"{val_a:.3f}", f"{val_b:.3f}", f"{delta:+.3f}")
 
         console.print(table)
         console.print(f"\n[bold]Recommendation:[/bold] {comparison.recommendation}")
-        console.print(f"[dim]Statistical test: {comparison.statistical_test['method']} (p={comparison.statistical_test['p_value']:.4f})[/dim]\n")
+        console.print(
+            f"[dim]Statistical test: {comparison.statistical_test['method']} (p={comparison.statistical_test['p_value']:.4f})[/dim]\n"
+        )
 
     def write_markdown_report(
         self,
         model_a: ModelEvaluation,
         model_b: ModelEvaluation,
         comparison: ModelComparison,
-        timestamp: str
+        timestamp: str,
     ):
         """Generate markdown summary report."""
         output_dir = Path("eval_results")
@@ -646,7 +644,9 @@ class EmbeddingEvaluator:
         md = []
         md.append("# Embedding Model Evaluation Report")
         md.append(f"\n**Date**: {timestamp}")
-        md.append(f"\n**Models Compared**: {model_a.model_name} vs {model_b.model_name}")
+        md.append(
+            f"\n**Models Compared**: {model_a.model_name} vs {model_b.model_name}"
+        )
 
         md.append("\n## Summary\n")
         md.append(f"| Metric | {model_a.model_name} | {model_b.model_name} | Delta |")
@@ -658,7 +658,7 @@ class EmbeddingEvaluator:
             ("Precision@10", "precision_at_10"),
             ("Recall@10", "recall_at_10"),
             ("Recall@20", "recall_at_20"),
-            ("NDCG@10", "ndcg_at_10")
+            ("NDCG@10", "ndcg_at_10"),
         ]
 
         for label, key in metrics:
@@ -678,11 +678,11 @@ class EmbeddingEvaluator:
 
         md.append("\n## Sample Query Results\n")
         for query_result in model_a.per_query_results[:5]:
-            md.append(f"\n### Query: \"{query_result.query}\"")
+            md.append(f'\n### Query: "{query_result.query}"')
             md.append(f"- Category: {query_result.category}")
             md.append(f"- MRR: {query_result.metrics.mrr:.3f}")
             md.append(f"- Precision@5: {query_result.metrics.precision_at_5:.3f}")
-            md.append(f"- Top 5 Results:")
+            md.append("- Top 5 Results:")
             for result in query_result.top_5_results:
                 md.append(f"  - {result}")
 
@@ -695,24 +695,20 @@ class EmbeddingEvaluator:
 def main():
     parser = argparse.ArgumentParser(description="Evaluate embedding models")
     parser.add_argument(
-        "--config",
-        default="eval_config.toml",
-        help="Path to configuration file"
+        "--config", default="eval_config.toml", help="Path to configuration file"
     )
     parser.add_argument(
         "--db",
         default=str(Path.home() / ".local/share/gh-star-search/stars.db"),
-        help="Path to database file"
+        help="Path to database file",
     )
     parser.add_argument(
         "--no-cache",
         action="store_true",
-        help="Disable persistent embedding cache (slower, always regenerates)"
+        help="Disable persistent embedding cache (slower, always regenerates)",
     )
     parser.add_argument(
-        "--cache-stats",
-        action="store_true",
-        help="Show cache statistics and exit"
+        "--cache-stats", action="store_true", help="Show cache statistics and exit"
     )
     args = parser.parse_args()
 
@@ -748,13 +744,13 @@ def main():
     model_current = ModelConfig(
         name=evaluator.config["models"]["current"]["name"],
         model_id=evaluator.config["models"]["current"]["model_id"],
-        dimensions=evaluator.config["models"]["current"]["dimensions"]
+        dimensions=evaluator.config["models"]["current"]["dimensions"],
     )
 
     model_candidate = ModelConfig(
         name=evaluator.config["models"]["candidate"]["name"],
         model_id=evaluator.config["models"]["candidate"]["model_id"],
-        dimensions=evaluator.config["models"]["candidate"]["dimensions"]
+        dimensions=evaluator.config["models"]["candidate"]["dimensions"],
     )
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -777,7 +773,7 @@ def main():
                     "precision_at_10": result_current.aggregate_metrics.precision_at_10,
                     "recall_at_10": result_current.aggregate_metrics.recall_at_10,
                     "recall_at_20": result_current.aggregate_metrics.recall_at_20,
-                    "ndcg_at_10": result_current.aggregate_metrics.ndcg_at_10
+                    "ndcg_at_10": result_current.aggregate_metrics.ndcg_at_10,
                 },
                 "per_query_results": [
                     {
@@ -790,12 +786,12 @@ def main():
                             "precision_at_10": q.metrics.precision_at_10,
                             "recall_at_10": q.metrics.recall_at_10,
                             "recall_at_20": q.metrics.recall_at_20,
-                            "ndcg_at_10": q.metrics.ndcg_at_10
+                            "ndcg_at_10": q.metrics.ndcg_at_10,
                         },
-                        "top_5_results": q.top_5_results
+                        "top_5_results": q.top_5_results,
                     }
                     for q in result_current.per_query_results
-                ]
+                ],
             },
             {
                 "model_name": result_candidate.model_name,
@@ -807,7 +803,7 @@ def main():
                     "precision_at_10": result_candidate.aggregate_metrics.precision_at_10,
                     "recall_at_10": result_candidate.aggregate_metrics.recall_at_10,
                     "recall_at_20": result_candidate.aggregate_metrics.recall_at_20,
-                    "ndcg_at_10": result_candidate.aggregate_metrics.ndcg_at_10
+                    "ndcg_at_10": result_candidate.aggregate_metrics.ndcg_at_10,
                 },
                 "per_query_results": [
                     {
@@ -820,30 +816,32 @@ def main():
                             "precision_at_10": q.metrics.precision_at_10,
                             "recall_at_10": q.metrics.recall_at_10,
                             "recall_at_20": q.metrics.recall_at_20,
-                            "ndcg_at_10": q.metrics.ndcg_at_10
+                            "ndcg_at_10": q.metrics.ndcg_at_10,
                         },
-                        "top_5_results": q.top_5_results
+                        "top_5_results": q.top_5_results,
                     }
                     for q in result_candidate.per_query_results
-                ]
-            }
+                ],
+            },
         ],
         "comparison": {
             "model_a": comparison.model_a,
             "model_b": comparison.model_b,
             "metric_deltas": comparison.metric_deltas,
             "statistical_test": comparison.statistical_test,
-            "recommendation": comparison.recommendation
-        }
+            "recommendation": comparison.recommendation,
+        },
     }
 
     evaluator.write_json_output(complete_results, timestamp)
     evaluator.display_results_terminal(result_current, result_candidate, comparison)
-    evaluator.write_markdown_report(result_current, result_candidate, comparison, timestamp)
+    evaluator.write_markdown_report(
+        result_current, result_candidate, comparison, timestamp
+    )
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Evaluation complete!")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
 
 if __name__ == "__main__":
