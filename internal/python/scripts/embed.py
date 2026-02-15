@@ -7,9 +7,9 @@ that work within 2-3GB of RAM.
 Default model: e5-small-v2 (118M params, 384-dim embeddings).
 """
 
-import sys
-import json
 import argparse
+import json
+import sys
 
 from sentence_transformers import SentenceTransformer
 

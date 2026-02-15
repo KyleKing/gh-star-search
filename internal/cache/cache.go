@@ -476,4 +476,3 @@ func (c *FileCache) calculateSize() (int64, error) {
 
 	return totalSize, err
 }
-

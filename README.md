@@ -9,6 +9,7 @@ A GitHub CLI extension to search, explore, and discover relationships across you
 `gh-star-search` ingests your starred repositories into a local DuckDB database, capturing structured metadata (stars, forks, issues, pull requests, commit activity, contributors, topics, languages, license) and minimal unstructured content (repository description + primary README). A lightweight summarization step (transformers / heuristic fallback) produces summary fields used for search and (optionally) embeddings.
 
 Features:
+
 - Fuzzy full-text and vector (semantic) search with relevance scoring (default 10, max 50 results)
 - Related repository discovery (same org, shared contributors, topic overlap, vector similarity)
 - Long-form and short-form output formats
@@ -27,46 +28,58 @@ gh extension install KyleKing/gh-star-search
 ## Usage
 
 ### Sync starred repositories
+
 Fetch & (re)process starred repositories (incremental; respects staleness thresholds).
+
 ```bash
 gh star-search sync
 ```
 
 ### Query (fuzzy or vector search)
+
 ```bash
 gh star-search query "formatter javascript" --mode fuzzy --limit 10 --short
 # Vector (semantic) mode
 gh star-search query "terminal ui library" --mode vector --limit 5 --long
 ```
+
 Flags:
+
 - `--mode (fuzzy|vector)` default: fuzzy
 - `--limit <n>` default: 10 (max 50)
 - `--long` / `--short` force output format (query defaults to short)
 - `--related` include related repositories section for each (optional)
 
 ### Related repositories (alternative explicit form)
+
 (If implemented as a dedicated subcommand; otherwise use `query --related`.)
+
 ```bash
 gh star-search related owner/repo
 ```
+
 Returns up to 5 related repos with explanation (weights: Org 0.30, Topics 0.25, Shared Contributors 0.25, Vector 0.20; renormalized if components missing).
 
 ### List all repositories (short-form always)
+
 ```bash
 gh star-search list
 ```
 
 ### Detailed repository info (long-form)
+
 ```bash
 gh star-search info owner/repo
 ```
 
 ### Database statistics
+
 ```bash
 gh star-search stats
 ```
 
 ### Clear the database
+
 ```bash
 gh star-search clear
 ```
@@ -74,6 +87,7 @@ gh star-search clear
 ## Output Formats
 
 ### Long-form (per repository)
+
 ```
 <org>/<name>  (link: https://github.com/<org>/<name>)
 GitHub Description: <description or ->
@@ -91,13 +105,16 @@ Summary: <purpose/combined summary> (optional)
 ```
 
 ### Short-form
+
 First two lines of long-form with condensed metadata and score, e.g.:
+
 ```
 1. owner/repo  ⭐ 1234  Go  Updated 5d  Score:0.87
 GitHub Description: High performance toolkit for ...
 ```
 
 ## Caching & Refresh Behavior
+
 - Metadata refresh only if `last_synced` older than configurable threshold (default 14 days)
 - Issues / PR counts, commit stats, languages, contributors may use shorter TTLs (e.g. 7–14 days)
 - Summary regenerated ONLY if missing, version mismatch, or explicitly forced (`--force-summary` / config)
@@ -105,21 +122,25 @@ GitHub Description: High performance toolkit for ...
 - Minimal content download; temporary files removed after processing
 
 ## Minimal Content & Summarization
+
 - Sources: Description, main README, optionally `docs/README.md`, optionally one homepage link text
 - Summary input restricted to Description + main README (even if other sources fetched)
 - Non-LLM summarization via transformers model (e.g. DistilBART) or heuristic method, managed by uv
 - Summary fields: Purpose, Technologies, Use Cases, Features, Installation, Usage (+ generated timestamp, version, generator)
 
 ## Search Modes
+
 - Fuzzy: DuckDB native FTS with BM25 scoring across name, description, purpose, topics, top contributor logins. FTS index is rebuilt after each sync (Porter stemmer, English stopwords).
 - Vector: Cosine similarity over pre-computed repository embeddings, computed in DuckDB SQL via `array_cosine_similarity`. Requires `sync --embed` first; returns an error if embeddings are unavailable (no silent fallback).
 - Ranking boosts (internal, not filters): logarithmic stars, mild recency decay; final score capped at 1.0
 - No structured filtering yet (stars/language/topic queries deferred)
 
 ## Related Repository Computation
+
 Combines (weighted & renormalized): same org, topic overlap (Jaccard), shared top contributors (intersection of top 10), vector similarity (if embeddings enabled). Explanations list the contributing factors (e.g. `Shared org 'hashicorp' and 3 overlapping topics (terraform, cloud, plugin)`).
 
 ## Project Structure
+
 ```
 gh-star-search/
 ├── cmd/                    # CLI commands (sync, query, list, info, stats, clear, related)
@@ -147,19 +168,23 @@ gh-star-search/
 ## Development
 
 ### Building
+
 ```bash
 mise run build
 ```
 
 ### Testing
+
 ```bash
 mise run test
 ```
 
 ### Configuration
+
 Configuration (JSON) includes: search defaults, embedding provider & dimensions, refresh thresholds, GitHub behavior. See `CONTRIBUTING.md` for details.
 
 ## Roadmap / Future Work
+
 - Reintroduce optional LLM summarization (complement transformers)
 - Structured filtering (stars, language, topic) & advanced grammar
 - Chunk-level embeddings & hybrid BM25 + dense reranking

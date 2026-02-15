@@ -5,37 +5,40 @@ Simple sequential SQL migrations for schema evolution.
 ## How It Works
 
 1. Migrations are numbered SQL files: `001_description.sql`, `002_description.sql`, etc.
-2. On startup, the system checks current schema version
-3. Executes any migrations with version > current version
-4. Each migration runs in a transaction and is recorded in `schema_version` table
+1. On startup, the system checks current schema version
+1. Executes any migrations with version > current version
+1. Each migration runs in a transaction and is recorded in `schema_version` table
 
 ## Adding a New Migration
 
 1. **Create a new SQL file** with the next sequential number:
-   ```bash
-   # If latest is 001_initial_schema.sql, create:
-   touch internal/storage/migrations/002_add_archived_field.sql
-   ```
 
-2. **Write your SQL** (DDL only, no DOWN migrations):
-   ```sql
-   -- Add archived column to repositories
-   ALTER TABLE repositories ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false;
+    ```bash
+    # If latest is 001_initial_schema.sql, create:
+    touch internal/storage/migrations/002_add_archived_field.sql
+    ```
 
-   -- Add index for archived repositories
-   CREATE INDEX IF NOT EXISTS idx_repositories_archived ON repositories(archived);
-   ```
+1. **Write your SQL** (DDL only, no DOWN migrations):
 
-3. **Test locally**:
-   ```bash
-   # Migrations run automatically on app start
-   go run cmd/gh-star-search/main.go stats
+    ```sql
+    -- Add archived column to repositories
+    ALTER TABLE repositories ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false;
 
-   # Or run tests
-   go test ./internal/storage -v
-   ```
+    -- Add index for archived repositories
+    CREATE INDEX IF NOT EXISTS idx_repositories_archived ON repositories(archived);
+    ```
 
-4. **Commit** - migrations are embedded in the binary via `//go:embed`
+1. **Test locally**:
+
+    ```bash
+    # Migrations run automatically on app start
+    go run cmd/gh-star-search/main.go stats
+
+    # Or run tests
+    go test ./internal/storage -v
+    ```
+
+1. **Commit** - migrations are embedded in the binary via `//go:embed`
 
 ## File Naming Convention
 
@@ -43,9 +46,9 @@ Simple sequential SQL migrations for schema evolution.
 - `NNN` = three-digit version number (001, 002, 003, ...)
 - `description` = snake_case description
 - Examples:
-  - `001_initial_schema.sql`
-  - `002_add_embeddings.sql`
-  - `003_add_user_tags.sql`
+    - `001_initial_schema.sql`
+    - `002_add_embeddings.sql`
+    - `003_add_user_tags.sql`
 
 ## Best Practices
 
@@ -93,18 +96,21 @@ ORDER BY version;
 ## Troubleshooting
 
 **Migration fails to apply:**
+
 - Check SQL syntax with DuckDB CLI
 - Ensure migration is idempotent
 - Check logs for error details
 
 **Version mismatch:**
+
 - If schema is corrupted, clear and re-sync:
-  ```bash
-  gh star-search clear
-  gh star-search sync
-  ```
+    ```bash
+    gh star-search clear
+    gh star-search sync
+    ```
 
 **Adding migration between versions:**
+
 - Don't renumber! Skip the number if needed
 - Example: If you have 001 and 003, that's fine
 - System sorts by number, not gaps

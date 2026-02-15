@@ -12,21 +12,20 @@ mise run ci
 
 ## Tasks
 
-Shared tasks live in `.config/mise.template.toml` (managed by the copier template).
-Project-specific tasks go in `.config/mise.project.toml` or other `mise.*.toml` files.
+Shared tasks live in `.config/mise.template.toml` (managed by the copier template). Project-specific tasks go in `.config/mise.project.toml` or other `mise.*.toml` files.
 
-| Command | Description |
-|---------|-------------|
-| `mise run bench` | Run benchmarks |
-| `mise run build` | Build binary |
-| `mise run ci` | Full CI check (tests + build) |
-| `mise run clean` | Clean build artifacts |
-| `mise run demo` | Generate VHS demo recordings |
-| `mise run format` | Auto-fix lint and formatting |
-| `mise run hooks` | Run git hooks |
-| `mise run lint` | Run linter |
-| `mise run test` | Run tests with coverage |
-| `mise tasks` | List all available tasks |
+| Command           | Description                   |
+| ----------------- | ----------------------------- |
+| `mise run bench`  | Run benchmarks                |
+| `mise run build`  | Build binary                  |
+| `mise run ci`     | Full CI check (tests + build) |
+| `mise run clean`  | Clean build artifacts         |
+| `mise run demo`   | Generate VHS demo recordings  |
+| `mise run format` | Auto-fix lint and formatting  |
+| `mise run hooks`  | Run git hooks                 |
+| `mise run lint`   | Run linter                    |
+| `mise run test`   | Run tests with coverage       |
+| `mise tasks`      | List all available tasks      |
 
 ## Code Guidelines
 
@@ -46,7 +45,6 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 Git hooks run automatically via hk on commit and push.
 
-
 ## Releases
 
 Automated via goreleaser on tag push:
@@ -63,16 +61,18 @@ GitHub Actions builds binaries for Linux, macOS, Windows, and FreeBSD (amd64/arm
 After a release, update `Formula/gh-star-search.rb`:
 
 1. Download the release binaries from the GitHub release page
-2. Generate SHA256 checksums:
 
-   ```bash
-   shasum -a 256 gh-star-search-darwin-arm64 gh-star-search-darwin-amd64 gh-star-search-linux-arm64 gh-star-search-linux-amd64
-   ```
+1. Generate SHA256 checksums:
 
-   Or run `mise run brew:sha` for a reminder of these steps.
+    ```bash
+    shasum -a 256 gh-star-search-darwin-arm64 gh-star-search-darwin-amd64 gh-star-search-linux-arm64 gh-star-search-linux-amd64
+    ```
 
-3. Update the `version` and `sha256` values in `Formula/gh-star-search.rb`
-4. Commit and push the formula changes
+    Or run `mise run brew:sha` for a reminder of these steps.
+
+1. Update the `version` and `sha256` values in `Formula/gh-star-search.rb`
+
+1. Commit and push the formula changes
 
 ### Installing via Homebrew
 
@@ -89,7 +89,6 @@ brew install --formula ./Formula/gh-star-search.rb
 ```
 
 To set up a [homebrew tap](https://docs.brew.sh/Taps) for `brew install KyleKing/tap/gh-star-search`, create a `homebrew-tap` repo at `https://github.com/KyleKing/homebrew-tap` and copy the formula there.
-
 
 ## Troubleshooting
 

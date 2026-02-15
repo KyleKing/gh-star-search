@@ -67,15 +67,15 @@ flowchart TD
 
 All major subsystems are defined as interfaces to enable testing and future alternative implementations:
 
-| Interface | Implementation | Purpose |
-|-----------|----------------|---------|
-| `storage.Repository` | `DuckDBRepository` | All database operations (CRUD, search, metrics, embeddings) |
-| `github.Client` | `clientImpl` | GitHub API calls (starred repos, metadata, contributors) |
-| `query.Engine` | `SearchEngine` | Search dispatch (fuzzy/vector) with scoring |
-| `related.Engine` | `EngineImpl` | Related repository discovery with streaming batches |
-| `embedding.Provider` | `LocalProvider`, `DisabledProvider` | Vector embedding generation |
-| `processor.Service` | `serviceImpl` | Content extraction and chunking |
-| `cache.Cache` | `FileCache` | TTL-based file cache with background cleanup |
+| Interface            | Implementation                      | Purpose                                                     |
+| -------------------- | ----------------------------------- | ----------------------------------------------------------- |
+| `storage.Repository` | `DuckDBRepository`                  | All database operations (CRUD, search, metrics, embeddings) |
+| `github.Client`      | `clientImpl`                        | GitHub API calls (starred repos, metadata, contributors)    |
+| `query.Engine`       | `SearchEngine`                      | Search dispatch (fuzzy/vector) with scoring                 |
+| `related.Engine`     | `EngineImpl`                        | Related repository discovery with streaming batches         |
+| `embedding.Provider` | `LocalProvider`, `DisabledProvider` | Vector embedding generation                                 |
+| `processor.Service`  | `serviceImpl`                       | Content extraction and chunking                             |
+| `cache.Cache`        | `FileCache`                         | TTL-based file cache with background cleanup                |
 
 ## Design Decisions
 
@@ -96,12 +96,12 @@ Scores are clamped to [0, 1.0]. Zero base scores are never boosted.
 
 The related engine processes repositories in batches of 100 and maintains a top-100 buffer to bound memory usage regardless of total repository count. Relatedness is a weighted composite of four signals:
 
-| Signal | Weight | Algorithm |
-|--------|--------|-----------|
-| Same organization | 0.30 | Binary match on owner prefix |
-| Topic overlap | 0.25 | Jaccard similarity of topic sets |
-| Shared contributors | 0.25 | Intersection of top-10 contributor sets, normalized by smaller set |
-| Vector similarity | 0.20 | Cosine similarity of repo embeddings |
+| Signal              | Weight | Algorithm                                                          |
+| ------------------- | ------ | ------------------------------------------------------------------ |
+| Same organization   | 0.30   | Binary match on owner prefix                                       |
+| Topic overlap       | 0.25   | Jaccard similarity of topic sets                                   |
+| Shared contributors | 0.25   | Intersection of top-10 contributor sets, normalized by smaller set |
+| Vector similarity   | 0.20   | Cosine similarity of repo embeddings                               |
 
 Weights are renormalized across only the available (non-zero) components, so missing data gracefully reduces the score rather than penalizing it.
 
@@ -151,13 +151,13 @@ Interfaces are defined in the packages that consume them (e.g., `query.Engine` i
 
 ### Key Test Coverage
 
-| Area | Tests | Focus |
-|------|-------|-------|
-| Search scoring | `TestRecencyDecay`, `TestStarBoost`, `TestScoreClamping` | Decay curve, logarithmic boost, edge cases |
-| Storage search | `TestSearchRepositories`, `_EdgeCases`, `_SQLInjection` | FTS BM25 matching, short queries, SQL keyword rejection |
-| CLI validation | `TestValidateQuery`, `TestValidateQueryFlags`, `TestFormatAge` | Input bounds, flag combinations, time formatting |
-| Related engine | `TestFindRelated`, `TestTopicOverlap`, `TestSharedContrib` | Jaccard similarity, contributor intersection, batch streaming |
-| Query engine | `TestIdentifyMatchedFields`, `TestApplyRankingBoosts` | Field matching, boost application |
+| Area           | Tests                                                          | Focus                                                         |
+| -------------- | -------------------------------------------------------------- | ------------------------------------------------------------- |
+| Search scoring | `TestRecencyDecay`, `TestStarBoost`, `TestScoreClamping`       | Decay curve, logarithmic boost, edge cases                    |
+| Storage search | `TestSearchRepositories`, `_EdgeCases`, `_SQLInjection`        | FTS BM25 matching, short queries, SQL keyword rejection       |
+| CLI validation | `TestValidateQuery`, `TestValidateQueryFlags`, `TestFormatAge` | Input bounds, flag combinations, time formatting              |
+| Related engine | `TestFindRelated`, `TestTopicOverlap`, `TestSharedContrib`     | Jaccard similarity, contributor intersection, batch streaming |
+| Query engine   | `TestIdentifyMatchedFields`, `TestApplyRankingBoosts`          | Field matching, boost application                             |
 
 ### Running Tests
 

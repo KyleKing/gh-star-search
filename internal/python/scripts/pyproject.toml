@@ -1,12 +1,12 @@
 [project]
-name = "gh-star-search-scripts"
-version = "0.1.0"
-requires-python = ">=3.13"
 dependencies = [
-    "duckdb>=1.0.0",
-    "rich>=13.0.0",
-    "scipy>=1.10.0",
-    "sentence-transformers>=5.2.0",
-    "torch>=2.10.0",
-    "transformers>=5.0.0",
+  "duckdb>=1.0.0",
+  "rich>=13.0.0",
+  "scipy>=1.10.0",
+  "sentence-transformers>=5.2.0",
+  "torch>=2.10.0",
+  "transformers>=5.0.0",
 ]
+name = "gh-star-search-scripts"
+requires-python = ">=3.13"
+version = "0.1.0"

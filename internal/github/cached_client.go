@@ -125,7 +125,7 @@ func (c *CachedClient) GetContributors(
 
 	// Try to get from cache first
 	if cached, err := c.getCachedData(ctx, cacheKey, ttl); err == nil {
-		// Handle type conversion for JSON unmarshaling
+		// Handle type conversion for JSON unmarshalling
 		switch v := cached.(type) {
 		case []Contributor:
 			return v, nil
@@ -179,7 +179,7 @@ func (c *CachedClient) GetTopics(ctx context.Context, fullName string) ([]string
 
 	// Try to get from cache first
 	if cached, err := c.getCachedData(ctx, cacheKey, ttl); err == nil {
-		// Handle type conversion for JSON unmarshaling
+		// Handle type conversion for JSON unmarshalling
 		switch v := cached.(type) {
 		case []string:
 			return v, nil
@@ -219,7 +219,7 @@ func (c *CachedClient) GetLanguages(
 
 	// Try to get from cache first
 	if cached, err := c.getCachedData(ctx, cacheKey, ttl); err == nil {
-		// Handle type conversion for JSON unmarshaling
+		// Handle type conversion for JSON unmarshalling
 		switch v := cached.(type) {
 		case map[string]int64:
 			return v, nil
@@ -286,7 +286,7 @@ func (c *CachedClient) GetPullCounts(
 
 	// Try to get from cache first
 	if cached, err := c.getCachedData(ctx, cacheKey, ttl); err == nil {
-		// Handle type conversion for JSON unmarshaling
+		// Handle type conversion for JSON unmarshalling
 		switch v := cached.(type) {
 		case map[string]int:
 			return v["open"], v["total"], nil
@@ -328,7 +328,7 @@ func (c *CachedClient) GetIssueCounts(
 
 	// Try to get from cache first
 	if cached, err := c.getCachedData(ctx, cacheKey, ttl); err == nil {
-		// Handle type conversion for JSON unmarshaling
+		// Handle type conversion for JSON unmarshalling
 		switch v := cached.(type) {
 		case map[string]int:
 			return v["open"], v["total"], nil

@@ -328,4 +328,3 @@ func BenchmarkEmbeddingBatch(b *testing.B) {
 		}
 	}
 }
-

@@ -19,23 +19,23 @@ gh star-search sync
 
 The `repositories` table stores one row per starred repo:
 
-| Column | Type | Purpose |
-|--------|------|---------|
-| `id` | VARCHAR (UUID) | Primary key |
-| `full_name` | VARCHAR UNIQUE | `owner/name` identifier |
-| `description`, `homepage`, `language` | TEXT/VARCHAR | GitHub metadata |
-| `stargazers_count`, `forks_count`, `size_kb` | INTEGER | Numeric metrics |
-| `created_at`, `updated_at`, `last_synced` | TIMESTAMP | Time tracking |
-| `open_issues_open/total`, `open_prs_open/total` | INTEGER | Issue/PR counts |
-| `commits_30d`, `commits_1y`, `commits_total` | INTEGER | Commit activity |
-| `topics_array`, `languages`, `contributors` | JSON | Structured metadata |
-| `license_name`, `license_spdx_id` | VARCHAR | License info |
-| `content_hash` | VARCHAR | SHA256 for change detection |
-| `purpose` | TEXT | AI-generated summary |
-| `summary_generated_at`, `summary_version` | TIMESTAMP/INTEGER | Summary tracking |
-| `topics_text` | VARCHAR | Space-joined topics for FTS indexing |
-| `contributors_text` | VARCHAR | Space-joined contributor logins for FTS indexing |
-| `repo_embedding` | JSON | Float32 vector for semantic search |
+| Column                                          | Type              | Purpose                                          |
+| ----------------------------------------------- | ----------------- | ------------------------------------------------ |
+| `id`                                            | VARCHAR (UUID)    | Primary key                                      |
+| `full_name`                                     | VARCHAR UNIQUE    | `owner/name` identifier                          |
+| `description`, `homepage`, `language`           | TEXT/VARCHAR      | GitHub metadata                                  |
+| `stargazers_count`, `forks_count`, `size_kb`    | INTEGER           | Numeric metrics                                  |
+| `created_at`, `updated_at`, `last_synced`       | TIMESTAMP         | Time tracking                                    |
+| `open_issues_open/total`, `open_prs_open/total` | INTEGER           | Issue/PR counts                                  |
+| `commits_30d`, `commits_1y`, `commits_total`    | INTEGER           | Commit activity                                  |
+| `topics_array`, `languages`, `contributors`     | JSON              | Structured metadata                              |
+| `license_name`, `license_spdx_id`               | VARCHAR           | License info                                     |
+| `content_hash`                                  | VARCHAR           | SHA256 for change detection                      |
+| `purpose`                                       | TEXT              | AI-generated summary                             |
+| `summary_generated_at`, `summary_version`       | TIMESTAMP/INTEGER | Summary tracking                                 |
+| `topics_text`                                   | VARCHAR           | Space-joined topics for FTS indexing             |
+| `contributors_text`                             | VARCHAR           | Space-joined contributor logins for FTS indexing |
+| `repo_embedding`                                | JSON              | Float32 vector for semantic search               |
 
 ### Indexes
 
@@ -48,6 +48,7 @@ A DuckDB FTS index is rebuilt after each sync via `PRAGMA create_fts_index`, cov
 New migrations are added as numbered SQL files in `internal/storage/migrations/`. See `internal/storage/migrations/README.md` for detailed instructions.
 
 Migrations are:
+
 - Embedded in the binary via `//go:embed`
 - Applied sequentially on app startup
 - Idempotent (safe to run multiple times)
@@ -60,39 +61,43 @@ Migrations are:
 Embeddings are opt-in. To enable:
 
 1. Install Python 3 and sentence-transformers:
-   ```bash
-   pip install sentence-transformers
-   ```
 
-2. Enable via config file (`~/.config/gh-star-search/config.json`):
-   ```json
-   {
-     "embedding": {
-       "provider": "local",
-       "model": "intfloat/e5-small-v2",
-       "dimensions": 384,
-       "enabled": true
-     }
-   }
-   ```
+    ```bash
+    pip install sentence-transformers
+    ```
 
-   Or via environment variable:
-   ```bash
-   export GH_STAR_SEARCH_EMBEDDING_ENABLED=true
-   ```
+1. Enable via config file (`~/.config/gh-star-search/config.json`):
 
-3. Run sync with the `--embed` flag:
-   ```bash
-   gh star-search sync --embed
-   ```
+    ```json
+    {
+      "embedding": {
+        "provider": "local",
+        "model": "intfloat/e5-small-v2",
+        "dimensions": 384,
+        "enabled": true
+      }
+    }
+    ```
+
+    Or via environment variable:
+
+    ```bash
+    export GH_STAR_SEARCH_EMBEDDING_ENABLED=true
+    ```
+
+1. Run sync with the `--embed` flag:
+
+    ```bash
+    gh star-search sync --embed
+    ```
 
 ### Embedding Models
 
-| Model | Dimensions | RAM | Quality |
-|-------|------------|-----|---------|
-| `intfloat/e5-small-v2` (default) | 384 | ~300MB | Excellent (118M params) |
-| `Qwen/Qwen3-Embedding-0.6B` | 384-1024 | ~1GB | Latest (configurable dims) |
-| `all-mpnet-base-v2` | 768 | ~600MB | Good |
+| Model                            | Dimensions | RAM    | Quality                    |
+| -------------------------------- | ---------- | ------ | -------------------------- |
+| `intfloat/e5-small-v2` (default) | 384        | ~300MB | Excellent (118M params)    |
+| `Qwen/Qwen3-Embedding-0.6B`      | 384-1024   | ~1GB   | Latest (configurable dims) |
+| `all-mpnet-base-v2`              | 768        | ~600MB | Good                       |
 
 The embedding input is built from: `full_name`, `purpose` (summary), `description`, and `topics`, joined with ". " separators.
 
@@ -111,13 +116,13 @@ gh star-search sync --summarize
 
 ### Fallback Behavior
 
-| Scenario | Result |
-|----------|--------|
-| Python not in PATH | Summarization/embedding skipped, warning logged |
+| Scenario                              | Result                                             |
+| ------------------------------------- | -------------------------------------------------- |
+| Python not in PATH                    | Summarization/embedding skipped, warning logged    |
 | `sentence-transformers` not installed | Embeddings skipped; vector search returns an error |
-| `transformers` not installed | Heuristic summarization used instead |
-| Script execution fails | Warning logged, sync continues for remaining repos |
-| Individual repo fails to embed | Skipped, other repos continue |
+| `transformers` not installed          | Heuristic summarization used instead               |
+| Script execution fails                | Warning logged, sync continues for remaining repos |
+| Individual repo fails to embed        | Skipped, other repos continue                      |
 
 ## GitHub API Rate Limiting
 
@@ -125,23 +130,23 @@ gh star-search sync --summarize
 
 The sync command applies fixed delays to stay within GitHub's rate limits:
 
-| Context | Delay |
-|---------|-------|
-| Between paginated starred-repo pages | 100ms |
-| Between individual repo content fetches | 50ms |
-| Between processing batches | 2 seconds |
-| Between repos within a batch | 100ms |
+| Context                                 | Delay     |
+| --------------------------------------- | --------- |
+| Between paginated starred-repo pages    | 100ms     |
+| Between individual repo content fetches | 50ms      |
+| Between processing batches              | 2 seconds |
+| Between repos within a batch            | 100ms     |
 
 ### Batch Processing
 
 Repos are processed in configurable batches (default 10, flag `--batch-size`). Worker concurrency scales with batch size and CPU count:
 
-| Batch Size | Workers |
-|------------|---------|
-| 1-5 | 1 |
-| 6-10 | min(2, CPUs) |
-| 11-20 | min(3, CPUs) |
-| 21+ | min(CPUs, 8) |
+| Batch Size | Workers      |
+| ---------- | ------------ |
+| 1-5        | 1            |
+| 6-10       | min(2, CPUs) |
+| 11-20      | min(3, CPUs) |
+| 21+        | min(CPUs, 8) |
 
 ### Error Handling
 
@@ -162,6 +167,7 @@ The file cache (`~/.cache/gh-star-search/`) stores downloaded content with two e
 ### TTL Expiration
 
 Each cache entry has an expiration timestamp set at write time (default TTL: 24 hours). Expired entries are removed:
+
 - On read (lazy deletion when a `Get` encounters an expired entry)
 - By a background goroutine that runs at a configurable frequency (default: 1 hour)
 
@@ -181,14 +187,14 @@ Each entry is stored as two files keyed by the first 16 characters of the SHA256
 
 ### Configuration
 
-| Setting | Env Var | Default |
-|---------|---------|---------|
-| Directory | `GH_STAR_SEARCH_CACHE_DIR` | `~/.cache/gh-star-search` |
-| Max size | `GH_STAR_SEARCH_CACHE_MAX_SIZE_MB` | 500 MB |
-| TTL | `GH_STAR_SEARCH_CACHE_TTL_HOURS` | 24 hours |
-| Cleanup frequency | `GH_STAR_SEARCH_CACHE_CLEANUP_FREQ` | 1h |
-| Metadata staleness | `GH_STAR_SEARCH_CACHE_METADATA_STALE_DAYS` | 14 days |
-| Stats staleness | `GH_STAR_SEARCH_CACHE_STATS_STALE_DAYS` | 7 days |
+| Setting            | Env Var                                    | Default                   |
+| ------------------ | ------------------------------------------ | ------------------------- |
+| Directory          | `GH_STAR_SEARCH_CACHE_DIR`                 | `~/.cache/gh-star-search` |
+| Max size           | `GH_STAR_SEARCH_CACHE_MAX_SIZE_MB`         | 500 MB                    |
+| TTL                | `GH_STAR_SEARCH_CACHE_TTL_HOURS`           | 24 hours                  |
+| Cleanup frequency  | `GH_STAR_SEARCH_CACHE_CLEANUP_FREQ`        | 1h                        |
+| Metadata staleness | `GH_STAR_SEARCH_CACHE_METADATA_STALE_DAYS` | 14 days                   |
+| Stats staleness    | `GH_STAR_SEARCH_CACHE_STATS_STALE_DAYS`    | 7 days                    |
 
 ## Output Format Specification
 
@@ -223,15 +229,15 @@ GitHub Description: <description or ->
 
 ### Formatting Rules
 
-| Field | Rule |
-|-------|------|
-| Unknown integers | Displayed as `?` (negative values) |
-| Missing strings | Displayed as `-` |
-| Zero timestamps | Displayed as `?` |
-| Description (short) | Truncated to 80 characters with `...` suffix |
-| Contributors | Limited to top 10, sorted by contribution count descending |
-| Languages | Sorted by byte count descending; LOC approximated as `bytes / 60` |
-| Age | `today`, `N days ago`, `N months ago`, `N years ago` |
+| Field               | Rule                                                              |
+| ------------------- | ----------------------------------------------------------------- |
+| Unknown integers    | Displayed as `?` (negative values)                                |
+| Missing strings     | Displayed as `-`                                                  |
+| Zero timestamps     | Displayed as `?`                                                  |
+| Description (short) | Truncated to 80 characters with `...` suffix                      |
+| Contributors        | Limited to top 10, sorted by contribution count descending        |
+| Languages           | Sorted by byte count descending; LOC approximated as `bytes / 60` |
+| Age                 | `today`, `N days ago`, `N months ago`, `N years ago`              |
 
 ## Configuration Reference
 
@@ -283,20 +289,20 @@ Located at `~/.config/gh-star-search/config.json` (override with `GH_STAR_SEARCH
 
 All environment variables use the `GH_STAR_SEARCH_` prefix:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `GH_STAR_SEARCH_DB_PATH` | `~/.config/gh-star-search/database.db` | Database file path |
-| `GH_STAR_SEARCH_DB_MAX_CONNECTIONS` | `10` | Max open DB connections |
-| `GH_STAR_SEARCH_DB_QUERY_TIMEOUT` | `30s` | Query timeout duration |
-| `GH_STAR_SEARCH_CACHE_DIR` | `~/.cache/gh-star-search` | Cache directory |
-| `GH_STAR_SEARCH_CACHE_MAX_SIZE_MB` | `500` | Max cache size in MB |
-| `GH_STAR_SEARCH_CACHE_TTL_HOURS` | `24` | Default cache entry TTL |
-| `GH_STAR_SEARCH_LOG_LEVEL` | `info` | Log level (debug/info/warn/error) |
-| `GH_STAR_SEARCH_LOG_FORMAT` | `text` | Log format (text/json) |
-| `GH_STAR_SEARCH_LOG_OUTPUT` | `stdout` | Log destination (stdout/stderr/file) |
-| `GH_STAR_SEARCH_DEBUG` | `false` | Enable debug mode |
-| `GH_STAR_SEARCH_VERBOSE` | `false` | Enable verbose output |
-| `GH_STAR_SEARCH_EMBEDDING_ENABLED` | `false` | Enable vector embeddings |
+| Variable                            | Default                                | Description                          |
+| ----------------------------------- | -------------------------------------- | ------------------------------------ |
+| `GH_STAR_SEARCH_DB_PATH`            | `~/.config/gh-star-search/database.db` | Database file path                   |
+| `GH_STAR_SEARCH_DB_MAX_CONNECTIONS` | `10`                                   | Max open DB connections              |
+| `GH_STAR_SEARCH_DB_QUERY_TIMEOUT`   | `30s`                                  | Query timeout duration               |
+| `GH_STAR_SEARCH_CACHE_DIR`          | `~/.cache/gh-star-search`              | Cache directory                      |
+| `GH_STAR_SEARCH_CACHE_MAX_SIZE_MB`  | `500`                                  | Max cache size in MB                 |
+| `GH_STAR_SEARCH_CACHE_TTL_HOURS`    | `24`                                   | Default cache entry TTL              |
+| `GH_STAR_SEARCH_LOG_LEVEL`          | `info`                                 | Log level (debug/info/warn/error)    |
+| `GH_STAR_SEARCH_LOG_FORMAT`         | `text`                                 | Log format (text/json)               |
+| `GH_STAR_SEARCH_LOG_OUTPUT`         | `stdout`                               | Log destination (stdout/stderr/file) |
+| `GH_STAR_SEARCH_DEBUG`              | `false`                                | Enable debug mode                    |
+| `GH_STAR_SEARCH_VERBOSE`            | `false`                                | Enable verbose output                |
+| `GH_STAR_SEARCH_EMBEDDING_ENABLED`  | `false`                                | Enable vector embeddings             |
 
 ### Validation
 
@@ -310,12 +316,12 @@ The configuration is validated at load time. Invalid values produce an error bef
 
 ### File Locations
 
-| Purpose | Path |
-|---------|------|
-| Config file | `~/.config/gh-star-search/config.json` |
-| Database | `~/.config/gh-star-search/database.db` |
-| Cache | `~/.cache/gh-star-search/` |
-| Logs | `~/.config/gh-star-search/logs/app.log` |
+| Purpose     | Path                                    |
+| ----------- | --------------------------------------- |
+| Config file | `~/.config/gh-star-search/config.json`  |
+| Database    | `~/.config/gh-star-search/database.db`  |
+| Cache       | `~/.cache/gh-star-search/`              |
+| Logs        | `~/.config/gh-star-search/logs/app.log` |
 
 All directories are auto-created on first use. Paths starting with `~` are expanded to the user's home directory.
 
@@ -332,11 +338,11 @@ In debug mode (`--debug`), the full structured error including stack trace is pr
 
 ### Common Error Patterns
 
-| Error Type | Typical Cause | Suggestions |
-|------------|---------------|-------------|
+| Error Type   | Typical Cause             | Suggestions                             |
+| ------------ | ------------------------- | --------------------------------------- |
 | `github_api` | API failure, bad response | Check `gh auth status`, verify internet |
-| `rate_limit` | Too many API requests | Wait for reset, upgrade token |
-| `database` | DuckDB file issue | Check permissions, check disk space |
-| `auth` | Missing or invalid token | Run `gh auth login` |
-| `config` | Invalid config value | Check file syntax, run `--help` |
-| `not_found` | Repo not in database | Verify resource exists, check access |
+| `rate_limit` | Too many API requests     | Wait for reset, upgrade token           |
+| `database`   | DuckDB file issue         | Check permissions, check disk space     |
+| `auth`       | Missing or invalid token  | Run `gh auth login`                     |
+| `config`     | Invalid config value      | Check file syntax, run `--help`         |
+| `not_found`  | Repo not in database      | Verify resource exists, check access    |
