@@ -1,8 +1,9 @@
-[env]
-MISE_ENV = "hk"
-
 [settings]
 experimental = true # required for go for now
+
+[tasks.build]
+description = "Build the project"
+run = "go build -o gh-star-search"
 
 [tasks.ci]
 description = "CI Steps (mise run test)"
@@ -11,10 +12,6 @@ run = ["mise run test"]
 [tasks.format]
 description = "Format code"
 run = ["golangci-lint run --fix ./...", "golines . --write-output"]
-
-[tasks.hooks]
-description = "Run git hooks"
-run = ["hk fix --quiet"]
 
 [tasks.test]
 description = "Run test"
@@ -46,10 +43,6 @@ run = "go test -tags=integration -timeout=10m -v ./internal/embedding/... ./inte
 [tasks."test:integration-bench"]
 description = "Run integration benchmarks (embedding, summarizer)"
 run = "go test -tags=integration -timeout=10m -bench=. -benchmem -run=^$ -v ./internal/embedding/... ./internal/summarizer/..."
-
-[tasks.build]
-description = "Build the project"
-run = "go build -o gh-star-search"
 
 [tasks.update]
 description = "Update dependencies"
