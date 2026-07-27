@@ -97,6 +97,9 @@ repos:
     rev: v0.24.3
     hooks:
       - id: toml-sort-fix
+        # sort_inline_arrays would alphabetize gci's `sections`, and that array
+        # is the import group order
+        exclude: ^\.golangci\.toml$
         stages: ["pre-commit"]
 
   - repo: https://github.com/KyleKing/calcipy

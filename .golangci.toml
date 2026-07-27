@@ -283,7 +283,7 @@ ignore-sigs = [
   ".WithStack("
 ]
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 path = "_test\\.go"
 linters = [
   "cyclop",
@@ -298,67 +298,67 @@ linters = [
   "noctx"
 ]
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 path = "_test\\.go"
 text = "hugeParam"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["gocritic"]
 text = "hugeParam"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["gocritic"]
 text = "paramTypeCombine"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["gocritic"]
 text = "ifElseChain"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["gocritic"]
 text = "rangeValCopy"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["gocritic"]
 text = "octalLiteral"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["gocritic"]
 text = "filepathJoin"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["gocritic"]
 text = "emptyFallthrough"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["gocritic"]
 text = "stringXbytes"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["godox"]
 text = "TODO"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["revive"]
 text = "exported.*should have comment"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["revive"]
 text = "package-comments"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["revive"]
 text = "unused-parameter"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["revive"]
 text = "unused-receiver"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["gosec"]
 text = "G107"
 
-[[issues.exclude-rules]]
+[[linters.exclusions.rules]]
 linters = ["gosec"]
 text = "G304"
 
