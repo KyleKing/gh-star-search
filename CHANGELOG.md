@@ -1,3 +1,9 @@
+## v1.0.1 (2026-07-27)
+
+### Fix
+
+- move the golangci exclude rules to the v2 linters.exclusions schema
+
 ## v1.0.0 (2026-07-27)
 
 ### Feat
