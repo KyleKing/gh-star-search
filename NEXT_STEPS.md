@@ -2,6 +2,22 @@
 
 ## Follow-ups (noted 2026-07-27)
 
+- Releases carry no binaries and the copier v0.6.3 inline-goreleaser fix only
+  solves half of it. `.goreleaser.yml` inherits `CGO_ENABLED=0` from the
+  template, and `github.com/marcboeker/go-duckdb` is cgo-only, so every one of
+  the ten configured targets fails to compile. Decide which platforms to ship:
+  linux/amd64 builds natively on the runner with `CGO_ENABLED=1`, while darwin
+  and windows need zig or osxcross for cgo cross-compilation
+- `CGO_ENABLED=0` is the template's default in `go_template/.goreleaser.yml.jinja`,
+  so every my_go_template child with a cgo dependency has this same silent break
+- v1.0.0 and v1.0.1 are empty releases from before the fix. Recommend leaving
+  them and letting the first release that builds binaries be the real one
+- `toml-sort-fix` alphabetized the `[tasks.ci]` `run` array in
+  `.config/mise/conf.d/template.toml`, so the build now runs before the test.
+  Harmless here, but it is the same inline-array hazard as the gci one below
+- `tombi-format` wants to reorder the `[[linters.exclusions.rules]]` tables in
+  `.golangci.toml`; `hk check --all` reports it, and a commit that touches that
+  file will apply it
 - The `toml-sort-fix` pre-commit hook rewrites `internal/python/scripts/uv.lock`
   after every `uv lock`, so the diff is 600 lines of reordering on top of the
   real change. Add a `exclude: uv\.lock` upstream in my_go_template
