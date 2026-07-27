@@ -3,7 +3,7 @@ ls:
     yml: kebab-case
     yaml: kebab-case
 
-  .go: regex:.+_test | camelCase
+  .go: snake_case
   .html: camelCase
 
 ignore:
