@@ -1,0 +1,5 @@
+# golangci-lint linter names that typos reads as misspellings
+
+[default.extend-words]
+decorder = "decorder"
+importas = "importas"
