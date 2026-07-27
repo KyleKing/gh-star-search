@@ -15,210 +15,229 @@ category = "composite"
 expected_repos = ["BurntSushi/ripgrep", "ogham/exa", "sharkdp/fd"]
 id = "q001"
 query = "rust cli tool"
-relevance_grades = {"BurntSushi/ripgrep" = 3, "ogham/exa" = 3, "sharkdp/fd" = 3, "uutils/coreutils" = 2}
+relevance_grades = { "BurntSushi/ripgrep" = 3, "ogham/exa" = 3, "sharkdp/fd" = 3, "uutils/coreutils" = 2 }
 
 [[queries]]
 category = "composite"
 expected_repos = ["django/django", "fastapi/fastapi", "pallets/flask"]
 id = "q002"
 query = "python web framework"
-relevance_grades = {"django/django" = 3, "encode/starlette" = 2, "fastapi/fastapi" = 3, "pallets/flask" = 3}
+relevance_grades = { "django/django" = 3, "encode/starlette" = 2, "fastapi/fastapi" = 3, "pallets/flask" = 3 }
 
 [[queries]]
 category = "technology"
 expected_repos = ["DefinitelyTyped/DefinitelyTyped", "microsoft/TypeScript"]
 id = "q003"
 query = "typescript"
-relevance_grades = {"DefinitelyTyped/DefinitelyTyped" = 3, "facebook/react" = 1, "microsoft/TypeScript" = 3}
+relevance_grades = { "DefinitelyTyped/DefinitelyTyped" = 3, "facebook/react" = 1, "microsoft/TypeScript" = 3 }
 
 [[queries]]
 category = "use_case"
 expected_repos = ["jestjs/jest", "mochajs/mocha", "pytest-dev/pytest"]
 id = "q004"
 query = "testing framework"
-relevance_grades = {"avajs/ava" = 2, "jestjs/jest" = 3, "mochajs/mocha" = 3, "pytest-dev/pytest" = 3}
+relevance_grades = { "avajs/ava" = 2, "jestjs/jest" = 3, "mochajs/mocha" = 3, "pytest-dev/pytest" = 3 }
 
 [[queries]]
 category = "composite"
 expected_repos = ["ant-design/ant-design", "facebook/react", "mui/material-ui"]
 id = "q005"
 query = "react component library"
-relevance_grades = {"ant-design/ant-design" = 3, "chakra-ui/chakra-ui" = 3, "facebook/react" = 2, "mui/material-ui" = 3}
+relevance_grades = { "ant-design/ant-design" = 3, "chakra-ui/chakra-ui" = 3, "facebook/react" = 2, "mui/material-ui" = 3 }
 
 [[queries]]
 category = "use_case"
 expected_repos = ["d3/d3", "mbostock/d3", "plotly/plotly.js"]
 id = "q006"
 query = "data visualization"
-relevance_grades = {"apache/echarts" = 3, "chartjs/Chart.js" = 2, "d3/d3" = 3, "plotly/plotly.js" = 3}
+relevance_grades = { "apache/echarts" = 3, "chartjs/Chart.js" = 2, "d3/d3" = 3, "plotly/plotly.js" = 3 }
 
 [[queries]]
 category = "composite"
 expected_repos = ["gin-gonic/gin", "gorilla/mux", "labstack/echo"]
 id = "q007"
 query = "go http server"
-relevance_grades = {"gin-gonic/gin" = 3, "go-chi/chi" = 2, "gorilla/mux" = 3, "labstack/echo" = 3}
+relevance_grades = { "gin-gonic/gin" = 3, "go-chi/chi" = 2, "gorilla/mux" = 3, "labstack/echo" = 3 }
 
 [[queries]]
 category = "use_case"
-expected_repos = ["authelia/authelia", "ory/kratos", "supertokens/supertokens-core"]
+expected_repos = [
+  "authelia/authelia",
+  "ory/kratos",
+  "supertokens/supertokens-core"
+]
 id = "q008"
 query = "authentication"
-relevance_grades = {"authelia/authelia" = 3, "oauth2-proxy/oauth2-proxy" = 2, "ory/kratos" = 3, "supertokens/supertokens-core" = 3}
+relevance_grades = { "authelia/authelia" = 3, "oauth2-proxy/oauth2-proxy" = 2, "ory/kratos" = 3, "supertokens/supertokens-core" = 3 }
 
 [[queries]]
 category = "technology"
 expected_repos = ["rust-lang/cargo", "rust-lang/rust"]
 id = "q009"
 query = "rust"
-relevance_grades = {"BurntSushi/ripgrep" = 1, "rust-lang/cargo" = 3, "rust-lang/rust" = 3, "rustup-rs/rustup" = 3}
+relevance_grades = { "BurntSushi/ripgrep" = 1, "rust-lang/cargo" = 3, "rust-lang/rust" = 3, "rustup-rs/rustup" = 3 }
 
 [[queries]]
 category = "composite"
-expected_repos = ["pytorch/pytorch", "scikit-learn/scikit-learn", "tensorflow/tensorflow"]
+expected_repos = [
+  "pytorch/pytorch",
+  "scikit-learn/scikit-learn",
+  "tensorflow/tensorflow"
+]
 id = "q010"
 query = "machine learning framework"
-relevance_grades = {"keras-team/keras" = 2, "pytorch/pytorch" = 3, "scikit-learn/scikit-learn" = 3, "tensorflow/tensorflow" = 3}
+relevance_grades = { "keras-team/keras" = 2, "pytorch/pytorch" = 3, "scikit-learn/scikit-learn" = 3, "tensorflow/tensorflow" = 3 }
 
 [[queries]]
 category = "use_case"
 expected_repos = ["11ty/eleventy", "gohugoio/hugo", "jekyll/jekyll"]
 id = "q011"
 query = "static site generator"
-relevance_grades = {"11ty/eleventy" = 3, "gatsbyjs/gatsby" = 2, "gohugoio/hugo" = 3, "jekyll/jekyll" = 3}
+relevance_grades = { "11ty/eleventy" = 3, "gatsbyjs/gatsby" = 2, "gohugoio/hugo" = 3, "jekyll/jekyll" = 3 }
 
 [[queries]]
 category = "composite"
 expected_repos = ["kubernetes/kubernetes", "operator-framework/operator-sdk"]
 id = "q012"
 query = "kubernetes operator"
-relevance_grades = {"kubernetes-sigs/kubebuilder" = 3, "kubernetes/kubernetes" = 2, "operator-framework/operator-sdk" = 3}
+relevance_grades = { "kubernetes-sigs/kubebuilder" = 3, "kubernetes/kubernetes" = 2, "operator-framework/operator-sdk" = 3 }
 
 [[queries]]
 category = "technology"
 expected_repos = ["vuejs/core", "vuejs/vue"]
 id = "q013"
 query = "vue"
-relevance_grades = {"nuxt/nuxt" = 2, "vitejs/vite" = 1, "vuejs/core" = 3, "vuejs/vue" = 3}
+relevance_grades = { "nuxt/nuxt" = 2, "vitejs/vite" = 1, "vuejs/core" = 3, "vuejs/vue" = 3 }
 
 [[queries]]
 category = "use_case"
 expected_repos = ["helix-editor/helix", "microsoft/vscode", "neovim/neovim"]
 id = "q014"
 query = "code editor"
-relevance_grades = {"atom/atom" = 2, "helix-editor/helix" = 3, "microsoft/vscode" = 3, "neovim/neovim" = 3}
+relevance_grades = { "atom/atom" = 2, "helix-editor/helix" = 3, "microsoft/vscode" = 3, "neovim/neovim" = 3 }
 
 [[queries]]
 category = "composite"
 expected_repos = ["amacneil/dbmate", "flyway/flyway", "golang-migrate/migrate"]
 id = "q015"
 query = "database migration tool"
-relevance_grades = {"amacneil/dbmate" = 3, "flyway/flyway" = 3, "golang-migrate/migrate" = 3, "prisma/prisma" = 2}
+relevance_grades = { "amacneil/dbmate" = 3, "flyway/flyway" = 3, "golang-migrate/migrate" = 3, "prisma/prisma" = 2 }
 
 [[queries]]
 category = "use_case"
-expected_repos = ["OAI/OpenAPI-Specification", "stoplightio/prism", "swagger-api/swagger-ui"]
+expected_repos = [
+  "OAI/OpenAPI-Specification",
+  "stoplightio/prism",
+  "swagger-api/swagger-ui"
+]
 id = "q016"
 query = "api documentation"
-relevance_grades = {"OAI/OpenAPI-Specification" = 3, "Redocly/redoc" = 3, "slatedocs/slate" = 2, "swagger-api/swagger-ui" = 3}
+relevance_grades = { "OAI/OpenAPI-Specification" = 3, "Redocly/redoc" = 3, "slatedocs/slate" = 2, "swagger-api/swagger-ui" = 3 }
 
 [[queries]]
 category = "use_case"
 expected_repos = ["docker/compose", "kubernetes/kubernetes", "nomad/nomad"]
 id = "q017"
 query = "container orchestration"
-relevance_grades = {"docker/compose" = 2, "hashicorp/nomad" = 3, "kubernetes/kubernetes" = 3}
+relevance_grades = { "docker/compose" = 2, "hashicorp/nomad" = 3, "kubernetes/kubernetes" = 3 }
 
 [[queries]]
 category = "composite"
 expected_repos = ["MagicStack/uvloop", "aio-libs/aiohttp"]
 id = "q018"
 query = "python async"
-relevance_grades = {"MagicStack/uvloop" = 3, "aio-libs/aiohttp" = 3, "encode/httpx" = 2}
+relevance_grades = { "MagicStack/uvloop" = 3, "aio-libs/aiohttp" = 3, "encode/httpx" = 2 }
 
 [[queries]]
 category = "use_case"
 expected_repos = ["concourse/concourse", "drone/drone", "jenkins-x/jx"]
 id = "q019"
 query = "ci cd"
-relevance_grades = {"concourse/concourse" = 3, "drone/drone" = 3, "jenkins-x/jx" = 3, "tektoncd/pipeline" = 2}
+relevance_grades = { "concourse/concourse" = 3, "drone/drone" = 3, "jenkins-x/jx" = 3, "tektoncd/pipeline" = 2 }
 
 [[queries]]
 category = "composite"
-expected_repos = ["hashicorp/terraform", "terraform-providers/terraform-provider-aws"]
+expected_repos = [
+  "hashicorp/terraform",
+  "terraform-providers/terraform-provider-aws"
+]
 id = "q020"
 query = "terraform provider"
-relevance_grades = {"hashicorp/terraform" = 2, "hashicorp/terraform-provider-aws" = 3, "hashicorp/terraform-provider-azurerm" = 2}
+relevance_grades = { "hashicorp/terraform" = 2, "hashicorp/terraform-provider-aws" = 3, "hashicorp/terraform-provider-azurerm" = 2 }
 
 [[queries]]
 category = "composite"
 expected_repos = ["grafana/grafana", "prometheus/prometheus"]
 id = "q021"
 query = "monitoring dashboard"
-relevance_grades = {"grafana/grafana" = 3, "netdata/netdata" = 2, "prometheus/prometheus" = 3}
+relevance_grades = { "grafana/grafana" = 3, "netdata/netdata" = 2, "prometheus/prometheus" = 3 }
 
 [[queries]]
 category = "composite"
 expected_repos = ["antonmedv/fx", "stedolan/jq"]
 id = "q022"
 query = "json parser"
-relevance_grades = {"antonmedv/fx" = 3, "stedolan/jq" = 3, "tidwall/gjson" = 2}
+relevance_grades = { "antonmedv/fx" = 3, "stedolan/jq" = 3, "tidwall/gjson" = 2 }
 
 [[queries]]
 category = "edge_case"
 expected_repos = ["spf13/cobra", "urfave/cli"]
 id = "q023"
 query = "cli"
-relevance_grades = {"alecthomas/kong" = 2, "spf13/cobra" = 3, "urfave/cli" = 3}
+relevance_grades = { "alecthomas/kong" = 2, "spf13/cobra" = 3, "urfave/cli" = 3 }
 
 [[queries]]
 category = "edge_case"
-expected_repos = ["sqlalchemy/sqlalchemy", "tortoise/tortoise-orm", "typeorm/typeorm"]
+expected_repos = [
+  "sqlalchemy/sqlalchemy",
+  "tortoise/tortoise-orm",
+  "typeorm/typeorm"
+]
 id = "q024"
 query = "orm"
-relevance_grades = {"prisma/prisma" = 2, "sqlalchemy/sqlalchemy" = 3, "tortoise/tortoise-orm" = 3, "typeorm/typeorm" = 3}
+relevance_grades = { "prisma/prisma" = 2, "sqlalchemy/sqlalchemy" = 3, "tortoise/tortoise-orm" = 3, "typeorm/typeorm" = 3 }
 
 [[queries]]
 category = "composite"
 expected_repos = ["Delgan/loguru", "hynek/structlog"]
 id = "q025"
 query = "logging library python"
-relevance_grades = {"Delgan/loguru" = 3, "hynek/structlog" = 3, "python/cpython" = 1}
+relevance_grades = { "Delgan/loguru" = 3, "hynek/structlog" = 3, "python/cpython" = 1 }
 
 [[queries]]
 category = "composite"
 expected_repos = ["gorilla/websocket", "websockets/ws"]
 id = "q026"
 query = "websocket server"
-relevance_grades = {"gorilla/websocket" = 3, "socketio/socket.io" = 2, "websockets/ws" = 3}
+relevance_grades = { "gorilla/websocket" = 3, "socketio/socket.io" = 2, "websockets/ws" = 3 }
 
 [[queries]]
 category = "use_case"
 expected_repos = ["JoshData/python-email-validator", "mailcheck/mailcheck"]
 id = "q027"
 query = "email validation"
-relevance_grades = {"JoshData/python-email-validator" = 3}
+relevance_grades = { "JoshData/python-email-validator" = 3 }
 
 [[queries]]
 category = "composite"
 expected_repos = ["dgraph-io/dgraph", "neo4j/neo4j"]
 id = "q028"
 query = "graph database"
-relevance_grades = {"arangodb/arangodb" = 2, "dgraph-io/dgraph" = 3, "neo4j/neo4j" = 3}
+relevance_grades = { "arangodb/arangodb" = 2, "dgraph-io/dgraph" = 3, "neo4j/neo4j" = 3 }
 
 [[queries]]
 category = "use_case"
 expected_repos = ["puppeteer/puppeteer", "wkhtmltopdf/wkhtmltopdf"]
 id = "q029"
 query = "pdf generation"
-relevance_grades = {"mozilla/pdf.js" = 1, "puppeteer/puppeteer" = 2, "wkhtmltopdf/wkhtmltopdf" = 3}
+relevance_grades = { "mozilla/pdf.js" = 1, "puppeteer/puppeteer" = 2, "wkhtmltopdf/wkhtmltopdf" = 3 }
 
 [[queries]]
 category = "composite"
 expected_repos = ["go-chi/httprate", "ulule/limiter"]
 id = "q030"
 query = "rate limiting middleware"
-relevance_grades = {"go-chi/httprate" = 3, "ulule/limiter" = 3}
+relevance_grades = { "go-chi/httprate" = 3, "ulule/limiter" = 3 }
 
 [settings]
 star_boost_coefficient = 0.1

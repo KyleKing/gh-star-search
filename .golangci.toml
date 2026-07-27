@@ -4,43 +4,47 @@
 version = "2"
 
 [formatters]
-enable = [
-  "gci",
-  "gofmt",
-  "gofumpt",
-  "goimports"
-]
+enable = ["gci", "gofmt", "gofumpt", "goimports"]
+
+[formatters.settings.gci]
+sections = ["standard", "default", "prefix(github.com/KyleKing/gh-star-search)"]
+
+[formatters.settings.gofumpt]
+extra-rules = true
+
+[formatters.settings.goimports]
+local-prefixes = ["github.com/KyleKing/gh-star-search"]
 
 [linters]
 disable = [
-  "contextcheck", # v1.1: requires plumbing context through storage constructors
-  "depguard", # requires allowlist/denylist configuration
-  "dupl", # v1.1: some duplication is acceptable in v1.0
-  "err113", # v1.1: requires sentinel error refactoring across codebase
-  "errcheck", # v1.1: requires systematic unchecked-error cleanup
-  "forbidigo", # requires custom regex configuration
-  "gochecknoglobals", # BubbleTea/lipgloss styles use package-level vars
-  "gocognit", # v1.1: complexity reduction pass
-  "gocritic", # v1.1: style recommendations cleanup
-  "gocyclo", # v1.1: complexity reduction pass
-  "godox", # v1.1: resolve all TODOs
-  "goheader", # copyright headers add noise for personal projects
-  "gosec", # v1.1: security hardening pass
-  "govet", # v1.1: some govet checks conflict with idiomatic patterns
-  "ireturn", # BubbleTea Init/Update methods return interfaces by design
-  "lll", # v1.1: line length cleanup
-  "mnd", # v1.1: magic number cleanup is low priority
-  "nestif", # v1.1: nesting reduction pass
-  "nlreturn", # v1.1: blank line requirements are cosmetic
-  "noctx", # v1.1: http request context propagation
-  "paralleltest", # v1.1: add t.Parallel() across test suite
-  "perfsprint", # v1.1: fmt.Sprintf optimizations are low priority
-  "prealloc", # v1.1: slice preallocation optimization
-  "revive", # v1.1: comprehensive style cleanup
-  "tagalign", # v1.1: struct tag alignment is cosmetic
-  "testableexamples", # examples require live GitHub API access
-  "testpackage", # v1.1: migrate tests to _test packages
-  "wrapcheck", # v1.1: requires wrapping all external errors
+  "contextcheck",  # v1.1: requires plumbing context through storage constructors
+  "depguard",  # requires allowlist/denylist configuration
+  "dupl",  # v1.1: some duplication is acceptable in v1.0
+  "err113",  # v1.1: requires sentinel error refactoring across codebase
+  "errcheck",  # v1.1: requires systematic unchecked-error cleanup
+  "forbidigo",  # requires custom regex configuration
+  "gochecknoglobals",  # BubbleTea/lipgloss styles use package-level vars
+  "gocognit",  # v1.1: complexity reduction pass
+  "gocritic",  # v1.1: style recommendations cleanup
+  "gocyclo",  # v1.1: complexity reduction pass
+  "godox",  # v1.1: resolve all TODOs
+  "goheader",  # copyright headers add noise for personal projects
+  "gosec",  # v1.1: security hardening pass
+  "govet",  # v1.1: some govet checks conflict with idiomatic patterns
+  "ireturn",  # BubbleTea Init/Update methods return interfaces by design
+  "lll",  # v1.1: line length cleanup
+  "mnd",  # v1.1: magic number cleanup is low priority
+  "nestif",  # v1.1: nesting reduction pass
+  "nlreturn",  # v1.1: blank line requirements are cosmetic
+  "noctx",  # v1.1: http request context propagation
+  "paralleltest",  # v1.1: add t.Parallel() across test suite
+  "perfsprint",  # v1.1: fmt.Sprintf optimizations are low priority
+  "prealloc",  # v1.1: slice preallocation optimization
+  "revive",  # v1.1: comprehensive style cleanup
+  "tagalign",  # v1.1: struct tag alignment is cosmetic
+  "testableexamples",  # examples require live GitHub API access
+  "testpackage",  # v1.1: migrate tests to _test packages
+  "wrapcheck",  # v1.1: requires wrapping all external errors
 ]
 enable = [
   "asciicheck",
@@ -124,7 +128,14 @@ threshold = 100
 [linters.settings.errcheck]
 check-type-assertions = false
 check-blank = false
-exclude-functions = ["fmt.Fprintln", "fmt.Fprintf", "fmt.Printf", "(io.Closer).Close", "os.Remove", "os.RemoveAll"]
+exclude-functions = [
+  "fmt.Fprintln",
+  "fmt.Fprintf",
+  "fmt.Printf",
+  "(io.Closer).Close",
+  "os.Remove",
+  "os.RemoveAll"
+]
 
 [linters.settings.exhaustive]
 default-signifies-exhaustive = true
@@ -134,9 +145,6 @@ lines = 300
 statements = 100
 ignore-comments = true
 
-[formatters.settings.gci]
-sections = ["standard", "default", "prefix(github.com/KyleKing/gh-star-search)"]
-
 [linters.settings.gocognit]
 min-complexity = 30
 
@@ -145,7 +153,13 @@ min-len = 3
 min-occurrences = 6
 
 [linters.settings.gocritic]
-enabled-tags = ["diagnostic", "style", "performance", "experimental", "opinionated"]
+enabled-tags = [
+  "diagnostic",
+  "style",
+  "performance",
+  "experimental",
+  "opinionated"
+]
 disabled-checks = ["whyNoLint"]
 
 [linters.settings.gocyclo]
@@ -154,12 +168,6 @@ min-complexity = 15
 [linters.settings.godot]
 scope = "declarations"
 capital = true
-
-[formatters.settings.gofumpt]
-extra-rules = true
-
-[formatters.settings.goimports]
-local-prefixes = ["github.com/KyleKing/gh-star-search"]
 
 [linters.settings.govet]
 enable-all = true
@@ -195,52 +203,52 @@ require-specific = true
 [linters.settings.revive]
 enable-all-rules = false
 rules = [
-  {name = "atomic"},
-  {name = "blank-imports"},
-  {name = "bool-literal-in-expr"},
-  {name = "call-to-gc"},
-  {name = "confusing-naming"},
-  {name = "constant-logical-expr"},
-  {name = "context-as-argument"},
-  {name = "context-keys-type"},
-  {name = "defer"},
-  {name = "dot-imports"},
-  {name = "early-return"},
-  {name = "empty-block"},
-  {name = "empty-lines"},
-  {name = "error-naming"},
-  {name = "error-return"},
-  {name = "error-strings"},
-  {name = "errorf"},
-  {name = "exported"},
-  {name = "if-return"},
-  {name = "import-shadowing"},
-  {name = "increment-decrement"},
-  {name = "indent-error-flow"},
-  {name = "modifies-parameter"},
-  {name = "modifies-value-receiver"},
-  {name = "package-comments"},
-  {name = "range"},
-  {name = "range-val-address"},
-  {name = "range-val-in-closure"},
-  {name = "receiver-naming"},
-  {name = "redefines-builtin-id"},
-  {name = "string-of-int"},
-  {name = "struct-tag"},
-  {name = "superfluous-else"},
-  {name = "time-equal"},
-  {name = "time-naming"},
-  {name = "unexported-naming"},
-  {name = "unexported-return"},
-  {name = "unnecessary-stmt"},
-  {name = "unreachable-code"},
-  {name = "unused-parameter"},
-  {name = "unused-receiver"},
-  {name = "use-any"},
-  {name = "useless-break"},
-  {name = "var-declaration"},
-  {name = "var-naming"},
-  {name = "waitgroup-by-value"}
+  { name = "atomic" },
+  { name = "blank-imports" },
+  { name = "bool-literal-in-expr" },
+  { name = "call-to-gc" },
+  { name = "confusing-naming" },
+  { name = "constant-logical-expr" },
+  { name = "context-as-argument" },
+  { name = "context-keys-type" },
+  { name = "defer" },
+  { name = "dot-imports" },
+  { name = "early-return" },
+  { name = "empty-block" },
+  { name = "empty-lines" },
+  { name = "error-naming" },
+  { name = "error-return" },
+  { name = "error-strings" },
+  { name = "errorf" },
+  { name = "exported" },
+  { name = "if-return" },
+  { name = "import-shadowing" },
+  { name = "increment-decrement" },
+  { name = "indent-error-flow" },
+  { name = "modifies-parameter" },
+  { name = "modifies-value-receiver" },
+  { name = "package-comments" },
+  { name = "range" },
+  { name = "range-val-address" },
+  { name = "range-val-in-closure" },
+  { name = "receiver-naming" },
+  { name = "redefines-builtin-id" },
+  { name = "string-of-int" },
+  { name = "struct-tag" },
+  { name = "superfluous-else" },
+  { name = "time-equal" },
+  { name = "time-naming" },
+  { name = "unexported-naming" },
+  { name = "unexported-return" },
+  { name = "unnecessary-stmt" },
+  { name = "unreachable-code" },
+  { name = "unused-parameter" },
+  { name = "unused-receiver" },
+  { name = "use-any" },
+  { name = "useless-break" },
+  { name = "var-declaration" },
+  { name = "var-naming" },
+  { name = "waitgroup-by-value" }
 ]
 
 [linters.settings.staticcheck]
@@ -277,7 +285,18 @@ ignore-sigs = [
 
 [[issues.exclude-rules]]
 path = "_test\\.go"
-linters = ["cyclop", "errcheck", "gocritic", "gocognit", "gocyclo", "funlen", "lll", "govet", "gosec", "noctx"]
+linters = [
+  "cyclop",
+  "errcheck",
+  "gocritic",
+  "gocognit",
+  "gocyclo",
+  "funlen",
+  "lll",
+  "govet",
+  "gosec",
+  "noctx"
+]
 
 [[issues.exclude-rules]]
 path = "_test\\.go"

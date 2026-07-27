@@ -13,4 +13,3 @@ project_type: cli
 repository_namespace: KyleKing
 repository_provider: https://github.com
 use_goreleaser: true
-

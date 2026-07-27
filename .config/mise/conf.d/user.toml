@@ -1,5 +1,5 @@
 [settings]
-experimental = true # required for go for now
+experimental = true  # required for go for now
 
 [tasks.build]
 description = "Build the project"
