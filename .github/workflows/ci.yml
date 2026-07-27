@@ -21,12 +21,12 @@ jobs:
       - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
         with:
           # `mise run ci` only needs `go`, already provided by actions/setup-go below;
-          # skip installing the dev/hook tools from .config/mise.toml's [tools] block.
+          # skip the dev/hook tools in .config/mise/conf.d/template.toml's [tools].
           install: false
 
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
 
       - run: mise run ci
         env:
@@ -49,11 +49,11 @@ jobs:
 
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
 
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          # Keep in sync with the golangci-lint pin in .config/mise.toml
+          # Keep in sync with the golangci-lint pin in .config/mise/conf.d/template.toml
           version: v2.12.2
 
   benchmark:
@@ -64,7 +64,7 @@ jobs:
 
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
 
       - name: Run benchmarks
         run: go test -bench=. -benchmem -run=^$ ./... > bench.txt
