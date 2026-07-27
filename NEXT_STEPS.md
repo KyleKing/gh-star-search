@@ -5,6 +5,10 @@
 - The `toml-sort-fix` pre-commit hook rewrites `internal/python/scripts/uv.lock`
   after every `uv lock`, so the diff is 600 lines of reordering on top of the
   real change. Add a `exclude: uv\.lock` upstream in my_go_template
+- `[tool.tomlsort]` in `pyproject.toml` sets `sort_inline_arrays = true`, so the
+  next commit that touches `.golangci.toml` will alphabetize the gci `sections`
+  array and silently change import group order. Either drop that setting or
+  exclude `.golangci.toml` from the hook
 - Dependabot PR #28 is partly superseded (`golang.org/x/net` is at 0.55.0 here),
   and it still carries `urfave/cli` v3.8.0, which is where the `Before` hook
   signature broke last time. Read that upgrade before merging
