@@ -1,0 +1,13 @@
+Freshness notes (2026-07-26)
+
+## Coverage: mise run test:coverage-min fails (58.1% vs 70% floor)
+
+This is not wired into CI or git hooks (.github/workflows/ci.yml and hk.pkl
+both stop at `mise run test`, not `test:coverage-min`), so it doesn't block
+merges. It was already below threshold before the copier template update in
+this session; nothing here regressed it.
+
+Not closing the gap now: NEXT_STEPS.md documents that large parts of this
+repo (ranking, entrypoint consolidation, unbuilt feature plans) are pending
+rewrites. Writing coverage now for code that's about to change is wasted
+effort. Revisit once the entrypoint and ranking work in NEXT_STEPS.md lands.
