@@ -1,14 +1,26 @@
 # Next steps
 
-## Template catch-up (noted 2026-07-26)
+## Follow-ups (noted 2026-07-27)
 
-This repo is on my_go_template v0.2.2 while the template is at v0.5.0, the widest
-drift in the fleet. The jump crosses the hk 1.53 restructure, the MISE_ENV
-removal, the golangci v2 schema fix, the run-to-dev task rename, and the move of
-tool pins into `.config/mise/conf.d/template.toml`. Expect a heavy
-`copier update --UNSAFE --conflict=rej --defaults` with many .rej files, and
-hand-sync `.config/mise.toml` afterward because it is in `_skip_if_exists`. Fix
-the broken build below first so update conflicts land on a compiling baseline.
+- The `toml-sort-fix` pre-commit hook rewrites `internal/python/scripts/uv.lock`
+  after every `uv lock`, so the diff is 600 lines of reordering on top of the
+  real change. Add a `exclude: uv\.lock` upstream in my_go_template
+- Dependabot PR #28 is partly superseded (`golang.org/x/net` is at 0.55.0 here),
+  and it still carries `urfave/cli` v3.8.0, which is where the `Before` hook
+  signature broke last time. Read that upgrade before merging
+- The torch 2.13 / transformers 5.14 relock is unverified: the eval scripts and
+  the integration test tier were not run, because that needs a ~2 GB download
+- `TestEnsureEnvironment` runs a real `uv sync` against the embedded lockfile
+  inside the suite's 30s budget, so it panics on any machine with a cold uv
+  cache and passes on a warm one. Give it the integration build tag, or skip it
+  unless the cache is already populated
+- The template is already at v0.6.0; this repo landed on v0.5.1
+
+## Template catch-up (noted 2026-07-26, done 2026-07-27)
+
+The repo now sits on my_go_template v0.5.1 with a green build and green gates.
+The `_skip_if_exists` file `.config/mise.toml` holds settings only; the tool
+pins live in `.config/mise/conf.d/template.toml`.
 
 
 Findings from a review pass on 2026-07-21, building the repo and reading the entrypoints, release config, and ranking code. Each item names the file to change and a suggested approach. Line numbers are omitted because they drift; grep the symbol.
