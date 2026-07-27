@@ -34,14 +34,14 @@ builds:
 
 archives:
   - id: gh-star-search
-    format: binary
+    formats: [binary]
     name_template: "gh-star-search-{{ .Os }}-{{ .Arch }}"
 
 checksum:
   name_template: "checksums.txt"
 
 snapshot:
-  name_template: "{{ .Tag }}-next"
+  version_template: "{{ .Version }}-next"
 
 changelog:
   use: github

@@ -10,6 +10,12 @@ import "package://github.com/jdx/hk/releases/download/v1.53.0/hk@1.53.0#/Builtin
 
 min_hk_version = "1.53.0"
 
+// Golden files are byte-exact terminal snapshots and intentionally carry no
+// trailing newline. Any whitespace fixer that rewrites them breaks the tests.
+// Module-level so it covers newlines, trailing-whitespace, and mixed-line-ending
+// at once, none of which take a glob.
+exclude = List("**/*.golden")
+
 // Builtins carry a `check_diff`, so a clean file is never rewritten and hk
 // stages exactly the files each step touched (`stage = "<JOB_FILES>"` default).
 local linters = new Mapping<String, Step> {
@@ -29,7 +35,18 @@ local linters = new Mapping<String, Step> {
     // it validates against Schema Store and rejects valid-but-unschema'd keys.
     ["tombi-format"] = Builtins.tombi_format
     ["trailing-whitespace"] = Builtins.trailing_whitespace
+    // Restores the parse check that check-yaml gave us under pre-commit. The
+    // relaxed ruleset is deliberate and must stay unstrict: it demotes style
+    // rules to warnings so only unparsable YAML fails, the same reason
+    // `Builtins.tombi` is absent above.
+    ["yamllint"] = (Builtins.yamllint) {
+        check = "yamllint -d relaxed {{files}}"
+    }
 }
+
+// hk 1.53.0 ships no equivalent of pre-commit's check-vcs-permalinks, so
+// non-permalink GitHub links are unchecked here. `hk builtins | grep -i vcs`
+// on a future upgrade is the cheapest way to notice if that changes.
 
 local commit_msg_checks = new Mapping<String, Step> {
     ["commitizen"] {

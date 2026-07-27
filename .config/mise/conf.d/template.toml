@@ -18,8 +18,8 @@ run = "go build -v -o gh-start-search ./cmd/gh-start-search"
 [tasks.ci]
 description = "Run all checks (used in GitHub Actions)"
 run = [
+  "go build -v -o gh-start-search ./cmd/gh-start-search",
   "go test -v -coverprofile=coverage.out ./...",
-  "go build -v -o gh-start-search ./cmd/gh-start-search"
 ]
 
 [tasks.clean]
@@ -27,12 +27,13 @@ description = "Clean build artifacts"
 run = "rm -f coverage.out"
 
 [tasks.demo]
+depends = ["build"]
 description = "Generate VHS demo recordings"
 run = 'find . -name "*.tape" -not -path "./.git/*" -exec vhs {} \;'
-depends = ["build"]
 
 [tasks.dev]
 description = "Run from source (always reflects current code, no stale build)"
+raw_args = true
 run = "go run ./cmd/gh-start-search"
 
 [tasks.format]
@@ -45,10 +46,12 @@ run = "hk fix --quiet"
 
 [tasks.lint]
 description = "Run linter"
+raw_args = true
 run = "golangci-lint run ./..."
 
 [tasks.test]
 description = "Run tests with coverage"
+raw_args = true
 run = "go test -coverprofile=coverage.out ./..."
 
 [tasks."test:coverage-min"]
@@ -75,5 +78,6 @@ go = "latest"
 hk = "1.53.0"
 ls-lint = "latest"
 "pipx:commitizen" = "latest"
+"pipx:yamllint" = "latest"
 pkl = "latest"
 tombi = "latest"

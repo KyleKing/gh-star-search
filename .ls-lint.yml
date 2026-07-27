@@ -3,6 +3,10 @@ ls:
     yml: kebab-case
     yaml: kebab-case
 
+  # snake_case is Go's own convention and accepts both single-word files
+  # (client.go) and multi-word ones (gha_perf.go), including the _test.go suffix.
+  # Verified against every .go file in gh-repo-dashboard and gh-star-search.
+  # Rename camelCase files rather than relaxing this.
   .go: snake_case
   .html: camelCase
 
