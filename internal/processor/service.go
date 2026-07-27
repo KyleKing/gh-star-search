@@ -56,6 +56,14 @@ const (
 	ContentTypePackage   = "package"
 )
 
+// Well-known filenames referenced from both priority-path selection and
+// content-type classification.
+const (
+	readmeFileName          = "README.md"
+	packageManifestFileName = "package.json"
+	mainGoFileName          = "main.go"
+)
+
 // Priority constants for content processing
 const (
 	PriorityHigh   = 1
@@ -231,11 +239,11 @@ func (s *serviceImpl) extractAndChunkContent(
 func (s *serviceImpl) getPriorityPaths() []string {
 	return []string{
 		// README files (highest priority - top level only)
-		"README.md", "README.rst", "README.txt", "README",
+		readmeFileName, "README.rst", "README.txt", "README",
 		"readme.md", "readme.rst", "readme.txt", "readme",
 
 		// Package manifests (top level)
-		"package.json", "Cargo.toml", "go.mod", "setup.py", "pom.xml",
+		packageManifestFileName, "Cargo.toml", "go.mod", "setup.py", "pom.xml",
 		"composer.json", "Gemfile", "requirements.txt", "pyproject.toml",
 		"CMakeLists.txt", "Makefile", "build.gradle", "yarn.lock",
 
@@ -255,7 +263,7 @@ func (s *serviceImpl) getPriorityPaths() []string {
 		// Source directories - main entry points only (limit to avoid tests)
 		"src/main.go", "src/main.py", "src/index.js", "src/index.ts",
 		"src/app.js", "src/app.py", "src/lib.rs", "src/main.rs",
-		"main.go", "main.py", "index.js", "index.ts", "app.js", "app.py",
+		mainGoFileName, "main.py", "index.js", "index.ts", "app.js", "app.py",
 		"lib.rs", "main.rs",
 	}
 }
@@ -272,7 +280,7 @@ func (s *serviceImpl) filterContent(content []github.Content) []github.Content {
 		}
 
 		// Skip if not a file
-		if file.Type != "file" {
+		if file.Type != github.ContentTypeFile {
 			continue
 		}
 
@@ -373,7 +381,7 @@ func (s *serviceImpl) isExcludedPath(path string) bool {
 
 // decodeContent decodes base64 encoded content from GitHub API
 func (s *serviceImpl) decodeContent(file github.Content) (string, error) {
-	if file.Encoding == "base64" {
+	if file.Encoding == github.ContentEncodingBase64 {
 		decoded, err := base64.StdEncoding.DecodeString(file.Content)
 		if err != nil {
 			return "", fmt.Errorf("failed to decode base64 content: %w", err)
@@ -419,7 +427,7 @@ func (s *serviceImpl) determineContentType(path string) string {
 
 	// Package manifests
 	packageFiles := []string{
-		"package.json",
+		packageManifestFileName,
 		"cargo.toml",
 		"go.mod",
 		"setup.py",

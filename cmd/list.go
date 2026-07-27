@@ -41,8 +41,8 @@ func ListCommand() *cli.Command {
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			limit := int(cmd.Int("limit"))
-			offset := int(cmd.Int("offset"))
+			limit := cmd.Int("limit")
+			offset := cmd.Int("offset")
 			format := cmd.String("format")
 
 			return runList(ctx, limit, offset, format)

@@ -98,6 +98,12 @@ type License struct {
 	URL    string `json:"url"`
 }
 
+// Content.Type and Content.Encoding values used by the GitHub contents API.
+const (
+	ContentTypeFile       = "file"
+	ContentEncodingBase64 = "base64"
+)
+
 // Content represents file content from a repository
 type Content struct {
 	Path     string `json:"path"`

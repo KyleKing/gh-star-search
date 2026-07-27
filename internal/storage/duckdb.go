@@ -772,24 +772,24 @@ func (r *DuckDBRepository) UpdateRepositoryMetrics(
 ) error {
 	// Step 1: Get existing repository data to preserve non-metrics fields
 	var existingData struct {
-		id                string
-		fullName          string
-		description       string
-		homepage          string
-		language          string
-		stargazersCount   int
-		forksCount        int
-		sizeKB            int
-		createdAt         time.Time
-		updatedAt         time.Time
-		lastSynced        time.Time
-		topicsArray       interface{}
-		licenseName       string
-		licenseSPDXID     string
-		contentHash       string
-		purpose           sql.NullString
+		id                 string
+		fullName           string
+		description        string
+		homepage           string
+		language           string
+		stargazersCount    int
+		forksCount         int
+		sizeKB             int
+		createdAt          time.Time
+		updatedAt          time.Time
+		lastSynced         time.Time
+		topicsArray        interface{}
+		licenseName        string
+		licenseSPDXID      string
+		contentHash        string
+		purpose            sql.NullString
 		summaryGeneratedAt *time.Time
-		summaryVersion    int
+		summaryVersion     int
 	}
 
 	err := r.db.QueryRowContext(ctx, `
@@ -1107,7 +1107,7 @@ func (r *DuckDBRepository) SearchByEmbedding(
 func (r *DuckDBRepository) GetRelatedCounts(
 	ctx context.Context,
 	fullName string,
-) (sameOrg int, sharedContrib int, err error) {
+) (int, int, error) {
 	queryCtx, cancel := r.withQueryTimeout(ctx)
 	defer cancel()
 
@@ -1117,7 +1117,8 @@ func (r *DuckDBRepository) GetRelatedCounts(
 	}
 	orgPrefix := parts[0] + "/%"
 
-	err = r.db.QueryRowContext(queryCtx,
+	var sameOrg int
+	err := r.db.QueryRowContext(queryCtx,
 		"SELECT COUNT(*) FROM repositories WHERE full_name LIKE ? AND full_name != ?",
 		orgPrefix, fullName,
 	).Scan(&sameOrg)
@@ -1144,6 +1145,7 @@ func (r *DuckDBRepository) GetRelatedCounts(
 	}
 
 	pattern := `\b(` + strings.Join(logins, "|") + `)\b`
+	var sharedContrib int
 	err = r.db.QueryRowContext(queryCtx,
 		"SELECT COUNT(*) FROM repositories WHERE full_name != ? AND regexp_matches(LOWER(contributors_text), ?)",
 		fullName, pattern,

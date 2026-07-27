@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -40,11 +39,7 @@ func TestSyncIntegration(t *testing.T) {
 	}
 
 	// Create temporary database
-	tempDir, err := os.MkdirTemp("", "sync_integration_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	dbPath := filepath.Join(tempDir, "test.db")
 
@@ -365,11 +360,7 @@ func TestSyncSpecificRepository(t *testing.T) {
 	}
 
 	// Create temporary database
-	tempDir, err := os.MkdirTemp("", "sync_specific_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	dbPath := filepath.Join(tempDir, "test.db")
 
@@ -449,11 +440,7 @@ func TestSyncErrorHandling(t *testing.T) {
 	}
 
 	// Create temporary database
-	tempDir, err := os.MkdirTemp("", "sync_error_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	dbPath := filepath.Join(tempDir, "test.db")
 
@@ -537,11 +524,7 @@ func TestSyncIncrementalUpdates(t *testing.T) {
 	}
 
 	// Create temporary database
-	tempDir, err := os.MkdirTemp("", "sync_incremental_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	dbPath := filepath.Join(tempDir, "test.db")
 
@@ -725,11 +708,7 @@ func TestSyncProgressTracking(t *testing.T) {
 	}
 
 	// Create temporary database
-	tempDir, err := os.MkdirTemp("", "sync_progress_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	dbPath := filepath.Join(tempDir, "test.db")
 

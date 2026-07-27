@@ -32,7 +32,7 @@ type Repository interface {
 	SearchByEmbedding(ctx context.Context, queryEmbedding []float32, limit int, minScore float64) ([]SearchResult, error)
 
 	// Related counts
-	GetRelatedCounts(ctx context.Context, fullName string) (sameOrg int, sharedContrib int, err error)
+	GetRelatedCounts(ctx context.Context, fullName string) (sameOrg, sharedContrib int, err error)
 }
 
 // StoredRepo represents a repository as stored in the database

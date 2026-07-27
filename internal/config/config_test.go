@@ -22,7 +22,7 @@ func TestLoadConfigFromFile(t *testing.T) {
 			"query_timeout":   "60s",
 		},
 		"logging": map[string]interface{}{
-			"level":  "debug",
+			"level":  LogLevelDebug,
 			"format": "json",
 			"output": "file",
 			"file":   "/custom/log/path.log",
@@ -47,7 +47,7 @@ func TestLoadConfigFromFile(t *testing.T) {
 
 	assert.Equal(t, "/custom/path/db.db", config.Database.Path)
 	assert.Equal(t, "60s", config.Database.QueryTimeout)
-	assert.Equal(t, "debug", config.Logging.Level)
+	assert.Equal(t, LogLevelDebug, config.Logging.Level)
 	assert.Equal(t, "json", config.Logging.Format)
 	assert.Equal(t, "file", config.Logging.Output)
 	assert.Equal(t, "/custom/log/path.log", config.Logging.File)
@@ -137,7 +137,6 @@ func TestValidateConfig(t *testing.T) {
 			expectError:   true,
 			errorContains: "invalid database query timeout",
 		},
-
 	}
 
 	for _, tt := range tests {
@@ -236,7 +235,7 @@ func TestSaveConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	config.Database.Path = "/custom/path"
-	config.Logging.Level = "debug"
+	config.Logging.Level = LogLevelDebug
 
 	err = SaveConfig(config)
 	require.NoError(t, err)
@@ -255,18 +254,8 @@ func TestSaveConfig(t *testing.T) {
 
 func TestLoadConfigWithOverrides(t *testing.T) {
 	// Set a temporary config path to avoid interference with other tests
-	originalConfigPath := os.Getenv("GH_STAR_SEARCH_CONFIG")
 	tempConfigPath := filepath.Join(t.TempDir(), "test_config.json")
 	t.Setenv("GH_STAR_SEARCH_CONFIG", tempConfigPath)
-
-	// Restore original config path after test
-	defer func() {
-		if originalConfigPath != "" {
-			os.Setenv("GH_STAR_SEARCH_CONFIG", originalConfigPath)
-		} else {
-			os.Unsetenv("GH_STAR_SEARCH_CONFIG")
-		}
-	}()
 
 	// Test with no config file and no overrides
 	config, err := LoadConfigWithOverrides(nil)
@@ -288,14 +277,14 @@ func TestMergeConfigs(t *testing.T) {
 			Path: "/new/path",
 		},
 		Logging: LoggingConfig{
-			Level: "debug",
+			Level: LogLevelDebug,
 		},
 	}
 
 	mergeConfigs(target, source)
 
 	assert.Equal(t, "/new/path", target.Database.Path)
-	assert.Equal(t, "debug", target.Logging.Level)
+	assert.Equal(t, LogLevelDebug, target.Logging.Level)
 	// Other values should remain from target
 	assert.Equal(t, "30s", target.Database.QueryTimeout)
 	assert.Equal(t, "text", target.Logging.Format)

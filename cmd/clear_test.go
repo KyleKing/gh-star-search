@@ -13,11 +13,11 @@ import (
 
 func TestRunClear(t *testing.T) {
 	testStats := &storage.Stats{
-		TotalRepositories:  10,
-		DatabaseSizeMB:     5.5,
-		LastSyncTime:       time.Now(),
-		LanguageBreakdown:  map[string]int{"Go": 5, "Python": 5},
-		TopicBreakdown:     map[string]int{"cli": 10},
+		TotalRepositories: 10,
+		DatabaseSizeMB:    5.5,
+		LastSyncTime:      time.Now(),
+		LanguageBreakdown: map[string]int{"Go": 5, "Python": 5},
+		TopicBreakdown:    map[string]int{"cli": 10},
 	}
 
 	tests := []struct {
@@ -42,11 +42,11 @@ func TestRunClear(t *testing.T) {
 		{
 			name: "empty database",
 			stats: &storage.Stats{
-				TotalRepositories:  0,
-				DatabaseSizeMB:     0,
-				LastSyncTime:       time.Time{},
-				LanguageBreakdown:  make(map[string]int),
-				TopicBreakdown:     make(map[string]int),
+				TotalRepositories: 0,
+				DatabaseSizeMB:    0,
+				LastSyncTime:      time.Time{},
+				LanguageBreakdown: make(map[string]int),
+				TopicBreakdown:    make(map[string]int),
 			},
 			force:   false,
 			wantErr: false,

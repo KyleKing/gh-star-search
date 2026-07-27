@@ -48,7 +48,7 @@ Examples:
 			&cli.StringFlag{
 				Name:    "mode",
 				Aliases: []string{"m"},
-				Value:   "fuzzy",
+				Value:   string(query.ModeFuzzy),
 				Usage:   "Search mode: fuzzy or vector",
 			},
 			&cli.IntFlag{
@@ -99,7 +99,7 @@ func runQuery(ctx context.Context, cmd *cli.Command) error {
 
 	// Get flag values
 	queryMode := cmd.String("mode")
-	queryLimit := int(cmd.Int("limit"))
+	queryLimit := cmd.Int("limit")
 	queryLong := cmd.Bool("long")
 	queryShort := cmd.Bool("short")
 	queryRelated := cmd.Bool("related")
@@ -267,7 +267,10 @@ func validateQuery(query string) error {
 // validateQueryFlags validates and normalizes command flags
 func validateQueryFlags(queryMode string, queryLimit int, queryLong, queryShort bool) error {
 	// Validate mode
-	validModes := map[string]bool{"fuzzy": true, "vector": true}
+	validModes := map[string]bool{
+		string(query.ModeFuzzy):  true,
+		string(query.ModeVector): true,
+	}
 	if !validModes[queryMode] {
 		return errors.New(errors.ErrTypeValidation,
 			fmt.Sprintf("invalid mode '%s'. Must be 'fuzzy' or 'vector'", queryMode))

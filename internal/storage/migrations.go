@@ -85,7 +85,6 @@ func (m *SchemaManager) getCurrentVersion(ctx context.Context) (int, error) {
 	err := m.db.QueryRowContext(ctx, `
 		SELECT COALESCE(MAX(version), 0) FROM schema_version
 	`).Scan(&version)
-
 	if err != nil {
 		return 0, fmt.Errorf("failed to query version: %w", err)
 	}

@@ -78,7 +78,7 @@ func TestRunConfig(t *testing.T) {
 				Logging: config.LoggingConfig{
 					Level:     "debug",
 					Format:    "json",
-					Output:    "file",
+					Output:    config.LogOutputFile,
 					File:      "/tmp/test.log",
 					AddSource: true,
 				},

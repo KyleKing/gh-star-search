@@ -14,7 +14,7 @@ type Manager struct {
 // Returns nil if embeddings are not enabled.
 func NewManager(config Config, uvPath, projectDir string) (*Manager, error) {
 	if !config.Enabled {
-		return nil, nil
+		return nil, nil //nolint:nilnil // documented "disabled" signal; callers check `== nil` before calling IsEnabled()
 	}
 
 	provider, err := NewProvider(config, uvPath, projectDir)

@@ -313,9 +313,9 @@ func TestConcurrentReadsDuringWrite(t *testing.T) {
 		}
 	}()
 
-	for i := range numReaders {
+	for range numReaders {
 		wg.Add(1)
-		go func(id int) {
+		go func() {
 			defer wg.Done()
 			for range 5 {
 				_, err := repo.GetRepository(ctx, "user/read-write-repo")
@@ -326,7 +326,7 @@ func TestConcurrentReadsDuringWrite(t *testing.T) {
 				}
 				time.Sleep(10 * time.Millisecond)
 			}
-		}(i)
+		}()
 	}
 
 	wg.Wait()

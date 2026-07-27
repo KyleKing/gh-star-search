@@ -12,6 +12,12 @@ import (
 	"github.com/caarlos0/env/v11"
 )
 
+// LogOutputFile is the LoggingConfig.Output value that routes logs to LoggingConfig.File.
+const LogOutputFile = "file"
+
+// LogLevelDebug is the LoggingConfig.Level value for debug-level logging.
+const LogLevelDebug = "debug"
+
 // Config represents the application configuration
 type Config struct {
 	Database DatabaseConfig `json:"database" envPrefix:"GH_STAR_SEARCH_"`
@@ -169,7 +175,7 @@ func mergeConfigs(target, source *Config) {
 func validateConfig(config *Config) error {
 	// Validate log level
 	validLogLevels := map[string]bool{
-		"debug": true, "info": true, "warn": true, "error": true,
+		LogLevelDebug: true, "info": true, "warn": true, "error": true,
 	}
 	if !validLogLevels[strings.ToLower(config.Logging.Level)] {
 		return fmt.Errorf(
@@ -188,7 +194,7 @@ func validateConfig(config *Config) error {
 
 	// Validate log output
 	validLogOutputs := map[string]bool{
-		"stdout": true, "stderr": true, "file": true,
+		"stdout": true, "stderr": true, LogOutputFile: true,
 	}
 	if !validLogOutputs[strings.ToLower(config.Logging.Output)] {
 		return fmt.Errorf(

@@ -49,7 +49,7 @@ func SetupLogger(cfg config.LoggingConfig) (io.Closer, error) {
 		writer = os.Stdout
 	case "stderr":
 		writer = os.Stderr
-	case "file":
+	case config.LogOutputFile:
 		if cfg.File == "" {
 			return nil, errors.New("log file path is required when output is 'file'")
 		}

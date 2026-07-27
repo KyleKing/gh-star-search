@@ -165,7 +165,7 @@ func (s *SyncStats) SafeIncrement(field string) {
 func runSync(ctx context.Context, cmd *cli.Command) error {
 	// Parse flags
 	specificRepo := cmd.String("repo")
-	batchSize := int(cmd.Int("batch-size"))
+	batchSize := cmd.Int("batch-size")
 	force := cmd.Bool("force")
 	summarize := cmd.Bool("summarize")
 	embed := cmd.Bool("embed")

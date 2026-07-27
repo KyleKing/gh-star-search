@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -14,31 +13,23 @@ import (
 func NewTestDB(t *testing.T) (*DuckDBRepository, func()) {
 	t.Helper()
 
-	tempDir, err := os.MkdirTemp("", "test_db_*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
+	tempDir := t.TempDir()
 
 	dbPath := filepath.Join(tempDir, "test.db")
 	repo, err := NewDuckDBRepository(dbPath)
 	if err != nil {
-		os.RemoveAll(tempDir)
 		t.Fatalf("failed to create test repository: %v", err)
 	}
 
 	ctx := context.Background()
 	if err := repo.Initialize(ctx); err != nil {
 		repo.Close()
-		os.RemoveAll(tempDir)
 		t.Fatalf("failed to initialize test repository: %v", err)
 	}
 
 	cleanup := func() {
 		if err := repo.Close(); err != nil {
 			t.Errorf("failed to close test repository: %v", err)
-		}
-		if err := os.RemoveAll(tempDir); err != nil {
-			t.Errorf("failed to remove temp dir: %v", err)
 		}
 	}
 

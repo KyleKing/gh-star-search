@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"context"
-	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -297,11 +295,7 @@ func TestSyncService_NeedsUpdate(t *testing.T) {
 
 func TestSyncService_ProcessRepository(t *testing.T) {
 	// Create temporary database
-	tempDir, err := os.MkdirTemp("", "sync_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	dbPath := filepath.Join(tempDir, "test.db")
 
@@ -393,15 +387,12 @@ func TestSyncService_ProcessRepository(t *testing.T) {
 
 	if stored.StargazersCount != 42 {
 		t.Errorf("Expected StargazersCount 42, got %d", stored.StargazersCount)
-	}}
+	}
+}
 
 func TestSyncService_ProcessRepositoriesInBatches(t *testing.T) {
 	// Create temporary database
-	tempDir, err := os.MkdirTemp("", "batch_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	dbPath := filepath.Join(tempDir, "test.db")
 

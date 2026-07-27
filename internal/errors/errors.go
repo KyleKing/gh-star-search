@@ -9,16 +9,16 @@ import (
 type ErrorType string
 
 const (
-	ErrTypeGitHubAPI   ErrorType = "github_api"
-	ErrTypeDatabase    ErrorType = "database"
-	ErrTypeValidation  ErrorType = "validation"
-	ErrTypeRateLimit   ErrorType = "rate_limit"
-	ErrTypeNotFound    ErrorType = "not_found"
-	ErrTypeConfig      ErrorType = "config"
-	ErrTypeNetwork     ErrorType = "network"
-	ErrTypeAuth        ErrorType = "auth"
-	ErrTypeFileSystem  ErrorType = "filesystem"
-	ErrTypeInternal    ErrorType = "internal"
+	ErrTypeGitHubAPI  ErrorType = "github_api"
+	ErrTypeDatabase   ErrorType = "database"
+	ErrTypeValidation ErrorType = "validation"
+	ErrTypeRateLimit  ErrorType = "rate_limit"
+	ErrTypeNotFound   ErrorType = "not_found"
+	ErrTypeConfig     ErrorType = "config"
+	ErrTypeNetwork    ErrorType = "network"
+	ErrTypeAuth       ErrorType = "auth"
+	ErrTypeFileSystem ErrorType = "filesystem"
+	ErrTypeInternal   ErrorType = "internal"
 )
 
 // Error represents a structured error with type and optional suggestions

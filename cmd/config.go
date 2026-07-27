@@ -54,7 +54,7 @@ func RunConfigWithConfig(cfg *config.Config) error {
 	fmt.Printf("  Format: %s\n", cfg.Logging.Format)
 	fmt.Printf("  Output: %s\n", cfg.Logging.Output)
 
-	if cfg.Logging.Output == "file" {
+	if cfg.Logging.Output == config.LogOutputFile {
 		fmt.Printf("  File: %s\n", cfg.Logging.File)
 	}
 

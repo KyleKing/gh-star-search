@@ -75,11 +75,11 @@ func (m *MockRepository) GetStats(_ context.Context) (*storage.Stats, error) {
 	}
 
 	return &storage.Stats{
-		TotalRepositories:  len(m.repos),
-		DatabaseSizeMB:     1.5,
-		LastSyncTime:       time.Now(),
-		LanguageBreakdown:  make(map[string]int),
-		TopicBreakdown:     make(map[string]int),
+		TotalRepositories: len(m.repos),
+		DatabaseSizeMB:    1.5,
+		LastSyncTime:      time.Now(),
+		LanguageBreakdown: make(map[string]int),
+		TopicBreakdown:    make(map[string]int),
 	}, nil
 }
 

@@ -58,7 +58,7 @@ func runRelated(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Validate limit
-	relatedLimit := int(cmd.Int("limit"))
+	relatedLimit := cmd.Int("limit")
 	if relatedLimit < 1 || relatedLimit > 20 {
 		return errors.New(errors.ErrTypeValidation, "limit must be between 1 and 20")
 	}
