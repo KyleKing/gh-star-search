@@ -12,20 +12,22 @@ mise run ci
 
 ## Tasks
 
-Shared tasks live in `.config/mise.template.toml` (managed by the copier template). Project-specific tasks go in `.config/mise.project.toml` or other `mise.*.toml` files.
+Shared tasks live in `.config/mise/conf.d/template.toml` (managed by the copier template).
+Project-specific tasks go in additional `.config/mise/conf.d/*.toml` files.
 
-| Command           | Description                   |
-| ----------------- | ----------------------------- |
-| `mise run bench`  | Run benchmarks                |
-| `mise run build`  | Build binary                  |
-| `mise run ci`     | Full CI check (tests + build) |
-| `mise run clean`  | Clean build artifacts         |
-| `mise run demo`   | Generate VHS demo recordings  |
-| `mise run format` | Auto-fix lint and formatting  |
-| `mise run hooks`  | Run git hooks                 |
-| `mise run lint`   | Run linter                    |
-| `mise run test`   | Run tests with coverage       |
-| `mise tasks`      | List all available tasks      |
+| Command | Description |
+|---------|-------------|
+| `mise run bench` | Run benchmarks |
+| `mise run build` | Build binary |
+| `mise run ci` | Full CI check (tests + build) |
+| `mise run clean` | Clean build artifacts |
+| `mise run demo` | Generate VHS demo recordings |
+| `mise run format` | Auto-fix lint and formatting |
+| `mise run hooks` | Run git hooks |
+| `mise run lint` | Run linter |
+| `mise dev` | Run from source (`go run`, always reflects current code) |
+| `mise run test` | Run tests with coverage |
+| `mise tasks` | List all available tasks |
 
 ## Code Guidelines
 
@@ -45,16 +47,46 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 Git hooks run automatically via hk on commit and push.
 
-## Releases
+## Development Install
 
-Automated via goreleaser on tag push:
+Run straight from source with `go run`, which always reflects the current code, so there's no built binary or installed extension to go stale between edits:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+go run ./cmd/gh-start-search [args]
 ```
 
-GitHub Actions builds binaries for Linux, macOS, Windows, and FreeBSD (amd64/arm64).
+To test the actual `gh gh-start-search ...` extension invocation or a Homebrew install, use the released version rather than installing from this checkout:
+
+```bash
+gh extension install KyleKing/gh-start-search
+# or
+brew install --formula https://github.com/KyleKing/gh-start-search/raw/main/Formula/gh-start-search.rb
+```
+
+
+## Releases
+
+Automated via goreleaser on tag push. **Note:** For GH CLI extensions, the first release is required before users can run `gh extension install KyleKing/gh-start-search`.
+
+### Creating a Release
+
+1. Tag and push:
+
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+2. GitHub Actions will automatically:
+   - Run tests and build
+   - Create release with binaries for Linux, macOS, Windows, and FreeBSD (amd64/arm64)
+   - Publish to GitHub Releases
+
+3. Verify the release has properly named binaries:
+   - `gh-start-search-linux-amd64`
+   - `gh-start-search-darwin-arm64`
+   - `gh-start-search-windows-amd64.exe`
+   - etc.
 
 ### Updating the Homebrew Formula
 

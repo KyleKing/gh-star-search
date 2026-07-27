@@ -1,7 +1,7 @@
 # Configuration file for golangci-lint
 # For more options, see https://golangci-lint.run/usage/configuration/
 
-version = 2
+version = "2"
 
 [formatters]
 enable = [
@@ -66,7 +66,6 @@ enable = [
   "gochecksumtype",
   "goconst",
   "gomoddirectives",
-  "gomodguard",
   "goprintffuncname",
   "gosmopolitan",
   "grouper",
@@ -105,14 +104,19 @@ enable = [
   "unparam",
   "unused",
   "usestdlibvars",
+  "usetesting",
   "wastedassign",
   "whitespace",
   "zerologlint"
 ]
 
+[[linters.exclusions.rules]]
+# Table-driven tests grow long cases and repeat literals without adding real complexity.
+path = "_test\\.go"
+linters = ["cyclop", "goconst"]
+
 [linters.settings.cyclop]
 max-complexity = 35
-skip-tests = true
 
 [linters.settings.dupl]
 threshold = 100
@@ -139,7 +143,6 @@ min-complexity = 30
 [linters.settings.goconst]
 min-len = 3
 min-occurrences = 6
-ignore-tests = true
 
 [linters.settings.gocritic]
 enabled-tags = ["diagnostic", "style", "performance", "experimental", "opinionated"]
@@ -154,13 +157,9 @@ capital = true
 
 [formatters.settings.gofumpt]
 extra-rules = true
-lang-version = "1.23"
 
 [formatters.settings.goimports]
-local-prefixes = "github.com/KyleKing/gh-star-search"
-
-[linters.settings.gomodguard]
-blocked.modules = []
+local-prefixes = ["github.com/KyleKing/gh-star-search"]
 
 [linters.settings.govet]
 enable-all = true
@@ -264,7 +263,7 @@ under = 10
 check-exported = false
 
 [linters.settings.wrapcheck]
-ignoreSigs = [
+ignore-sigs = [
   ".Errorf(",
   "errors.New(",
   "errors.Unwrap(",

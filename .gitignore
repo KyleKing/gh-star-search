@@ -1,6 +1,10 @@
 # Built binary (from copier project_name)
 /gh-star-search
 
+# Changelog scratch file written by the commitizen action; goreleaser's dirty
+# check must not see it as untracked
+body.md
+
 # Go binaries
 *.exe
 *.exe~
