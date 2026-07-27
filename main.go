@@ -60,9 +60,8 @@ content from your starred repositories.`,
 				Usage: "cache directory path",
 			},
 		},
-		Before: func(ctx context.Context, cmd *cli.Command) error {
-			_, err := initializeGlobalConfig(ctx, cmd)
-			return err
+		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+			return initializeGlobalConfig(ctx, cmd)
 		},
 		Commands: []*cli.Command{
 			cmd.SyncCommand(),
