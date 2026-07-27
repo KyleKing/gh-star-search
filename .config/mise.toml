@@ -1,0 +1,7 @@
+# Copier never updates this file (_skip_if_exists), so it holds only
+# project-owned settings. Template-managed tool pins and tasks live in
+# .config/mise/conf.d/template.toml; project-specific additions belong in
+# other .config/mise/conf.d/*.toml files (always loaded)
+
+[settings]
+experimental = true  # required for go for now
