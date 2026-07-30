@@ -3,3 +3,4 @@
 [default.extend-words]
 decorder = "decorder"
 importas = "importas"
+ttest = "ttest"
