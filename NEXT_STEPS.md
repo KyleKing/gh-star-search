@@ -46,6 +46,12 @@ goreleaser, and goreleaser fails at the build step on `go-duckdb`. So a new
 empty release is the expected outcome of a normal bumpable commit right now, not
 a regression.
 
+That happened on 2026-07-29 with the naming fix: v1.0.2 is tagged on `main`, but
+goreleaser died before it created the release, so the tag has no GitHub Release
+object at all. Leave it. Whichever option above I take, re-running goreleaser on
+that existing tag will create the release and attach its assets, so v1.0.2 can
+still become the first real one.
+
 ## Follow-ups (noted 2026-07-27)
 
 - `toml-sort-fix` alphabetized the `[tasks.ci]` `run` array in
