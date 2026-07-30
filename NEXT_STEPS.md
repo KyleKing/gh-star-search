@@ -1,17 +1,47 @@
 # Next steps
 
+## Open decision: DuckDB and cgo (noted 2026-07-29)
+
+This repo cannot build a release binary for any platform, and it will stay that
+way until I pick one of the options below. Nothing in the release pipeline is
+worth touching before then.
+
+The cause: `github.com/marcboeker/go-duckdb` only compiles with cgo, and
+`.goreleaser.yml` sets `CGO_ENABLED=0`, which it inherits from the template's
+`go_template/.goreleaser.yml.jinja`. All ten configured targets fail the same
+way:
+
+```sh
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd/gh-start-search
+# github.com/marcboeker/go-duckdb
+transaction.go:6:5: undefined: Conn
+```
+
+Because the flag lives in the template, every my_go_template child with a cgo
+dependency breaks the same way, so whatever I choose here probably belongs
+upstream too.
+
+Three options:
+
+- set `CGO_ENABLED=1` and ship linux/amd64 only, which builds natively on the
+  ubuntu runner with no extra toolchain, and drop the other nine targets
+- keep the full platform list and add zig or osxcross so goreleaser can
+  cross-compile cgo to darwin and windows, which is more moving parts in CI
+- drop goreleaser from this repo and document `go install` in the README, which
+  costs users a Go toolchain but needs no build matrix at all
+
+The prior question of whether to keep DuckDB is still open, and answering it
+first may settle this one. A pure-Go store (sqlite via modernc, or Parquet plus
+an in-process query layer) removes the cgo constraint outright.
+
+Until this is settled, v1.0.0 and v1.0.1 stay as they are: two empty releases
+with no assets. Deleting them would break any `_version` reference and rewrite
+the changelog for no gain, and back-filling binaries onto an old tag ships a
+build nobody cut. Let the first release that carries real binaries be the real
+one.
+
 ## Follow-ups (noted 2026-07-27)
 
-- Releases carry no binaries and the copier v0.6.3 inline-goreleaser fix only
-  solves half of it. `.goreleaser.yml` inherits `CGO_ENABLED=0` from the
-  template, and `github.com/marcboeker/go-duckdb` is cgo-only, so every one of
-  the ten configured targets fails to compile. Decide which platforms to ship:
-  linux/amd64 builds natively on the runner with `CGO_ENABLED=1`, while darwin
-  and windows need zig or osxcross for cgo cross-compilation
-- `CGO_ENABLED=0` is the template's default in `go_template/.goreleaser.yml.jinja`,
-  so every my_go_template child with a cgo dependency has this same silent break
-- v1.0.0 and v1.0.1 are empty releases from before the fix. Recommend leaving
-  them and letting the first release that builds binaries be the real one
 - `toml-sort-fix` alphabetized the `[tasks.ci]` `run` array in
   `.config/mise/conf.d/template.toml`, so the build now runs before the test.
   Harmless here, but it is the same inline-array hazard as the gci one below
@@ -34,7 +64,7 @@
   inside the suite's 30s budget, so it panics on any machine with a cold uv
   cache and passes on a warm one. Give it the integration build tag, or skip it
   unless the cache is already populated
-- The template is already at v0.6.0; this repo landed on v0.5.1
+- The template is already at v0.6.0; this repo landed on v0.5.1 (now on v0.6.4)
 
 ## Template catch-up (noted 2026-07-26, done 2026-07-27)
 
