@@ -30,7 +30,6 @@ builds:
       - goos: windows
         goarch: arm64
     binary: gh-star-search
-    no_unique_dist_dir: true
 
 archives:
   - id: gh-star-search
