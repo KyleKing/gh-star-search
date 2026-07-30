@@ -53,20 +53,20 @@ Git hooks run automatically via hk on commit and push.
 Run straight from source with `go run`, which always reflects the current code, so there's no built binary or installed extension to go stale between edits:
 
 ```bash
-go run ./cmd/gh-start-search [args]
+go run ./cmd/gh-star-search [args]
 ```
 
-To test the actual `gh gh-start-search ...` extension invocation or a Homebrew install, use the released version rather than installing from this checkout:
+To test the actual `gh gh-star-search ...` extension invocation or a Homebrew install, use the released version rather than installing from this checkout:
 
 ```bash
-gh extension install KyleKing/gh-start-search
+gh extension install KyleKing/gh-star-search
 # or
-brew install --formula https://github.com/KyleKing/gh-start-search/raw/main/Formula/gh-start-search.rb
+brew install --formula https://github.com/KyleKing/gh-star-search/raw/main/Formula/gh-star-search.rb
 ```
 
 ## Releases
 
-Automated by the Bump Version workflow. **Note:** For GH CLI extensions, the first release is required before users can run `gh extension install KyleKing/gh-start-search`.
+Automated by the Bump Version workflow. **Note:** For GH CLI extensions, the first release is required before users can run `gh extension install KyleKing/gh-star-search`.
 
 ### Creating a Release
 
@@ -82,9 +82,9 @@ Automated by the Bump Version workflow. **Note:** For GH CLI extensions, the fir
 
 1. Verify the release has properly named binaries:
 
-    - `gh-start-search-linux-amd64`
-    - `gh-start-search-darwin-arm64`
-    - `gh-start-search-windows-amd64.exe`
+    - `gh-star-search-linux-amd64`
+    - `gh-star-search-darwin-arm64`
+    - `gh-star-search-windows-amd64.exe`
     - etc.
 
 ### Updating the Homebrew Formula

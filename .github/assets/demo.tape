@@ -20,7 +20,7 @@ Set Height 800
 
 Hide
 Type `cd ~/Developer/KyleKing/gh-star-search` Enter Sleep 250ms
-Type `go build -o /tmp/gh-star-search ./cmd/gh-start-search 2>/dev/null` Enter Sleep 2s
+Type `go build -o /tmp/gh-star-search ./cmd/gh-star-search 2>/dev/null` Enter Sleep 2s
 Type `clear` Enter
 Show
 

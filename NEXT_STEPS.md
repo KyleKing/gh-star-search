@@ -12,7 +12,7 @@ The cause: `github.com/marcboeker/go-duckdb` only compiles with cgo, and
 way:
 
 ```sh
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd/gh-start-search
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd/gh-star-search
 # github.com/marcboeker/go-duckdb
 transaction.go:6:5: undefined: Conn
 ```
@@ -39,6 +39,12 @@ with no assets. Deleting them would break any `_version` reference and rewrite
 the changelog for no gain, and back-filling binaries onto an old tag ships a
 build nobody cut. Let the first release that carries real binaries be the real
 one.
+
+Any release cut before this decision lands will also be assetless, for the same
+reason. A `fix:` or `feat:` commit trips Bump Version, which tags and runs
+goreleaser, and goreleaser fails at the build step on `go-duckdb`. So a new
+empty release is the expected outcome of a normal bumpable commit right now, not
+a regression.
 
 ## Follow-ups (noted 2026-07-27)
 
@@ -86,15 +92,15 @@ Nothing else can proceed until these land.
 
 ## The two entrypoints disagree
 
-Root `main.go` has the global flags (`--debug`, `--db-path`, `--cache-dir`) and the config `Before` hook. `cmd/gh-start-search/main.go` has the `--version` ldflags and neither. Goreleaser builds the second, so a release today ships a binary missing the global flags and config initialization. Pick one entrypoint and make goreleaser build it, or fold the version ldflags into the root `main.go` and point goreleaser there.
+Root `main.go` has the global flags (`--debug`, `--db-path`, `--cache-dir`) and the config `Before` hook. `cmd/gh-star-search/main.go` has the `--version` ldflags and neither. Goreleaser builds the second, so a release today ships a binary missing the global flags and config initialization. Pick one entrypoint and make goreleaser build it, or fold the version ldflags into the root `main.go` and point goreleaser there.
 
-The `gh-start-search` typo runs through the goreleaser `main:` path and `Formula/gh-start-search.rb`. Rename both to `gh-star-search` while resolving the entrypoint.
+The `gh-start-search` typo is fixed as of 2026-07-29: the command directory, the goreleaser `main:` path, the Homebrew formula filename, and both `.copier-answers.yml` answers all read `gh-star-search`, so a copier update no longer reverts them.
 
 ## Release config
 
 `.goreleaser.yml` sets `CGO_ENABLED=0`, which is suspect for `marcboeker/go-duckdb`. Confirm the resulting binary can open a DuckDB database before tagging, or set `CGO_ENABLED=1` with the matching cross-compile toolchain.
 
-Never released: no tags, and `Formula/gh-start-search.rb` carries `version "0.1.0"` with `REPLACE_WITH_SHA256_FOR_*` placeholders. Once the build and entrypoint are fixed, cut a v0.1.0 and close [issue #13](https://github.com/KyleKing/gh-star-search/issues/13). That reporter (hueys) is the only outside user any of these plugins has, and the issue has been open since February.
+Never released: no tags, and `Formula/gh-star-search.rb` carries `version "0.1.0"` with `REPLACE_WITH_SHA256_FOR_*` placeholders. Once the build and entrypoint are fixed, cut a v0.1.0 and close [issue #13](https://github.com/KyleKing/gh-star-search/issues/13). That reporter (hueys) is the only outside user any of these plugins has, and the issue has been open since February.
 
 ## Ranking, from the eval suite
 

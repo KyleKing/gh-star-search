@@ -6,7 +6,7 @@ before:
     - go test ./...
 
 builds:
-  - main: ./cmd/gh-start-search
+  - main: ./cmd/gh-star-search
     id: gh-star-search
     env:
       - CGO_ENABLED=0

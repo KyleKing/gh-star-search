@@ -6,19 +6,19 @@ run = "go test -bench=. -benchmem -run=^$ ./..."
 description = "Print SHA256 for Homebrew formula (run after release)"
 run = """
 echo "Download binaries from the latest release and run:"
-echo "  shasum -a 256 gh-start-search-darwin-arm64 gh-start-search-darwin-amd64 gh-start-search-linux-arm64 gh-start-search-linux-amd64"
+echo "  shasum -a 256 gh-star-search-darwin-arm64 gh-star-search-darwin-amd64 gh-star-search-linux-arm64 gh-star-search-linux-amd64"
 echo ""
-echo "Then update Formula/gh-start-search.rb with the SHA256 values and version."
+echo "Then update Formula/gh-star-search.rb with the SHA256 values and version."
 """
 
 [tasks.build]
 description = "Build binary"
-run = "go build -v -o gh-start-search ./cmd/gh-start-search"
+run = "go build -v -o gh-star-search ./cmd/gh-star-search"
 
 [tasks.ci]
 description = "Run all checks (used in GitHub Actions)"
 run = [
-  "go build -v -o gh-start-search ./cmd/gh-start-search",
+  "go build -v -o gh-star-search ./cmd/gh-star-search",
   "go test -v -coverprofile=coverage.out ./...",
 ]
 
@@ -34,7 +34,7 @@ run = 'find . -name "*.tape" -not -path "./.git/*" -exec vhs {} \;'
 [tasks.dev]
 description = "Run from source (always reflects current code, no stale build)"
 raw_args = true
-run = "go run ./cmd/gh-start-search"
+run = "go run ./cmd/gh-star-search"
 
 [tasks.format]
 description = "Format code with golangci-lint and golines"

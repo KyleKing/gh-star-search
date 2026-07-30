@@ -1,4 +1,4 @@
-// Package main implements gh-start-search: GH CLI extension to search your stars
+// Package main implements gh-star-search: GH CLI extension to search your stars
 package main
 
 import (
