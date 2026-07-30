@@ -52,6 +52,28 @@ object at all. Leave it. Whichever option above I take, re-running goreleaser on
 that existing tag will create the release and attach its assets, so v1.0.2 can
 still become the first real one.
 
+## Follow-ups (noted 2026-07-30)
+
+- `Formula/gh-star-search.rb` and the `brew:sha` mise task are now redundant with
+  the `homebrew_casks` block goreleaser gained in template v0.7.0, which
+  generates and pushes the cask on its own. Both are still shipped by
+  my_go_template at v0.7.0, so deleting them here only gets them re-rendered on
+  the next update. Decide upstream whether `use_goreleaser` should suppress
+  them, then drop the local copies plus the four `Formula/` references in
+  `CONTRIBUTING.md`. Nothing is broken meanwhile: the formula still carries
+  `version "0.1.0"` and `REPLACE_WITH_SHA256_FOR_*` placeholders, so it has
+  never been installable
+- `hk.pkl` has no `typos`, `shellcheck`, `ruff`, `mdformat`, `prettier`, or
+  `copier-forbidden-files` step, all of which prek ran here. The `.rej` guard
+  and shellcheck are the two worth adding upstream; ruff would need
+  `internal/python/scripts/embed.py`'s ANN201 and D103 fixed first
+- `hk.pkl`'s `newlines` step needs prek's `exclude: \.copier-answers\.yml`.
+  Copier writes a trailing blank line there and hk strips it, so every update
+  carries a spurious one-line diff
+- prek's git hooks are uninstalled and hk's config-based hooks
+  (`hook.hk-*.command`, git 2.55) are installed. `.pre-commit-config.yaml` is
+  still in the tree because the template ships it, but nothing runs it now
+
 ## Follow-ups (noted 2026-07-27)
 
 - `toml-sort-fix` alphabetized the `[tasks.ci]` `run` array in
