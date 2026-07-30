@@ -45,3 +45,7 @@ jobs:
           args: release --clean --release-notes body.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Deploy key for the Homebrew tap push. Unset until
+          # scripts/provision-tap-deploy-key.sh has been run, which goreleaser
+          # treats as "skip the tap" rather than as a failure.
+          TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}

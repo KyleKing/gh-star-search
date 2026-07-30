@@ -54,3 +54,27 @@ changelog:
 release:
   draft: false
   prerelease: auto
+
+homebrew_casks:
+  - name: gh-star-search
+    # Pushed over SSH with a deploy key scoped to the tap repo, since GitHub
+    # offers no API to mint PATs; provisioned by scripts/provision-tap-deploy-key.sh.
+    repository:
+      owner: KyleKing
+      name: homebrew-tap
+      git:
+        url: git@github.com:KyleKing/homebrew-tap.git
+        private_key: '{{ envOrDefault "TAP_DEPLOY_KEY" "" }}'
+    homepage: https://github.com/KyleKing/gh-star-search
+    description: "GH CLI extension to search your stars "
+    # Without the TAP_DEPLOY_KEY secret the tap push is skipped with a warning
+    # and the rest of the release still publishes, so a project that has not
+    # been provisioned yet needs no config change here.
+    skip_upload: '{{ if isEnvSet "TAP_DEPLOY_KEY" }}auto{{ else }}true{{ end }}'
+    # The binaries are unsigned; clear the quarantine bit so macOS will run them.
+    hooks:
+      post:
+        install: |
+          Dir.glob(File.join(staged_path, "gh-star-search*")).each do |f|
+            system_command "/usr/bin/xattr", args: ["-c", f], must_succeed: false
+          end

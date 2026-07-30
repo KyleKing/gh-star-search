@@ -18,8 +18,8 @@ run = "go build -v -o gh-star-search ./cmd/gh-star-search"
 [tasks.ci]
 description = "Run all checks (used in GitHub Actions)"
 run = [
-  "go build -v -o gh-star-search ./cmd/gh-star-search",
   "go test -v -coverprofile=coverage.out ./...",
+  "go build -v -o gh-star-search ./cmd/gh-star-search"
 ]
 
 [tasks.clean]
@@ -27,14 +27,14 @@ description = "Clean build artifacts"
 run = "rm -f coverage.out"
 
 [tasks.demo]
-depends = ["build"]
 description = "Generate VHS demo recordings"
 run = 'find . -name "*.tape" -not -path "./.git/*" -exec vhs {} \;'
+depends = ["build"]
 
 [tasks.dev]
 description = "Run from source (always reflects current code, no stale build)"
-raw_args = true
 run = "go run ./cmd/gh-star-search"
+raw_args = true
 
 [tasks.format]
 description = "Format code with golangci-lint and golines"

@@ -119,6 +119,85 @@ enable = [
 path = "_test\\.go"
 linters = ["cyclop", "goconst"]
 
+[[linters.exclusions.rules]]
+path = "_test\\.go"
+linters = [
+  "cyclop",
+  "errcheck",
+  "gocritic",
+  "gocognit",
+  "gocyclo",
+  "funlen",
+  "lll",
+  "govet",
+  "gosec",
+  "noctx"
+]
+
+[[linters.exclusions.rules]]
+path = "_test\\.go"
+text = "hugeParam"
+
+[[linters.exclusions.rules]]
+linters = ["gocritic"]
+text = "hugeParam"
+
+[[linters.exclusions.rules]]
+linters = ["gocritic"]
+text = "paramTypeCombine"
+
+[[linters.exclusions.rules]]
+linters = ["gocritic"]
+text = "ifElseChain"
+
+[[linters.exclusions.rules]]
+linters = ["gocritic"]
+text = "rangeValCopy"
+
+[[linters.exclusions.rules]]
+linters = ["gocritic"]
+text = "octalLiteral"
+
+[[linters.exclusions.rules]]
+linters = ["gocritic"]
+text = "filepathJoin"
+
+[[linters.exclusions.rules]]
+linters = ["gocritic"]
+text = "emptyFallthrough"
+
+[[linters.exclusions.rules]]
+linters = ["gocritic"]
+text = "stringXbytes"
+
+[[linters.exclusions.rules]]
+linters = ["godox"]
+text = "TODO"
+
+[[linters.exclusions.rules]]
+linters = ["revive"]
+text = "exported.*should have comment"
+
+[[linters.exclusions.rules]]
+linters = ["revive"]
+text = "package-comments"
+
+[[linters.exclusions.rules]]
+linters = ["revive"]
+text = "unused-parameter"
+
+[[linters.exclusions.rules]]
+linters = ["revive"]
+text = "unused-receiver"
+
+[[linters.exclusions.rules]]
+linters = ["gosec"]
+text = "G107"
+
+[[linters.exclusions.rules]]
+linters = ["gosec"]
+text = "G304"
+
 [linters.settings.cyclop]
 max-complexity = 35
 
@@ -282,85 +361,6 @@ ignore-sigs = [
   ".WithMessagef(",
   ".WithStack("
 ]
-
-[[linters.exclusions.rules]]
-path = "_test\\.go"
-linters = [
-  "cyclop",
-  "errcheck",
-  "gocritic",
-  "gocognit",
-  "gocyclo",
-  "funlen",
-  "lll",
-  "govet",
-  "gosec",
-  "noctx"
-]
-
-[[linters.exclusions.rules]]
-path = "_test\\.go"
-text = "hugeParam"
-
-[[linters.exclusions.rules]]
-linters = ["gocritic"]
-text = "hugeParam"
-
-[[linters.exclusions.rules]]
-linters = ["gocritic"]
-text = "paramTypeCombine"
-
-[[linters.exclusions.rules]]
-linters = ["gocritic"]
-text = "ifElseChain"
-
-[[linters.exclusions.rules]]
-linters = ["gocritic"]
-text = "rangeValCopy"
-
-[[linters.exclusions.rules]]
-linters = ["gocritic"]
-text = "octalLiteral"
-
-[[linters.exclusions.rules]]
-linters = ["gocritic"]
-text = "filepathJoin"
-
-[[linters.exclusions.rules]]
-linters = ["gocritic"]
-text = "emptyFallthrough"
-
-[[linters.exclusions.rules]]
-linters = ["gocritic"]
-text = "stringXbytes"
-
-[[linters.exclusions.rules]]
-linters = ["godox"]
-text = "TODO"
-
-[[linters.exclusions.rules]]
-linters = ["revive"]
-text = "exported.*should have comment"
-
-[[linters.exclusions.rules]]
-linters = ["revive"]
-text = "package-comments"
-
-[[linters.exclusions.rules]]
-linters = ["revive"]
-text = "unused-parameter"
-
-[[linters.exclusions.rules]]
-linters = ["revive"]
-text = "unused-receiver"
-
-[[linters.exclusions.rules]]
-linters = ["gosec"]
-text = "G107"
-
-[[linters.exclusions.rules]]
-linters = ["gosec"]
-text = "G304"
 
 [run]
 timeout = "5m"

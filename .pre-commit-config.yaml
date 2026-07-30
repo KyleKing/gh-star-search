@@ -78,24 +78,9 @@ repos:
         types_or: [html, javascript, json, shell, yaml]
         stages: ["pre-commit"]
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.5
-    hooks:
-      - id: ruff
-        args: [--fix]
-        stages: ["pre-commit"]
-      - id: ruff-format
-        stages: ["pre-commit"]
-
-  - repo: https://github.com/pappasam/toml-sort
-    rev: v0.24.3
-    hooks:
-      - id: toml-sort-fix
-        # sort_inline_arrays would alphabetize gci's `sections`, and that array
-        # is the import group order
-        exclude: ^\.golangci\.toml$
-        stages: ["pre-commit"]
-
+  # TOML formatting is hk's `tombi-format` alone. toml-sort collapses arrays and
+  # respaces inline tables the other way round, so running both leaves every TOML
+  # file rewritten by whichever hook system ran last.
   - repo: https://github.com/KyleKing/calcipy
     rev: 5.0.0
     hooks:
