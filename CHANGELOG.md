@@ -1,3 +1,9 @@
+## v1.0.2 (2026-07-30)
+
+### Fix
+
+- correct the gh-star-search name everywhere it was misspelled
+
 ## v1.0.1 (2026-07-27)
 
 ### Fix
