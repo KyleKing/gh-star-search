@@ -1,3 +1,9 @@
+## v1.0.3 (2026-07-31)
+
+### Fix
+
+- load AGENTS.md by adding the CLAUDE.md import Claude Code reads
+
 ## v1.0.2 (2026-07-30)
 
 ### Fix
