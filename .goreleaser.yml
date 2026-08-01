@@ -8,27 +8,24 @@ before:
 builds:
   - main: ./cmd/gh-star-search
     id: gh-star-search
+    # go-duckdb is CGO-only: without cgo the package's Conn type is compiled out
+    # and the build fails on `undefined: Conn`. Every target here must therefore
+    # be buildable by a native toolchain, which limits this build to the darwin
+    # pair the macOS runner can produce (arm64 natively, amd64 through the
+    # universal macOS SDK). linux/amd64 is built on its own runner in
+    # bump_version.yml and uploaded to the same release.
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
     goos:
-      - linux
       - darwin
-      - windows
-      - freebsd
     goarch:
       - amd64
       - arm64
-      - "386"
-    ignore:
-      - goos: darwin
-        goarch: "386"
-      - goos: windows
-        goarch: arm64
     binary: gh-star-search
 
 archives:

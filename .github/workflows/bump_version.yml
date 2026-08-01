@@ -15,6 +15,9 @@ jobs:
     # Fix 403 error (https://github.com/softprops/action-gh-release/issues/400)
     permissions:
       contents: write
+    outputs:
+      revision: ${{ steps.expose.outputs.revision }}
+      previous_revision: ${{ steps.expose.outputs.previous_revision }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -27,17 +30,86 @@ jobs:
           changelog_increment_filename: body.md
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      # REVISION == PREVIOUS_REVISION means commitizen found no bumpable commits
-      # and cut no tag, so there is nothing to release.
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      # commitizen-action only exports REVISION/PREVIOUS_REVISION into this
+      # job's environment, so they have to be re-exposed to reach the build and
+      # release jobs.
+      - name: Expose the bumped revision to downstream jobs
+        id: expose
+        run: |
+          echo "revision=$REVISION" >> "$GITHUB_OUTPUT"
+          echo "previous_revision=$PREVIOUS_REVISION" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the changelog increment
         if: env.REVISION != env.PREVIOUS_REVISION
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-notes
+          path: body.md
+
+  # go-duckdb is CGO-only, so every binary has to come off a runner with a
+  # native toolchain for its target. linux/amd64 is built here; the darwin pair
+  # is built by the release job on macOS. Targets that only ever cross-compiled
+  # (windows, freebsd, 386, linux/arm64) were dropped rather than shipped broken.
+  build-linux:
+    name: Build linux/amd64
+    needs: bump-version
+    if: needs.bump-version.outputs.revision != needs.bump-version.outputs.previous_revision
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: v${{ needs.bump-version.outputs.revision }}
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
 
-      # Runs in the same workflow because tags pushed with GITHUB_TOKEN do not
-      # trigger other workflows, so a separate on-tag release workflow never fires.
-      - name: Build release binaries and publish release
-        if: env.REVISION != env.PREVIOUS_REVISION
+      - name: Build
+        env:
+          CGO_ENABLED: "1"
+          VERSION: ${{ needs.bump-version.outputs.revision }}
+        run: |
+          go build \
+            -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${GITHUB_SHA} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o gh-star-search-linux-amd64 \
+            ./cmd/gh-star-search
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gh-star-search-linux-amd64
+          path: gh-star-search-linux-amd64
+
+  # Runs in this workflow rather than on a tag push because a tag pushed with
+  # GITHUB_TOKEN does not trigger other workflows, so an `on: push: tags`
+  # release workflow would never fire.
+  release:
+    name: Publish release
+    needs: [bump-version, build-linux]
+    if: needs.bump-version.outputs.revision != needs.bump-version.outputs.previous_revision
+    # macOS: goreleaser publishes the release and the Homebrew cask, and the
+    # cask is only useful with natively built darwin binaries.
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: v${{ needs.bump-version.outputs.revision }}
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-notes
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: gh-star-search-linux-amd64
+
+      - name: Build darwin binaries and publish release
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
@@ -49,3 +121,16 @@ jobs:
           # scripts/provision-tap-deploy-key.sh has been run, which goreleaser
           # treats as "skip the tap" rather than as a failure.
           TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
+
+      # goreleaser only knows about the binaries it built, so the linux one is
+      # attached afterwards and its digest appended to the same checksums file.
+      - name: Attach the linux binary
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: v${{ needs.bump-version.outputs.revision }}
+        run: |
+          chmod +x gh-star-search-linux-amd64
+          gh release upload "$TAG" gh-star-search-linux-amd64 --clobber
+          gh release download "$TAG" -p checksums.txt -O checksums.txt --clobber
+          shasum -a 256 gh-star-search-linux-amd64 >> checksums.txt
+          gh release upload "$TAG" checksums.txt --clobber

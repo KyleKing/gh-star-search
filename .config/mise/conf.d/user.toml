@@ -44,3 +44,9 @@ run = "go test -tags=integration -timeout=10m -bench=. -benchmem -run=^$ -v ./in
 [tasks.update]
 description = "Update dependencies"
 run = ["go get -u ./...", "go mod tidy"]
+
+[tools]
+# go-duckdb is CGO-only, so a passing `go test ./...` does not prove the release
+# build works. Keep goreleaser available to check it before tagging:
+#   goreleaser build --snapshot --clean --single-target
+goreleaser = "latest"
