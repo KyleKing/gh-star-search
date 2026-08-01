@@ -1,3 +1,9 @@
+## v1.0.4 (2026-08-01)
+
+### Fix
+
+- **release**: build release binaries with cgo on native runners
+
 ## v1.0.3 (2026-07-31)
 
 ### Fix
