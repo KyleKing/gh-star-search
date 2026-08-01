@@ -5,53 +5,50 @@ Open work for gh-star-search. Everything here was re-verified against the repo o
 lives in `DESIGN.md` and `OPERATIONS.md`; the append-only pass log is
 `.freshen.md`.
 
-## Blocking decision: DuckDB and cgo
+## Release pipeline: cgo and native runners
 
-This repo cannot build a release binary for any platform, and it will stay that
-way until this is settled. Nothing in the release pipeline is worth touching
-first.
+Settled on 2026-08-01. `github.com/marcboeker/go-duckdb` only compiles with cgo,
+so `CGO_ENABLED=0` made every target fail on `undefined: Conn` and no release
+ever shipped a binary. `.goreleaser.yml` now sets `CGO_ENABLED=1` and builds only
+what a runner can produce natively:
 
-`github.com/marcboeker/go-duckdb` only compiles with cgo, and `.goreleaser.yml`
-sets `CGO_ENABLED=0`, inherited from `go_template/.goreleaser.yml.jinja`. All ten
-configured targets fail identically:
+- darwin/arm64 and darwin/amd64, built by goreleaser on `macos-latest` (the
+  universal macOS SDK covers the amd64 cross), which also publishes the release
+  and the Homebrew cask
+- linux/amd64, built with plain `go build` on `ubuntu-latest` in a separate job
+  and attached to the same release afterwards, with its digest appended to
+  `checksums.txt`
 
-```sh
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd/gh-star-search
-# github.com/marcboeker/go-duckdb
-transaction.go:6:5: undefined: Conn
-```
+windows, freebsd, 386, and linux/arm64 were dropped rather than shipped broken.
+Adding any of them back means a cgo cross toolchain (zig or osxcross) or another
+native runner.
 
-Because the flag lives in the template, every my_go_template child with a cgo
-dependency breaks the same way, so the answer probably belongs upstream too.
+goreleaser stays inline in `bump_version.yml` because a tag pushed with
+`GITHUB_TOKEN` does not trigger other workflows. goreleaser OSS has no
+`--split`/`continue`, which is why the linux binary is attached by hand instead
+of merged into one goreleaser run.
 
-Three options:
+Still open:
 
-- set `CGO_ENABLED=1` and ship linux/amd64 only, which builds natively on the
-  ubuntu runner with no extra toolchain, and drop the other nine targets
-- keep the full platform list and add zig or osxcross so goreleaser can
-  cross-compile cgo to darwin and windows, which is more moving parts in CI
-- drop goreleaser here and document `go install` in the README, which costs users
-  a Go toolchain but needs no build matrix at all
-
-The prior question of whether to keep DuckDB is still open and answering it first
-may settle this one. A pure-Go store (sqlite via modernc, or Parquet plus an
-in-process query layer) removes the cgo constraint outright.
-
-Consequences to expect until it lands:
-
+- `mise run ci` passes while the release build fails, because `go test ./...`
+  uses the host toolchain. `goreleaser` is now pinned in
+  `.config/mise/conf.d/user.toml`; `goreleaser build --snapshot --clean` before
+  tagging is the check that would have caught this. Wiring it into a mise task or
+  the CI job is unfinished
+- the same `CGO_ENABLED=0` default still ships in
+  `my_go_template/go_template/.goreleaser.yml.jinja`, so any other child with a
+  cgo dependency breaks identically. Worth an upstream copier question
+- whether to keep DuckDB at all. A pure-Go store (modernc sqlite, or Parquet plus
+  an in-process query layer) removes the cgo constraint and restores the full
+  platform matrix
 - v1.0.0 and v1.0.1 stay as they are: two assetless releases. Deleting them
-  breaks any `_version` reference and rewrites the changelog for no gain, and
-  back-filling binaries onto an old tag ships a build nobody cut
-- v1.0.2 is tagged on `main` with no GitHub Release object at all, because
-  goreleaser died before creating it. Leave the tag. Whichever option is taken,
-  re-running goreleaser against it creates the release and attaches assets, so
-  v1.0.2 can still be the first real one
-- any new `fix:` or `feat:` commit trips Bump Version, which tags and then fails
-  goreleaser at the build step. A fresh assetless release is the expected outcome
-  of a normal bumpable commit right now, not a regression
+  rewrites the changelog for no gain
+- v1.0.3 is tagged on `main` with no GitHub Release object, left by the failed
+  run 30636183575. v1.0.2 was the same and was deleted on 2026-08-01 (it was
+  `97c84db`, restorable if it is ever wanted). v1.0.3 can be deleted the same way
+  once the first real release lands
 - [issue #13](https://github.com/KyleKing/gh-star-search/issues/13)
-  ("Installation Fails") stays open. It has been open since February and hueys is
-  the only outside user any of these plugins has
+  ("Installation Fails") can be closed once a release carries binaries
 
 ## The two entrypoints disagree
 
@@ -96,33 +93,33 @@ Two Dependabot PRs are open: #30 (go-dependencies group, 4 updates) and #31
 my_go_template instead of merging here. Read any `urfave/cli` v3 bump carefully
 before merging; the `Before` hook signature broke on a v3 upgrade once already.
 
-## Pending the next copier update
+## Template sync
 
-This repo is pinned at my_go_template v0.7.0; the template is at v0.9.0.
+Updated to my_go_template v0.9.1 on 2026-08-01. What the update settled:
 
-- `hk.pkl` has no `typos`, `shellcheck`, `check-json`, or `copier-forbidden-files`
-  step. Template v0.8.0 adds all of them, so the update closes this. `ruff`,
-  `mdformat`, and `prettier` are deliberate template omissions and stay missing;
-  adopting ruff here would need `internal/python/scripts/embed.py`'s ANN201 and
+- `hk.pkl` gained `typos`, `shellcheck`, `check-json`, `copier-forbidden-files`,
+  `byte-order-marker`, `check-executables-have-shebangs`, `forbid-new-submodules`,
+  `python-debug-statements`, and `vcs-permalinks`, plus the `newlines` exclude for
+  `.copier-answers.yml`. `ruff`, `mdformat`, and `prettier` stay deliberately
+  absent; adopting ruff would need `internal/python/scripts/embed.py`'s ANN201 and
   D103 fixed first
-- `hk.pkl`'s `newlines` step strips the trailing blank line copier writes into
-  `.copier-answers.yml`, producing a spurious one-line diff on every update.
-  Template 514e62b adds the exclude
-- `Formula/gh-star-search.rb` and the `brew:sha` task are dead: the formula still
-  carries `version "0.1.0"` and `REPLACE_WITH_SHA256_FOR_*` placeholders and has
-  never been installable, and goreleaser has generated the cask since template
-  v0.7.0. Template v0.8.0's `remove-if-found.txt` deletes the stub automatically,
-  so nothing needs deleting by hand. The four `Formula/` references in
-  `CONTRIBUTING.md` should go at the same time
-- `.pre-commit-config.yaml` is still in the tree because the template ships it,
-  but prek's git hooks are uninstalled and hk's config-based hooks
+- `Formula/gh-star-search.rb` and the `brew:sha` task were deleted by the
+  template's `remove-if-found.txt`, and `CONTRIBUTING.md` now points at the
+  goreleaser-generated cask instead
+- `_typos.toml` was merged into the template's `.typos.toml` and deleted, so only
+  one config is in play. The `ttest` allowlist entry (scipy's `stats.ttest_rel` in
+  `internal/python/scripts/evaluate_embeddings.py`) carried over
+
+Left over:
+
+- `.pre-commit-config.yaml` is still in the tree because the template still ships
+  it, but prek's git hooks are uninstalled and hk's config-based hooks
   (`hook.hk-*.command`, git 2.55) are what run. The template tracks removing it
-- The update adds a CI `hooks` job running `hk check --all`. The one finding
-  measured against this repo was `ttest` (scipy's `stats.ttest_rel`) in
-  `internal/python/scripts/evaluate_embeddings.py:547`, allowlisted in
-  `_typos.toml` on 2026-07-27. Watch the filename: this repo uses `_typos.toml`
-  and the template ships `.typos.toml`, so the update lands a second config file
-  and typos reads only the first it finds. Merge them into one
+- `AGENTS.md` is in the template's `_skip_if_exists`, so this repo still carries
+  the pre-v0.6 shape (`### Package Guidelines`, `### File Organization`) and never
+  received the v0.9.x rewrite. That rewrite adds the verification checklist and
+  the "a release is verified by distinct hashes, not asset count" rule, both of
+  which apply here. Worth hand-syncing while keeping this repo's package tree
 
 ## Loose ends
 
