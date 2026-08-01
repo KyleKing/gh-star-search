@@ -1,3 +1,9 @@
+## v1.0.5 (2026-08-01)
+
+### Fix
+
+- **release**: keep the linux artifact out of the goreleaser worktree
+
 ## v1.0.4 (2026-08-01)
 
 ### Fix
