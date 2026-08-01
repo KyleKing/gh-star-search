@@ -1,0 +1,11 @@
+[files]
+# Generated from commit subjects by commitizen, so a typo here can only be fixed
+# by rewriting history. Catch it in the commit message instead.
+extend-exclude = ["CHANGELOG.md"]
+
+# golangci-lint linter identifiers that typos reads as misspellings.
+[default.extend-words]
+decorder = "decorder"
+importas = "importas"
+# scipy's stats.ttest_rel, used in internal/python/scripts/evaluate_embeddings.py
+ttest = "ttest"

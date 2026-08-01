@@ -20,33 +20,104 @@ exclude = List("**/*.golden")
 // stages exactly the files each step touched (`stage = "<JOB_FILES>"` default).
 local linters = new Mapping<String, Step> {
     ["actionlint"] = Builtins.actionlint
+    ["byte-order-marker"] = Builtins.byte_order_marker
     ["check-added-large-files"] = Builtins.check_added_large_files
+    ["check-executables-have-shebangs"] = Builtins.check_executables_have_shebangs
+    // Parse-only, matching pre-commit's check-json. `Builtins.jq` would also
+    // reformat and key-sort every JSON file, which is a different decision.
+    ["check-json"] {
+        batch = true
+        glob = List("**/*.json")
+        check = "jq empty {{files}}"
+    }
     ["check-merge-conflict"] = Builtins.check_merge_conflict
     ["check-symlinks"] = Builtins.check_symlinks
+    // The .rej guard. `copier update` writes `<file>.rej` for every hunk that
+    // fails to re-apply, and each one holds a local change that is lost if the
+    // file is committed and forgotten. prek expressed this as `language: fail`
+    // on `\.rej$`; here the glob decides whether the step runs at all, so the
+    // check only has to fail.
+    ["copier-forbidden-files"] {
+        batch = true
+        glob = List("**/*.rej", "**/*.orig")
+        check = """
+            echo "Copier conflict artifacts must not be committed. Review and delete:"
+            for f in {{files}}; do echo "  $f"; done
+            exit 1
+            """
+    }
     ["detect-private-key"] = Builtins.detect_private_key
+    // No builtin. Reads the staged diff rather than {{files}} so it flags only
+    // submodules being added, which keeps `hk check --all` green in a repo that
+    // already has one.
+    ["forbid-new-submodules"] {
+        check = """
+            if git diff --cached --diff-filter=A --raw | grep -q "^:000000 160000"; then
+              echo "new submodules are not allowed"
+              exit 1
+            fi
+            """
+    }
     ["ls-lint"] {
         check = "ls-lint"
     }
     ["mixed-line-ending"] = Builtins.mixed_line_ending
-    ["newlines"] = Builtins.newlines
+    // copier renders .copier-answers.yml with a trailing blank line and rewrites
+    // it on every update, so stripping that line here produces a one-line diff
+    // after each `copier update`. prek's end-of-file-fixer carried the same
+    // exclusion. It is the only copier-written file that ends in a blank line.
+    ["newlines"] = (Builtins.newlines) {
+        exclude = List("**/.copier-answers.yml")
+    }
     ["pkl"] = Builtins.pkl
+    ["python-debug-statements"] = Builtins.python_debug_statements
+    ["shellcheck"] = (Builtins.shellcheck) {
+        check = "shellcheck --severity=warning {{files}}"
+    }
     // Matches the tombi LSP that formats TOML on save in nvim, so the editor
     // and the hook agree. `Builtins.tombi` (the linter) is deliberately absent:
     // it validates against Schema Store and rejects valid-but-unschema'd keys.
     ["tombi-format"] = Builtins.tombi_format
     ["trailing-whitespace"] = Builtins.trailing_whitespace
+    ["typos"] = Builtins.typos
+    // No builtin for pre-commit's check-vcs-permalinks. A GitHub blob link that
+    // names a branch instead of a 40-character commit SHA points at content that
+    // moves, so the first grep finds line-anchored blob links and the second
+    // drops the ones already pinned. Written without backslash escapes so the
+    // pattern reads the same in pkl and in sh.
+    ["vcs-permalinks"] {
+        batch = true
+        types = List("text")
+        check = """
+            if grep -nE 'https://github[.]com/[^/ ]+/[^/ ]+/blob/[^ )#]+#L[0-9]+' {{files}} | grep -vE '/blob/[0-9a-fA-F]{40}/'; then
+              echo "use a commit SHA in the URL above so the line numbers stay valid"
+              exit 1
+            fi
+            """
+    }
     // Restores the parse check that check-yaml gave us under pre-commit. The
     // relaxed ruleset is deliberate and must stay unstrict: it demotes style
-    // rules to warnings so only unparsable YAML fails, the same reason
+    // rules to warnings so only YAML that fails to parse fails, the same reason
     // `Builtins.tombi` is absent above.
     ["yamllint"] = (Builtins.yamllint) {
         check = "yamllint -d relaxed {{files}}"
     }
 }
 
-// hk 1.53.0 ships no equivalent of pre-commit's check-vcs-permalinks, so
-// non-permalink GitHub links are unchecked here. `hk builtins | grep -i vcs`
-// on a future upgrade is the cheapest way to notice if that changes.
+// Coverage decisions against the pre-commit hooks this config replaces:
+//
+// - mdformat and prettier are deliberately absent. tombi and the Go formatters
+//   already own every file they would touch, and running them found nothing to
+//   change in any project.
+// - ruff is deliberately absent. These are Go projects; python-debug-statements
+//   is the one Python check worth keeping because a stray breakpoint is cheap to
+//   catch and expensive to ship.
+// - check-toml has no builtin and needs none: tombi-format parses every TOML
+//   file before formatting it, so TOML that fails to parse fails there.
+// - destroyed-symlinks has no hk equivalent, so a symlink committed as a regular
+//   file after a checkout without symlink support goes unnoticed. check-symlinks
+//   covers only broken symlinks. `hk builtins | grep -i symlink` on a future
+//   upgrade is the cheapest way to notice if that changes.
 
 local commit_msg_checks = new Mapping<String, Step> {
     ["commitizen"] {

@@ -41,6 +41,22 @@ jobs:
           path: coverage.out
           if-no-files-found: ignore
 
+  hooks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+
+      # The same steps the pre-commit hook runs, so a `--no-verify` commit or a
+      # checkout that never ran `hk install --mise` cannot bypass them.
+      - run: hk check --all
+        env:
+          # `ci` duplicates the ci job above, and `commitizen-branch` needs an
+          # origin/HEAD..HEAD range that does not exist on a PR checkout.
+          HK_SKIP_STEPS: ci,commitizen-branch
+
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10

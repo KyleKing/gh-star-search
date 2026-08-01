@@ -2,15 +2,6 @@
 description = "Run benchmarks"
 run = "go test -bench=. -benchmem -run=^$ ./..."
 
-[tasks."brew:sha"]
-description = "Print SHA256 for Homebrew formula (run after release)"
-run = """
-echo "Download binaries from the latest release and run:"
-echo "  shasum -a 256 gh-star-search-darwin-arm64 gh-star-search-darwin-amd64 gh-star-search-linux-arm64 gh-star-search-linux-amd64"
-echo ""
-echo "Then update Formula/gh-star-search.rb with the SHA256 values and version."
-"""
-
 [tasks.build]
 description = "Build binary"
 run = "go build -v -o gh-star-search ./cmd/gh-star-search"
@@ -76,8 +67,11 @@ go = "latest"
 "go:github.com/golangci/golines" = "0.15.0"
 "golangci-lint" = "2.12.2"
 hk = "1.53.0"
+jq = "latest"
 ls-lint = "latest"
 "pipx:commitizen" = "latest"
 "pipx:yamllint" = "latest"
 pkl = "latest"
+shellcheck = "latest"
 tombi = "latest"
+typos = "latest"

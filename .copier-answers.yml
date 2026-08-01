@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier
-_commit: v0.7.0
+_commit: v0.9.1
 _src_path: gh:KyleKing/my_go_template
 author_email: dev.act.kyle@gmail.com
 author_name: Kyle King
@@ -13,3 +13,4 @@ project_type: cli
 repository_namespace: KyleKing
 repository_provider: https://github.com
 use_goreleaser: true
+
