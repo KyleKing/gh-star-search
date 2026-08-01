@@ -41,14 +41,17 @@ Still open:
 - whether to keep DuckDB at all. A pure-Go store (modernc sqlite, or Parquet plus
   an in-process query layer) removes the cgo constraint and restores the full
   platform matrix
+- v1.0.5 is the first release that ever carried binaries: three assets with three
+  distinct hashes (darwin/arm64, darwin/amd64, linux/amd64) and a `checksums.txt`
+  covering all three. The Homebrew cask reached `KyleKing/homebrew-tap` at the
+  same time
 - v1.0.0 and v1.0.1 stay as they are: two assetless releases. Deleting them
   rewrites the changelog for no gain
-- v1.0.3 is tagged on `main` with no GitHub Release object, left by the failed
-  run 30636183575. v1.0.2 was the same and was deleted on 2026-08-01 (it was
-  `97c84db`, restorable if it is ever wanted). v1.0.3 can be deleted the same way
-  once the first real release lands
+- v1.0.3 and v1.0.4 are tagged on `main` with no GitHub Release object, left by
+  the two failed release runs. v1.0.2 was the same and was deleted on 2026-08-01
+  (it was `97c84db`, restorable if wanted). Both can go the same way
 - [issue #13](https://github.com/KyleKing/gh-star-search/issues/13)
-  ("Installation Fails") can be closed once a release carries binaries
+  ("Installation Fails") can now be closed; v1.0.5 answers it
 
 ## The two entrypoints disagree
 
@@ -109,6 +112,19 @@ Updated to my_go_template v0.9.1 on 2026-08-01. What the update settled:
 - `_typos.toml` was merged into the template's `.typos.toml` and deleted, so only
   one config is in play. The `ttest` allowlist entry (scipy's `stats.ttest_rel` in
   `internal/python/scripts/evaluate_embeddings.py`) carried over
+
+Two template defects to back-port, because the next copier update reverts the
+local fixes:
+
+- `go_template/.github/workflows/ci.yml.jinja` runs both `jdx/mise-action` and
+  `actions/setup-go` in the `ci` job. mise exports `GOROOT` for its own
+  `go = "latest"` while setup-go supplies go.mod's version, so `go` drives the
+  other tree's `compile` and every package fails with `compile: version "goX"
+  does not match go tool version "goY"`. Latent since v0.8.0; it fired here the
+  day Go 1.26.5 shipped. Setting `GOROOT: ""` on the step does not help because
+  `mise run` re-exports it. Fixed locally by deleting setup-go from that job
+- `go_template/.goreleaser.yml.jinja` sets `CGO_ENABLED=0`, which silently breaks
+  any child with a cgo dependency. An opt-in copier question would surface it
 
 Left over:
 
