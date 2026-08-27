@@ -61,11 +61,7 @@ relevance_grades = { "gin-gonic/gin" = 3, "go-chi/chi" = 2, "gorilla/mux" = 3, "
 
 [[queries]]
 category = "use_case"
-expected_repos = [
-  "authelia/authelia",
-  "ory/kratos",
-  "supertokens/supertokens-core"
-]
+expected_repos = ["authelia/authelia", "ory/kratos", "supertokens/supertokens-core"]
 id = "q008"
 query = "authentication"
 relevance_grades = { "authelia/authelia" = 3, "oauth2-proxy/oauth2-proxy" = 2, "ory/kratos" = 3, "supertokens/supertokens-core" = 3 }
@@ -79,11 +75,7 @@ relevance_grades = { "BurntSushi/ripgrep" = 1, "rust-lang/cargo" = 3, "rust-lang
 
 [[queries]]
 category = "composite"
-expected_repos = [
-  "pytorch/pytorch",
-  "scikit-learn/scikit-learn",
-  "tensorflow/tensorflow"
-]
+expected_repos = ["pytorch/pytorch", "scikit-learn/scikit-learn", "tensorflow/tensorflow"]
 id = "q010"
 query = "machine learning framework"
 relevance_grades = { "keras-team/keras" = 2, "pytorch/pytorch" = 3, "scikit-learn/scikit-learn" = 3, "tensorflow/tensorflow" = 3 }
@@ -125,11 +117,7 @@ relevance_grades = { "amacneil/dbmate" = 3, "flyway/flyway" = 3, "golang-migrate
 
 [[queries]]
 category = "use_case"
-expected_repos = [
-  "OAI/OpenAPI-Specification",
-  "stoplightio/prism",
-  "swagger-api/swagger-ui"
-]
+expected_repos = ["OAI/OpenAPI-Specification", "stoplightio/prism", "swagger-api/swagger-ui"]
 id = "q016"
 query = "api documentation"
 relevance_grades = { "OAI/OpenAPI-Specification" = 3, "Redocly/redoc" = 3, "slatedocs/slate" = 2, "swagger-api/swagger-ui" = 3 }
@@ -157,10 +145,7 @@ relevance_grades = { "concourse/concourse" = 3, "drone/drone" = 3, "jenkins-x/jx
 
 [[queries]]
 category = "composite"
-expected_repos = [
-  "hashicorp/terraform",
-  "terraform-providers/terraform-provider-aws"
-]
+expected_repos = ["hashicorp/terraform", "terraform-providers/terraform-provider-aws"]
 id = "q020"
 query = "terraform provider"
 relevance_grades = { "hashicorp/terraform" = 2, "hashicorp/terraform-provider-aws" = 3, "hashicorp/terraform-provider-azurerm" = 2 }
@@ -188,11 +173,7 @@ relevance_grades = { "alecthomas/kong" = 2, "spf13/cobra" = 3, "urfave/cli" = 3 
 
 [[queries]]
 category = "edge_case"
-expected_repos = [
-  "sqlalchemy/sqlalchemy",
-  "tortoise/tortoise-orm",
-  "typeorm/typeorm"
-]
+expected_repos = ["sqlalchemy/sqlalchemy", "tortoise/tortoise-orm", "typeorm/typeorm"]
 id = "q024"
 query = "orm"
 relevance_grades = { "prisma/prisma" = 2, "sqlalchemy/sqlalchemy" = 3, "tortoise/tortoise-orm" = 3, "typeorm/typeorm" = 3 }

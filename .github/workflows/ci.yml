@@ -18,10 +18,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # mise owns the Go toolchain here. Adding actions/setup-go alongside it
-      # leaves two Go trees on PATH with mise's GOROOT winning, so `go` drives a
-      # `compile` from the other version and every package fails with
-      # `compile: version "goX" does not match go tool version "goY"`.
+      # mise owns the Go toolchain in this job. actions/setup-go alongside it puts
+      # a second GOROOT on PATH, and `go` then loads a `compile` from the other
+      # tree: "version go1.X does not match go tool version go1.Y".
       - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
 
       - run: mise run ci
@@ -49,6 +48,19 @@ jobs:
           # origin/HEAD..HEAD range that does not exist on a PR checkout.
           HK_SKIP_STEPS: ci,commitizen-branch
 
+  # Its own job so a workflow error reads as an actionlint failure instead of
+  # surfacing inside `hk check --all`. actionlint owns .github/workflows/, which
+  # hk.pkl excludes from yamllint.
+  actionlint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+
+      - run: actionlint
+
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -57,12 +69,34 @@ jobs:
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: "go.mod"
+          go-version-file: 'go.mod'
 
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          # Keep in sync with the golangci-lint pin in .config/mise/conf.d/template.toml
           version: v2.12.2
+
+  project:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: 'go.mod'
+
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+
+      # A project defines ci:project in its own .config/mise/conf.d file, so a
+      # gate that only it needs runs in CI without editing this workflow, which
+      # copier overwrites on every update.
+      - name: Run project checks
+        run: |
+          if mise tasks ls | grep -qE '^ci:project([[:space:]]|$)'; then
+            mise run ci:project
+          else
+            echo "No ci:project task defined; nothing project-specific to check."
+          fi
 
   benchmark:
     runs-on: ubuntu-latest

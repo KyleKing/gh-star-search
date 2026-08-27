@@ -1,9 +1,9 @@
 // Install with `hk install --mise` to ensure local tools are available
-// The hk version is pinned by hk_version in copier.yml
 // Skip with `HK=0` or `git ... --no-verify`
 //
 // `amends`/`import` must be the first module members and cannot interpolate a
-// pkl `local`, so copier substitutes the version literal at generation time.
+// pkl `local`, so the version is repeated as a literal. All five occurrences are
+// listed in .doneram.pkl and patched together.
 
 amends "package://github.com/jdx/hk/releases/download/v1.53.0/hk@1.53.0#/Config.pkl"
 import "package://github.com/jdx/hk/releases/download/v1.53.0/hk@1.53.0#/Builtins.pkl"
@@ -99,8 +99,10 @@ local linters = new Mapping<String, Step> {
     // relaxed ruleset is deliberate and must stay unstrict: it demotes style
     // rules to warnings so only YAML that fails to parse fails, the same reason
     // `Builtins.tombi` is absent above.
+    // actionlint validates GitHub workflow YAML, yamllint covers the rest.
     ["yamllint"] = (Builtins.yamllint) {
         check = "yamllint -d relaxed {{files}}"
+        exclude = List(".github/workflows/**")
     }
 }
 
@@ -129,8 +131,16 @@ local pre_push_checks = new Mapping<String, Step> {
     ["ci"] {
         check = "mise run ci"
     }
+    // Pushing a module that only builds against an unpublished sibling checkout is
+    // the mistake worth catching here. Committing against one mid-change is normal,
+    // so this runs on push rather than on commit.
+    ["verify-released"] {
+        check = "mise run verify-released"
+    }
     ["commitizen-branch"] {
-        check = "cz check --rev-range origin/HEAD..HEAD"
+        // cz exits non-zero on an empty rev-range, which is the normal state of a
+        // branch that is level with origin, so skip it rather than fail the hook
+        check = #"test -z "$(git rev-list origin/HEAD..HEAD)" || cz check --rev-range origin/HEAD..HEAD"#
     }
 }
 

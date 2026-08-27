@@ -198,11 +198,7 @@ relevance_grades = { "steipete/macos-automator-mcp" = 3 }
 [[queries]]
 category = "ambiguous"
 difficulty = "hard"
-expected_repos = [
-  "openclaw/openclaw",
-  "steipete/AXorcist",
-  "steipete/macos-automator-mcp"
-]
+expected_repos = ["openclaw/openclaw", "steipete/AXorcist", "steipete/macos-automator-mcp"]
 id = "variant_001"
 intent = "tool_finding"
 query = "mac automation"
@@ -211,11 +207,7 @@ relevance_grades = { "openclaw/openclaw" = 2, "steipete/AXorcist" = 2, "steipete
 [[queries]]
 category = "ambiguous"
 difficulty = "hard"
-expected_repos = [
-  "openclaw/openclaw",
-  "steipete/CodexBar",
-  "steipete/summarize"
-]
+expected_repos = ["openclaw/openclaw", "steipete/CodexBar", "steipete/summarize"]
 id = "variant_002"
 intent = "discovery"
 query = "ai tools"
@@ -287,11 +279,7 @@ relevance_grades = { "steipete/AXorcist" = 2, "steipete/CodexBar" = 2, "steipete
 [[queries]]
 category = "discovery"
 difficulty = "easy"
-expected_repos = [
-  "lukilabs/craft-agents-oss",
-  "openclaw/openclaw",
-  "steipete/summarize"
-]
+expected_repos = ["lukilabs/craft-agents-oss", "openclaw/openclaw", "steipete/summarize"]
 id = "discovery_002"
 intent = "browsing"
 query = "typescript tools"

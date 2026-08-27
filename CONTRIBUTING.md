@@ -39,6 +39,7 @@ sorts after `template.toml` (`user.toml` works; `project.toml` does not, since
 ## Code Guidelines
 
 Follow [AGENTS.md](AGENTS.md) for code organization, testing patterns, and error handling.
+[docs/go-best-practices.md](docs/go-best-practices.md) carries the worked examples.
 
 Linting is configured in `.golangci.toml` with 40+ rules. Run `mise run format` to auto-fix.
 
@@ -120,5 +121,6 @@ go test -v -run TestName ./package  # Debug specific test
 go test ./... -update  # Refresh golden fixtures, where the project has them
 ```
 
-Golden files are byte-exact snapshots, so `hk.pkl` excludes `**/*.golden` from every
-whitespace fixer. Regenerate them with `-update` and review the diff; never hand-edit.
+[docs/troubleshooting.md](docs/troubleshooting.md) covers the toolchain failures that
+look like project bugs: an empty `GOPROXY` from a corrupt mise Go install, a
+`compile` loaded from a second `GOROOT`, and golden fixtures rewritten on commit.

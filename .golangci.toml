@@ -45,6 +45,7 @@ disable = [
   "testableexamples",  # examples require live GitHub API access
   "testpackage",  # v1.1: migrate tests to _test packages
   "wrapcheck",  # v1.1: requires wrapping all external errors
+  "wsl",  # whitespace linting too nitpicky
 ]
 enable = [
   "asciicheck",
@@ -111,7 +112,7 @@ enable = [
   "usetesting",
   "wastedassign",
   "whitespace",
-  "zerologlint"
+  "zerologlint",
 ]
 
 [[linters.exclusions.rules]]
@@ -121,18 +122,7 @@ linters = ["cyclop", "goconst"]
 
 [[linters.exclusions.rules]]
 path = "_test\\.go"
-linters = [
-  "cyclop",
-  "errcheck",
-  "gocritic",
-  "gocognit",
-  "gocyclo",
-  "funlen",
-  "lll",
-  "govet",
-  "gosec",
-  "noctx"
-]
+linters = ["cyclop", "errcheck", "gocritic", "gocognit", "gocyclo", "funlen", "lll", "govet", "gosec", "noctx"]
 
 [[linters.exclusions.rules]]
 path = "_test\\.go"
@@ -207,14 +197,7 @@ threshold = 100
 [linters.settings.errcheck]
 check-type-assertions = false
 check-blank = false
-exclude-functions = [
-  "fmt.Fprintln",
-  "fmt.Fprintf",
-  "fmt.Printf",
-  "(io.Closer).Close",
-  "os.Remove",
-  "os.RemoveAll"
-]
+exclude-functions = ["fmt.Fprintln", "fmt.Fprintf", "fmt.Printf", "(io.Closer).Close", "os.Remove", "os.RemoveAll"]
 
 [linters.settings.exhaustive]
 default-signifies-exhaustive = true
@@ -237,9 +220,13 @@ enabled-tags = [
   "style",
   "performance",
   "experimental",
-  "opinionated"
+  "opinionated",
 ]
-disabled-checks = ["whyNoLint"]
+disabled-checks = [
+  "hugeParam",  # BubbleTea root Models are large by design; value receivers keep Update/View copy semantics
+  "unnamedResult",  # contradicts nonamedreturns, which is enabled and wins
+  "whyNoLint",
+]
 
 [linters.settings.gocyclo]
 min-complexity = 15
@@ -253,7 +240,15 @@ enable-all = true
 disable = ["shadow"]
 
 [linters.settings.ireturn]
-allow = ["error", "empty", "stdlib"]
+# Bubble Tea v2 moved to charm.land; both paths are listed so a project on either
+# major version lints clean, because Model.Update returns the tea.Model interface.
+allow = [
+  "error",
+  "empty",
+  "stdlib",
+  "charm.land/bubbletea/v2.Model",
+  "github.com/charmbracelet/bubbletea.Model",
+]
 
 [linters.settings.lll]
 line-length = 140
@@ -327,7 +322,7 @@ rules = [
   { name = "useless-break" },
   { name = "var-declaration" },
   { name = "var-naming" },
-  { name = "waitgroup-by-value" }
+  { name = "waitgroup-by-value" },
 ]
 
 [linters.settings.staticcheck]
@@ -359,7 +354,7 @@ ignore-sigs = [
   ".Wrapf(",
   ".WithMessage(",
   ".WithMessagef(",
-  ".WithStack("
+  ".WithStack(",
 ]
 
 [run]

@@ -85,34 +85,21 @@ relevance_grades = { "steipete/summarize" = 3 }
 
 [[queries]]
 category = "technology"
-expected_repos = [
-  "steipete/AXorcist",
-  "steipete/CodexBar",
-  "steipete/Peekaboo",
-  "steipete/Trimmy"
-]
+expected_repos = ["steipete/AXorcist", "steipete/CodexBar", "steipete/Peekaboo", "steipete/Trimmy"]
 id = "q011"
 query = "swift macos"
 relevance_grades = { "steipete/AXorcist" = 2, "steipete/CodexBar" = 3, "steipete/Peekaboo" = 3, "steipete/Trimmy" = 2 }
 
 [[queries]]
 category = "technology"
-expected_repos = [
-  "ramonvermeulen/whosthere",
-  "steipete/gogcli",
-  "steipete/remindctl"
-]
+expected_repos = ["ramonvermeulen/whosthere", "steipete/gogcli", "steipete/remindctl"]
 id = "q012"
 query = "go cli"
 relevance_grades = { "ramonvermeulen/whosthere" = 2, "steipete/gogcli" = 3, "steipete/remindctl" = 2 }
 
 [[queries]]
 category = "technology"
-expected_repos = [
-  "lukilabs/craft-agents-oss",
-  "openclaw/openclaw",
-  "steipete/summarize"
-]
+expected_repos = ["lukilabs/craft-agents-oss", "openclaw/openclaw", "steipete/summarize"]
 id = "q013"
 query = "typescript ai"
 relevance_grades = { "lukilabs/craft-agents-oss" = 2, "openclaw/openclaw" = 3, "steipete/summarize" = 2 }
@@ -168,47 +155,28 @@ relevance_grades = { "steipete/remindctl" = 3 }
 
 [[queries]]
 category = "generic"
-expected_repos = [
-  "ToBinio/cargo-features-manager",
-  "steipete/gogcli",
-  "steipete/remindctl",
-  "steipete/summarize"
-]
+expected_repos = ["ToBinio/cargo-features-manager", "steipete/gogcli", "steipete/remindctl", "steipete/summarize"]
 id = "q021"
 query = "cli"
 relevance_grades = { "ToBinio/cargo-features-manager" = 1, "steipete/gogcli" = 2, "steipete/remindctl" = 2, "steipete/summarize" = 2 }
 
 [[queries]]
 category = "generic"
-expected_repos = [
-  "lukilabs/craft-agents-oss",
-  "openclaw/openclaw",
-  "steipete/CodexBar",
-  "steipete/summarize"
-]
+expected_repos = ["lukilabs/craft-agents-oss", "openclaw/openclaw", "steipete/CodexBar", "steipete/summarize"]
 id = "q022"
 query = "ai"
 relevance_grades = { "lukilabs/craft-agents-oss" = 2, "openclaw/openclaw" = 3, "steipete/CodexBar" = 2, "steipete/summarize" = 2 }
 
 [[queries]]
 category = "generic"
-expected_repos = [
-  "steipete/AXorcist",
-  "steipete/CodexBar",
-  "steipete/Peekaboo",
-  "steipete/macos-automator-mcp"
-]
+expected_repos = ["steipete/AXorcist", "steipete/CodexBar", "steipete/Peekaboo", "steipete/macos-automator-mcp"]
 id = "q023"
 query = "macos tool"
 relevance_grades = { "steipete/AXorcist" = 2, "steipete/CodexBar" = 2, "steipete/Peekaboo" = 2, "steipete/macos-automator-mcp" = 2 }
 
 [[queries]]
 category = "generic"
-expected_repos = [
-  "ToBinio/cargo-features-manager",
-  "steipete/CodexBar",
-  "uber-go/guide"
-]
+expected_repos = ["ToBinio/cargo-features-manager", "steipete/CodexBar", "uber-go/guide"]
 id = "q024"
 query = "developer tools"
 relevance_grades = { "ToBinio/cargo-features-manager" = 2, "steipete/CodexBar" = 2, "uber-go/guide" = 2 }

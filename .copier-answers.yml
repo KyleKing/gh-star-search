@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier
-_commit: v0.9.1
+_commit: v0.12.0
 _src_path: gh:KyleKing/my_go_template
 author_email: dev.act.kyle@gmail.com
 author_name: Kyle King
@@ -10,6 +10,7 @@ module_path: github.com/KyleKing/gh-star-search
 project_description: 'GH CLI extension to search your stars '
 project_name: gh-star-search
 project_type: cli
+publish_python: false
 repository_namespace: KyleKing
 repository_provider: https://github.com
 use_goreleaser: true
