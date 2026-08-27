@@ -157,3 +157,12 @@ repos, last written 2026-02-14). Do not run `clear`; rebuilding it means a full
 re-sync. Summarization and embeddings run locally under `uv`, so there is no API
 spend, only GitHub rate limit during `sync` and about 2 GB of local ML
 dependencies on first `--embed`.
+
+## From the 2026-08-27 copier update (v0.9.1 → v0.12.0)
+
+- `.github/workflows/bump_version.yml` kept its pre-update three-job shape
+  (bump-version → build-linux → release) untouched rather than adopting the
+  template's new `prerelease` workflow_dispatch input (alpha/beta/rc) or its
+  `released`/`version`/`tag` output rename. Worth hand-porting the prerelease
+  input if manual prereleases become useful, but it touches every `if:` in the
+  pipeline so do it deliberately, not as part of a routine update
