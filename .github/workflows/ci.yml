@@ -21,7 +21,7 @@ jobs:
       # mise owns the Go toolchain in this job. actions/setup-go alongside it puts
       # a second GOROOT on PATH, and `go` then loads a `compile` from the other
       # tree: "version go1.X does not match go tool version go1.Y".
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
 
       - run: mise run ci
 
@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
 
       # The same steps the pre-commit hook runs, so a `--no-verify` commit or a
       # checkout that never ran `hk install --mise` cannot bypass them.
@@ -57,7 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
 
       - run: actionlint
 
@@ -85,7 +85,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
 
       # A project defines ci:project in its own .config/mise/conf.d file, so a
       # gate that only it needs runs in CI without editing this workflow, which
