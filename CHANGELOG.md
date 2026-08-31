@@ -1,3 +1,9 @@
+## v1.0.7 (2026-08-31)
+
+### Fix
+
+- **mise**: relock all tool platforms after the copier update's version bumps
+
 ## v1.0.6 (2026-08-31)
 
 ### Fix
