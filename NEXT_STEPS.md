@@ -126,17 +126,6 @@ local fixes:
 - `go_template/.goreleaser.yml.jinja` sets `CGO_ENABLED=0`, which silently breaks
   any child with a cgo dependency. An opt-in copier question would surface it
 
-Left over:
-
-- `.pre-commit-config.yaml` is still in the tree because the template still ships
-  it, but prek's git hooks are uninstalled and hk's config-based hooks
-  (`hook.hk-*.command`, git 2.55) are what run. The template tracks removing it
-- `AGENTS.md` is in the template's `_skip_if_exists`, so this repo still carries
-  the pre-v0.6 shape (`### Package Guidelines`, `### File Organization`) and never
-  received the v0.9.x rewrite. That rewrite adds the verification checklist and
-  the "a release is verified by distinct hashes, not asset count" rule, both of
-  which apply here. Worth hand-syncing while keeping this repo's package tree
-
 ## Loose ends
 
 - `[tool.tomlsort]` in `pyproject.toml` is dead config. toml-sort was dropped
