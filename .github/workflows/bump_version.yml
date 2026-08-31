@@ -6,6 +6,11 @@ name: Bump Version
     branches: ["main"]
   workflow_dispatch: null # For manual runs
 
+# Cancelling can leave the bump commit pushed without its tag, so queue instead
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   bump-version:
     # Ignore the commits from this action
