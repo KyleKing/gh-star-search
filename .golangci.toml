@@ -223,7 +223,9 @@ enabled-tags = [
   "opinionated",
 ]
 disabled-checks = [
-  "hugeParam",  # BubbleTea root Models are large by design; value receivers keep Update/View copy semantics
+  # BubbleTea root Models are large by design; value receivers keep Update/View copy
+  # semantics. Drop this entry in a project whose model is on pointer receivers.
+  "hugeParam",
   "unnamedResult",  # contradicts nonamedreturns, which is enabled and wins
   "whyNoLint",
 ]

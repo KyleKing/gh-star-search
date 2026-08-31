@@ -14,9 +14,7 @@ import (
 	"github.com/KyleKing/gh-star-search/internal/related"
 )
 
-var (
-	testProvider *LocalProvider
-)
+var testProvider *LocalProvider
 
 func TestMain(m *testing.M) {
 	uvPath, err := python.FindUV()

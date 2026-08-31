@@ -52,7 +52,8 @@ func warmModel(uvPath, projectDir string) {
 		"--method", "transformers", "--json")
 	cmd.Stdin = strings.NewReader(
 		"Pre-warm run to download the transformer model and populate the OS page cache. " +
-			"This text is long enough to trigger actual model inference rather than a passthrough.")
+			"This text is long enough to trigger actual model inference rather than a passthrough.",
+	)
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 

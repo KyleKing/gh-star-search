@@ -33,20 +33,8 @@ version = "0.15.0"
 backend = "go:github.com/golangci/golines"
 
 [[tools.golangci-lint]]
-version = "2.12.2"
+version = "2.13.2"
 backend = "aqua:golangci/golangci-lint"
-
-[tools.golangci-lint."platforms.linux-x64"]
-checksum = "sha256:8df580d2670fed8fa984aac0507099af8df275e665215f5c7a2ae3943893a553"
-url = "https://github.com/golangci/golangci-lint/releases/download/v2.12.2/golangci-lint-2.12.2-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/413471054"
-provenance = "github-attestations"
-
-[tools.golangci-lint."platforms.macos-arm64"]
-checksum = "sha256:a9c54498731b3128f79e090be6110f3e5fffccc617b08142ed244d4126c73f29"
-url = "https://github.com/golangci/golangci-lint/releases/download/v2.12.2/golangci-lint-2.12.2-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/413470950"
-provenance = "github-attestations"
 
 [[tools.goreleaser]]
 version = "2.17.1"
@@ -65,18 +53,8 @@ url_api = "https://api.github.com/repos/goreleaser/goreleaser/releases/assets/49
 provenance = "github-attestations"
 
 [[tools.hk]]
-version = "1.53.0"
+version = "1.56.1"
 backend = "aqua:jdx/hk"
-
-[tools.hk."platforms.linux-x64"]
-checksum = "sha256:960c14b3bcd61e36dcb42c304e3cc23b22ef2e6f28ac6559e3856d27acf6b54a"
-url = "https://github.com/jdx/hk/releases/download/v1.53.0/hk-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/jdx/hk/releases/assets/487429267"
-
-[tools.hk."platforms.macos-arm64"]
-checksum = "sha256:d5c1f9a4c3598cc72c9f15908af6e036b138b9dd97c8891e4d08f699c98a5069"
-url = "https://github.com/jdx/hk/releases/download/v1.53.0/hk-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/jdx/hk/releases/assets/487429255"
 
 [[tools.jq]]
 version = "1.8.2"
@@ -109,7 +87,7 @@ url = "https://github.com/loeffel-io/ls-lint/releases/download/v2.3.1/ls-lint-da
 url_api = "https://api.github.com/repos/loeffel-io/ls-lint/releases/assets/260857541"
 
 [[tools."pipx:commitizen"]]
-version = "4.17.0"
+version = "4.18.0"
 backend = "pipx:commitizen"
 
 [[tools."pipx:yamllint"]]
@@ -145,31 +123,9 @@ url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellche
 url_api = "https://api.github.com/repos/koalaman/shellcheck/releases/assets/279056932"
 
 [[tools.tombi]]
-version = "1.4.0"
+version = "1.5.0"
 backend = "aqua:tombi-toml/tombi"
 
-[tools.tombi."platforms.linux-x64"]
-checksum = "sha256:e2dc1190e0590b1fd0581fa8f85017215ed9b05a4d85c1cf18e0979b6cf24fe1"
-url = "https://github.com/tombi-toml/tombi/releases/download/v1.4.0/tombi-cli-1.4.0-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/tombi-toml/tombi/releases/assets/513163088"
-provenance = "github-attestations"
-
-[tools.tombi."platforms.macos-arm64"]
-checksum = "sha256:248159d26488f11fe8c36b9239b1ab84abe3533f4a5d8d066e56c091a99ffde1"
-url = "https://github.com/tombi-toml/tombi/releases/download/v1.4.0/tombi-cli-1.4.0-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/tombi-toml/tombi/releases/assets/513163062"
-provenance = "github-attestations"
-
 [[tools.typos]]
-version = "1.49.0"
+version = "1.50.0"
 backend = "aqua:crate-ci/typos"
-
-[tools.typos."platforms.linux-x64"]
-checksum = "sha256:48bd2d58e02ce713b8c0f1aa239e68ee4f7d8c551013135806e6aed3938d9e10"
-url = "https://github.com/crate-ci/typos/releases/download/v1.49.0/typos-v1.49.0-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/crate-ci/typos/releases/assets/500261019"
-
-[tools.typos."platforms.macos-arm64"]
-checksum = "sha256:8c0e7bd40b2b60c0b0cfe9f74dd814b4d4385c956ce86860f7da9e62d91fdc73"
-url = "https://github.com/crate-ci/typos/releases/download/v1.49.0/typos-v1.49.0-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/crate-ci/typos/releases/assets/500262463"

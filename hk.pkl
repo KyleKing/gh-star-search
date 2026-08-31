@@ -5,10 +5,10 @@
 // pkl `local`, so the version is repeated as a literal. All five occurrences are
 // listed in .doneram.pkl and patched together.
 
-amends "package://github.com/jdx/hk/releases/download/v1.53.0/hk@1.53.0#/Config.pkl"
-import "package://github.com/jdx/hk/releases/download/v1.53.0/hk@1.53.0#/Builtins.pkl"
+amends "package://github.com/jdx/hk/releases/download/v1.56.1/hk@1.56.1#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.56.1/hk@1.56.1#/Builtins.pkl"
 
-min_hk_version = "1.53.0"
+min_hk_version = "1.56.1"
 
 // Golden files are byte-exact terminal snapshots and intentionally carry no
 // trailing newline. Any whitespace fixer that rewrites them breaks the tests.
@@ -57,6 +57,17 @@ local linters = new Mapping<String, Step> {
               exit 1
             fi
             """
+    }
+    // The one Go step at commit time. `golangci-lint fmt` runs the formatters
+    // .golangci.toml configures and typechecks nothing, so a cold build cache
+    // costs it nothing. `golangci-lint run` is deliberately absent: it
+    // typechecks, which is seconds on a cold cache, and pre-push and CI
+    // already run it.
+    ["go-format"] {
+        batch = true
+        glob = List("**/*.go")
+        check = "golangci-lint fmt --diff {{files}}"
+        fix = "golangci-lint fmt {{files}}"
     }
     ["ls-lint"] {
         check = "ls-lint"
@@ -115,7 +126,10 @@ local linters = new Mapping<String, Step> {
 //   is the one Python check worth keeping because a stray breakpoint is cheap to
 //   catch and expensive to ship.
 // - check-toml has no builtin and needs none: tombi-format parses every TOML
-//   file before formatting it, so TOML that fails to parse fails there.
+//   file before formatting it, so TOML that fails to parse fails there. It is
+//   also the only TOML formatter here: toml-sort collapses arrays and respaces
+//   inline tables the other way round, so running both leaves every TOML file
+//   rewritten by whichever ran last.
 // - destroyed-symlinks has no hk equivalent, so a symlink committed as a regular
 //   file after a checkout without symlink support goes unnoticed. check-symlinks
 //   covers only broken symlinks. `hk builtins | grep -i symlink` on a future

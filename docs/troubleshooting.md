@@ -97,3 +97,15 @@ Regenerate with `go test ./... -update` and review the diff. Never hand-edit.
 ```bash
 go test -v -run TestName ./package
 ```
+
+## `jj git push` runs no git hooks
+
+A colocated jj repo bypasses `pre-push` entirely, so `verify-released`,
+`commitizen-branch`, and every linter this template installs are inert. Run
+`hk check --all` by hand before pushing from jj.
+
+## Project-specific entries
+
+This file is template-owned and `copier update` keeps it current. Put entries that
+only apply to this project in `docs/troubleshooting.local.md`, which the template
+never renders, so they survive the next update instead of re-conflicting.

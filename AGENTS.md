@@ -101,12 +101,19 @@ a rendering bug. For scripted tests prefer
 `github.com/charmbracelet/x/exp/teatest`, which drives the `tea.Model` directly and
 diffs golden frames; on Bubble Tea v2 that import is
 `github.com/charmbracelet/x/exp/teatest/v2`, because the unsuffixed module targets v1.
-Fall back to `github.com/creack/pty` for non-Bubble Tea binaries.
+Fall back to `github.com/creack/pty`, or `github.com/Netflix/go-expect` for
+expect-style send/wait-for-pattern interaction, on non-Bubble Tea binaries.
+
+Judging whether it looks right means checking wrapping and truncation at the target
+width, no overlapping or stale content between re-renders, cursor and alt-screen state
+restored on every quit path, and no ANSI escapes bleeding into piped output.
 
 Exercise deliberately, because each of these renders fine in the happy path and breaks
 elsewhere: resize mid-session (`SIGWINCH`) and the minimum supported size; every quit
-path independently (`q`, `ctrl-c`, `esc`) restoring cursor and alt-screen state; empty
-and single-item states; and piped non-tty stdout degrading instead of hanging.
+path independently (`q`, `ctrl-c`, `esc`); full keyboard navigation including tab focus
+order and wraparound at list boundaries; empty and single-item states; rapid repeated
+keypresses against a debounced action; multi-byte and unicode paste; and piped non-tty
+stdout degrading instead of hanging.
 
 Turn every bug found this way into a test named for its trigger
 (`TestQuit_RestoresCursorOnCtrlC`), parametrized over terminal size rather than
@@ -141,6 +148,9 @@ re-apply, whereas a skipped file drifts without ever saying so. `_skip_if_exists
 for files the template has nothing further to say about after the first render, which
 is why it holds `README.md`, `DESIGN.md`, `go.mod`, and `.config/mise.toml` and nothing
 that carries template-maintained content.
+
+Deleting a `_skip_if_exists` file brings it back on the next update, because copier
+only skips a file that is already there. To be rid of one, empty it instead.
 
 Resolving a conflict is half the work. The other half is deciding which side was
 better and backporting it. A `.rej` is a diff between what the template renders and
