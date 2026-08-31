@@ -4,12 +4,15 @@
 #
 # GitHub has no API for creating personal access tokens, so the tap push uses a
 # deploy key instead: goreleaser pushes the cask over SSH, authenticated by a
-# key that exists only on the tap repo. This script generates the keypair, adds
-# the public half as a write-enabled deploy key on the tap repo, archives the
-# private half in 1Password, and stores it as the TAP_DEPLOY_KEY Actions secret
-# on the current repo (the name .goreleaser.yml and the release workflow expect).
-# Re-running rotates the key: the old deploy key and 1Password item with the
-# same title are replaced, and the secret is overwritten.
+# key that exists only on the tap repo. This script has 1Password generate the
+# keypair (an item created with `--ssh-generate-key` is one it can read back;
+# one built from `item create --template` with a raw SSHKEY-typed field is not,
+# confirmed against 1Password CLI 2.39.0 across several existing items), adds
+# the public half as a write-enabled deploy key on the tap repo, and stores the
+# private half as the TAP_DEPLOY_KEY Actions secret on the current repo (the
+# name .goreleaser.yml and the release workflow expect). Re-running rotates the
+# key: the old deploy key and 1Password item with the same title are replaced,
+# and the secret is overwritten.
 #
 # Usage: provision-tap-deploy-key.sh [tap-repo]
 #   tap-repo  defaults to <owner>/homebrew-tap for the current repo's owner
@@ -44,19 +47,12 @@ if ! gh repo view "$tap_repo" >/dev/null 2>&1; then
     exit 1
 fi
 
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
-ssh-keygen -q -t ed25519 -N "" -C "$title" -f "$tmp/id_ed25519"
-
 gh repo deploy-key list --repo "$tap_repo" --json id,title \
     -q ".[] | select(.title == \"$title\") | .id" |
     while read -r key_id; do
         echo "Removing existing deploy key $key_id"
         gh repo deploy-key delete --repo "$tap_repo" "$key_id"
     done
-
-gh repo deploy-key add --repo "$tap_repo" --allow-write --title "$title" "$tmp/id_ed25519.pub"
-echo "Added write deploy key to $tap_repo"
 
 op item list --vault "$OP_VAULT" --format json |
     python3 -c '
@@ -71,23 +67,18 @@ for item in json.load(sys.stdin):
         op item delete --vault "$OP_VAULT" "$item_id"
     done
 
-op item template get --out-file "$tmp/ssh-template.json" "SSH Key" >/dev/null
-python3 -c '
-import json, sys
-path, title, key_path = sys.argv[1:]
-with open(path) as f:
-    template = json.load(f)
-template["title"] = title
-with open(key_path) as f:
-    key = f.read()
-for field in template["fields"]:
-    if field["id"] == "private_key":
-        field["value"] = key
-with open(path, "w") as f:
-    json.dump(template, f)
-' "$tmp/ssh-template.json" "$title" "$tmp/id_ed25519"
-op item create --template "$tmp/ssh-template.json" --vault "$OP_VAULT" >/dev/null
-echo "Archived private key in 1Password vault '$OP_VAULT' as '$title'"
+item_id="$(op item create --category="SSH Key" --title="$title" \
+    --vault "$OP_VAULT" --ssh-generate-key=ed25519 --format json |
+    python3 -c 'import json, sys; print(json.load(sys.stdin)["id"])')"
+echo "Generated SSH key in 1Password vault '$OP_VAULT' as '$title'"
 
-gh secret set "$SECRET_NAME" --repo "$target_repo" <"$tmp/id_ed25519"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+op read "op://$OP_VAULT/$item_id/public key" >"$tmp/id_ed25519.pub"
+gh repo deploy-key add --repo "$tap_repo" --allow-write --title "$title" "$tmp/id_ed25519.pub"
+echo "Added write deploy key to $tap_repo"
+
+op read "op://$OP_VAULT/$item_id/private key?ssh-format=openssh" |
+    gh secret set "$SECRET_NAME" --repo "$target_repo"
 echo "Set Actions secret $SECRET_NAME on $target_repo"
