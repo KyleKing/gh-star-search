@@ -25,7 +25,7 @@ func TestFormatter_FormatResult(t *testing.T) {
 		ForksCount:      56,
 		SizeKB:          789,
 		CreatedAt:       time.Date(2020, 1, 15, 10, 0, 0, 0, time.UTC),
-		UpdatedAt:       time.Date(2024, 9, 1, 15, 30, 0, 0, time.UTC),
+		UpdatedAt:       time.Now().AddDate(-1, 0, 0),
 		LastSynced:      time.Date(2024, 9, 14, 12, 0, 0, 0, time.UTC),
 		OpenIssuesOpen:  5,
 		OpenIssuesTotal: 25,
