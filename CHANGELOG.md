@@ -1,3 +1,9 @@
+## v1.0.8 (2026-09-03)
+
+### Fix
+
+- **formatter**: use relative UpdatedAt in age test to survive year boundary
+
 ## v1.0.7 (2026-08-31)
 
 ### Fix
