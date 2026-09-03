@@ -91,10 +91,8 @@ func TestGetStarredRepos_NetworkTimeout(t *testing.T) {
 	mockClient := newMockRESTClient()
 	client := &clientImpl{apiClient: mockClient}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-1*time.Millisecond))
 	defer cancel()
-
-	time.Sleep(2 * time.Millisecond)
 
 	_, err := client.GetStarredRepos(ctx, "testuser")
 
