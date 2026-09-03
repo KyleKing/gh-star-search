@@ -45,19 +45,33 @@ run = "hk fix --quiet"
 
 [tasks.lint]
 description = "Run linter"
-raw_args = true
 run = "golangci-lint run ./..."
+raw_args = true
 
 [tasks.test]
 description = "Run tests with coverage"
-raw_args = true
 run = "go test -coverprofile=coverage.out ./..."
+raw_args = true
 
+# `go test -cover` instruments the test binary, so a test that drives the built
+# binary reads as 0% however much it exercises. A TestMain that builds the child
+# with `go build -cover` and passes it GOCOVERDIR=$COVERDIR_SUBPROCESS puts that
+# half back. A project with no such test writes nothing there and the merge is a
+# no-op, so this is correct either way.
 [tasks."test:coverage-min"]
-description = "Verify minimum coverage threshold (70%)"
+description = "Verify minimum coverage threshold (70%), subprocess tests included"
 run = '''
-go test -coverprofile=coverage.out -coverpkg=./... ./...
-coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+set -euo pipefail
+dir=$(mktemp -d)
+trap 'rm -rf "$dir"' EXIT
+mkdir -p "$dir/unit" "$dir/subprocess" "$dir/merged"
+COVERDIR_SUBPROCESS="$dir/subprocess" go test -count=1 -cover -coverpkg=./... ./... -args -test.gocoverdir="$dir/unit"
+go tool covdata merge -i="$dir/unit,$dir/subprocess" -o="$dir/merged"
+go tool covdata textfmt -i="$dir/merged" -o=coverage.out
+# ^total: rather than total, which also matches every covered function whose
+# name contains it, handing awk two numbers and failing the gate with a syntax
+# error rather than a verdict.
+coverage=$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $3}' | sed 's/%//')
 echo "Current coverage: ${coverage}%"
 if (( $(awk "BEGIN {print ($coverage < 70)}") )); then
     echo "Coverage ${coverage}% is below 70% minimum threshold"
@@ -69,8 +83,7 @@ fi
 description = "View coverage report in browser"
 run = "go tool cover -html=coverage.out"
 
-# Every literal here is listed in .doneram.pkl and updated by doneram. "latest"
-# is deliberately absent: a formatter or linter that resolves differently on a
+# "latest" is deliberately absent: a formatter or linter that resolves differently on a
 # laptop than on a runner fails only in CI, which is the worst place to find out.
 [tools]
 actionlint = "1.7.12"

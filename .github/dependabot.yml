@@ -8,6 +8,11 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Untagged submodules: Dependabot resolves these to github.com/charmbracelet/x@v0.1.0,
+    # which lacks the package, and errors the run. Drop each once it ships its own tag.
+    ignore:
+      - dependency-name: "github.com/charmbracelet/x/exp/golden"
+      - dependency-name: "github.com/charmbracelet/x/vt"
     groups:
       go-dependencies:
         update-types:

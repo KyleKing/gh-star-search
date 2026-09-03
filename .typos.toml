@@ -3,6 +3,11 @@
 # by rewriting history. Catch it in the commit message instead.
 extend-exclude = ["CHANGELOG.md"]
 
+[default]
+# Abbreviated commit hashes. Every one of them is a word made of a-f, and
+# "f3a9ba6" is not a misspelling of anything.
+extend-ignore-identifiers-re = ["^[0-9a-f]{7,40}$"]
+
 # golangci-lint linter identifiers that typos reads as misspellings.
 [default.extend-words]
 decorder = "decorder"

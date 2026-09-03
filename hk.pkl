@@ -1,9 +1,8 @@
 // Install with `hk install --mise` to ensure local tools are available
 // Skip with `HK=0` or `git ... --no-verify`
 //
-// `amends`/`import` must be the first module members and cannot interpolate a
-// pkl `local`, so the version is repeated as a literal. All five occurrences are
-// listed in .doneram.pkl and patched together.
+// `amends`/`import` must come first and cannot interpolate a pkl `local`, so the
+// hk version is a repeated literal. Patch every copy and the mise pin together.
 
 amends "package://github.com/jdx/hk/releases/download/v1.56.1/hk@1.56.1#/Config.pkl"
 import "package://github.com/jdx/hk/releases/download/v1.56.1/hk@1.56.1#/Builtins.pkl"
