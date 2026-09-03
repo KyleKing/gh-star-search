@@ -1,3 +1,9 @@
+## v1.0.9 (2026-09-03)
+
+### Fix
+
+- **github**: remove sleep race in network timeout test
+
 ## v1.0.8 (2026-09-03)
 
 ### Fix
